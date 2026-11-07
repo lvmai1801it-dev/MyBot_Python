@@ -1,0 +1,42 @@
+# ==========================================
+# MÔI TRƯỜNG PYTHON
+# ==========================================
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# CÔNG CỤ IDE / EDITOR
+# ==========================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# FILE RÁC TỪ TEST OCR (Rất quan trọng)
+# ==========================================
+local_test/
+my_screenshot.png
+debug_*.png
+test_*.png
+screenshots/
+
+# ==========================================
+# LOG VÀ DATABASE CỤC BỘ
+# ==========================================
+*.log
+settings.json
+profiles/
+*.sqlite3
+
+# ==========================================
+# HỆ ĐIỀU HÀNH
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
