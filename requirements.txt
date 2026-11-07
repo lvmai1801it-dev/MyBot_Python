@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────────────
+# SIMPLICITY BOT v3.50 — Python Dependencies
+# Python: 3.10 – 3.13 (khuyến nghị 3.11 hoặc 3.12)
+# ─────────────────────────────────────────────────────────
+
+# === GUI ===
+PyQt5==5.15.11
+
+# === Computer Vision / Image Processing ===
+opencv-python==4.10.0.84
+numpy==1.26.4
+scikit-image==0.24.0
+
+# === OCR (EasyOCR + backend) ===
+easyocr==1.7.2
+
+# === Emulator control ===
+uiautomator2==3.2.3
+
+# === Networking / Update checker ===
+requests==2.32.3
+packaging==24.1
+certifi==2024.8.30

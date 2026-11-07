@@ -1,0 +1,45 @@
+{
+  "presets": {
+    "Dragon Balloon": {
+      "troops": {
+        "dragon": 9,
+        "balloon": 4
+      },
+      "spells": {
+        "rage": 5,
+        "freeze": 1
+      },
+      "siege": {
+        "slammer": 1
+      }
+    },
+    "E-Drag Rush": {
+      "troops": {
+        "electro_dragon": 7,
+        "balloon": 2
+      },
+      "spells": {
+        "rage": 6,
+        "freeze": 1
+      },
+      "siege": {
+        "slammer": 1
+      }
+    },
+    "gaint_baba_wiza": {
+      "troops": {},
+      "spells": {},
+      "siege": {}
+    },
+    "combonew": {
+      "troops": {
+        "barbarian": 20,
+        "giant": 20,
+        "wizard": 20
+      },
+      "spells": {},
+      "siege": {}
+    }
+  },
+  "active": "combonew"
+}
