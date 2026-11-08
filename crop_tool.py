@@ -8,7 +8,7 @@ import os
 class CropTool:
     def __init__(self, root):
         self.root = root
-        self.root.title("Bot Coords & Template Capture Tool (Color Picker)")
+        self.root.title("Bot Coords & Template Capture Tool (Color & Polygon)")
         self.root.geometry("1200x950")
 
         self.start_x = None
@@ -23,6 +23,9 @@ class CropTool:
         self.current_y1 = 0
         self.current_x2 = 0
         self.current_y2 = 0
+        
+        # Biến lưu ĐA GIÁC (Polygon) - Không giới hạn số điểm
+        self.polygon_points = []
         
         self.default_save_dir = os.path.join(os.getcwd(), "Templates", "Smart_Auto_train")
 
@@ -52,8 +55,8 @@ class CropTool:
         btn_copy_xywh = tk.Button(top_frame, text="📋 Copy X Y W H", command=self.copy_xywh, bg="#4CAF50", fg="white", font=("Arial", 10, "bold"))
         btn_copy_xywh.pack(side=tk.LEFT, padx=2)
 
-        # --- KHUNG CẤU HÌNH CLICK CAPTURE ---
-        capture_frame = tk.LabelFrame(root, text="Click Capture (Cắt Template tự động)", font=("Arial", 10, "bold"), fg="blue")
+        # --- KHUNG CẤU HÌNH CLICK CAPTURE & POLYGON ---
+        capture_frame = tk.LabelFrame(root, text="Công cụ", font=("Arial", 10, "bold"), fg="blue")
         capture_frame.pack(pady=5, fill=tk.X, padx=10)
 
         tk.Label(capture_frame, text="Name:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
@@ -75,6 +78,18 @@ class CropTool:
         self.chk_click_mode = tk.Checkbutton(capture_frame, text="Bật Click Capture", variable=self.click_mode_var, font=("Arial", 10, "bold"), fg="red")
         self.chk_click_mode.grid(row=0, column=6, padx=15, pady=5)
 
+        # TÍNH NĂNG POLYGON KHÔNG GIỚI HẠN
+        self.polygon_mode_var = tk.BooleanVar(value=False)
+        self.chk_polygon_mode = tk.Checkbutton(capture_frame, text="✏️ Vẽ Đa Giác", variable=self.polygon_mode_var, font=("Arial", 10, "bold"), fg="green")
+        self.chk_polygon_mode.grid(row=0, column=7, padx=15, pady=5)
+
+        btn_clear_poly = tk.Button(capture_frame, text="Xóa Điểm", command=self.clear_polygon, bg="#F44336", fg="white")
+        btn_clear_poly.grid(row=0, column=8, padx=5, pady=5)
+
+        # NÚT MỚI: COPY TỌA ĐỘ ĐA GIÁC
+        btn_copy_poly = tk.Button(capture_frame, text="📋 Copy Điểm", command=self.copy_polygon, bg="#FF5722", fg="white", font=("Arial", 9, "bold"))
+        btn_copy_poly.grid(row=0, column=9, padx=5, pady=5)
+
         # --- HIỂN THỊ TỌA ĐỘ & MÀU SẮC & PREVIEW ---
         info_frame = tk.Frame(root)
         info_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -82,7 +97,6 @@ class CropTool:
         self.lbl_coords = tk.Label(info_frame, text="Bấm 'Chụp Màn Hình' để bắt đầu...\n(Chuột phải để hút màu Hex)", font=("Consolas", 11), fg="red", justify=tk.LEFT)
         self.lbl_coords.pack(side=tk.LEFT, anchor="w")
 
-        # Label hiển thị màu vừa hút
         self.lbl_color_info = tk.Label(info_frame, text="Màu: Chưa chọn", font=("Consolas", 12, "bold"), bg="white", fg="black", width=25)
         self.lbl_color_info.pack(side=tk.LEFT, padx=20)
 
@@ -119,16 +133,12 @@ class CropTool:
         self.root.update()
 
         try:
-            # ========================================================
-            # TỰ ĐỘNG TÌM ĐƯỜNG DẪN ADB.EXE (CẬP NHẬT CHO src/adb/adb.exe)
-            # ========================================================
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            
             possible_adb_paths = [
-                os.path.join(current_dir, "adb", "adb.exe"),          # Đường dẫn mới của bạn (src/adb/adb.exe)
-                os.path.join(current_dir, "adb.exe"),                 # Nếu để chung thư mục src
-                os.path.join(current_dir, "COCbot", "emulator", "bin", "adb.exe"), # Cấu trúc cũ
-                "adb" # Fallback
+                os.path.join(current_dir, "adb", "adb.exe"),
+                os.path.join(current_dir, "adb.exe"),
+                os.path.join(current_dir, "COCbot", "emulator", "bin", "adb.exe"),
+                "adb"
             ]
             
             adb_bin = None
@@ -146,7 +156,6 @@ class CropTool:
                 if not adb_bin: return
 
             print(f"✅ Đang dùng ADB tại: {adb_bin}")
-            # ========================================================
 
             command = [adb_bin, "-s", device_id, "exec-out", "screencap", "-p"]
             creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
@@ -158,6 +167,7 @@ class CropTool:
 
             self.original_image = Image.open(io.BytesIO(result.stdout)).convert("RGB")
             self.zoom_factor = 1.0 
+            self.clear_polygon()
             self.update_canvas_image()
             self.lbl_coords.config(text="Chụp thành công! Kéo chuột trái để cắt, chuột phải để hút màu.", fg="green")
             self.lbl_preview.config(image="", text="[Chưa chọn vùng]")
@@ -184,6 +194,8 @@ class CropTool:
             draw_x2 = self.current_x2 * self.zoom_factor
             draw_y2 = self.current_y2 * self.zoom_factor
             self.canvas.create_rectangle(draw_x1, draw_y1, draw_x2, draw_y2, outline='red', width=2)
+            
+        self.draw_polygon()
 
     def zoom_image(self, factor):
         if not self.original_image: return
@@ -193,43 +205,94 @@ class CropTool:
     def on_mousewheel(self, event):
         self.zoom_image(1.1 if event.delta > 0 else 0.9)
 
-    # ============================================================
-    # TÍNH NĂNG MỚI: HÚT MÀU (COLOR PICKER)
-    # ============================================================
     def pick_color(self, event):
-        if not self.original_image:
-            return
-            
-        # Lấy tọa độ thực trên ảnh gốc
+        if not self.original_image: return
         cx = self.canvas.canvasx(event.x)
         cy = self.canvas.canvasy(event.y)
         real_x = int(cx / self.zoom_factor)
         real_y = int(cy / self.zoom_factor)
 
-        # Kiểm tra giới hạn ảnh
         if 0 <= real_x < self.original_image.width and 0 <= real_y < self.original_image.height:
             r, g, b = self.original_image.getpixel((real_x, real_y))
             hex_color = f"0x{r:02X}{g:02X}{b:02X}"
             
-            # Copy vào clipboard
             self.root.clipboard_clear()
             self.root.clipboard_append(hex_color)
             
-            # Cập nhật giao diện
             self.lbl_color_info.config(text=f"Màu: {hex_color} (Đã Copy)", bg=f"#{r:02X}{g:02X}{b:02X}", 
                                        fg="white" if (r+g+b) < 400 else "black")
             
-            # Vẽ một dấu chấm nhỏ tại điểm vừa hút để dễ nhìn
             self.canvas.delete("color_pick")
             draw_x = real_x * self.zoom_factor
             draw_y = real_y * self.zoom_factor
             self.canvas.create_oval(draw_x-3, draw_y-3, draw_x+3, draw_y+3, fill="red", outline="white", tags="color_pick")
 
     # ============================================================
+    # CÁC HÀM XỬ LÝ ĐA GIÁC (POLYGON) - KHÔNG GIỚI HẠN ĐIỂM
+    # ============================================================
+    def clear_polygon(self):
+        self.polygon_points = []
+        self.canvas.delete("polygon_layer")
+        self.lbl_coords.config(text="Đã xóa tất cả các điểm.", fg="red")
+
+    def draw_polygon(self):
+        self.canvas.delete("polygon_layer")
+        if not self.polygon_points:
+            return
+
+        draw_points = []
+        for (rx, ry) in self.polygon_points:
+            draw_points.append(rx * self.zoom_factor)
+            draw_points.append(ry * self.zoom_factor)
+            
+        # Vẽ các điểm (chấm tròn)
+        for (rx, ry) in self.polygon_points:
+            cx = rx * self.zoom_factor
+            cy = ry * self.zoom_factor
+            self.canvas.create_oval(cx-4, cy-4, cx+4, cy+4, fill="red", outline="yellow", width=2, tags="polygon_layer")
+            
+        # Vẽ đường nối giữa các điểm
+        if len(draw_points) >= 4: # Từ 2 điểm trở lên
+            self.canvas.create_line(draw_points, fill="yellow", width=2, tags="polygon_layer")
+            
+        # Khép kín đa giác nếu có từ 3 điểm trở lên (nối điểm cuối về điểm đầu)
+        if len(self.polygon_points) >= 3:
+            start_x = self.polygon_points[0][0] * self.zoom_factor
+            start_y = self.polygon_points[0][1] * self.zoom_factor
+            end_x = self.polygon_points[-1][0] * self.zoom_factor
+            end_y = self.polygon_points[-1][1] * self.zoom_factor
+            self.canvas.create_line(end_x, end_y, start_x, start_y, fill="yellow", width=2, tags="polygon_layer")
+            
+        # Hiển thị số lượng điểm hiện tại
+        self.lbl_coords.config(text=f"Đã chọn {len(self.polygon_points)} điểm. (Click thêm để nối, hoặc bấm Copy)", fg="yellow")
+
+    def copy_polygon(self):
+        if len(self.polygon_points) < 3:
+            messagebox.showwarning("Cảnh báo", "Cần ít nhất 3 điểm để tạo thành đa giác!")
+            return
+            
+        # Định dạng xuất ra list các tuple [(x1,y1), (x2,y2), ...]
+        coord_str = "[\n"
+        for (rx, ry) in self.polygon_points:
+            coord_str += f"    ({rx}, {ry}),\n"
+        coord_str += "]"
+        
+        self.root.clipboard_clear()
+        self.root.clipboard_append(coord_str)
+        self.lbl_coords.config(text=f"📋 Đã Copy {len(self.polygon_points)} điểm vào Clipboard!", fg="green")
 
     def on_button_press(self, event):
         if not self.pil_image: return
         
+        # Chế độ vẽ đa giác
+        if self.polygon_mode_var.get():
+            real_x = int(self.canvas.canvasx(event.x) / self.zoom_factor)
+            real_y = int(self.canvas.canvasy(event.y) / self.zoom_factor)
+            
+            self.polygon_points.append((real_x, real_y))
+            self.draw_polygon()
+            return
+
         self.canvas.delete("captured_box")
 
         if self.click_mode_var.get():
@@ -275,13 +338,13 @@ class CropTool:
             messagebox.showerror("Lỗi", "Size phải là số nguyên!")
 
     def on_move_press(self, event):
-        if not self.pil_image or self.click_mode_var.get(): return
+        if not self.pil_image or self.click_mode_var.get() or self.polygon_mode_var.get(): return
         cur_x = self.canvas.canvasx(event.x)
         cur_y = self.canvas.canvasy(event.y)
         self.canvas.coords(self.rect, self.start_x, self.start_y, cur_x, cur_y)
 
     def on_button_release(self, event):
-        if not self.pil_image or self.click_mode_var.get(): return
+        if not self.pil_image or self.click_mode_var.get() or self.polygon_mode_var.get(): return
         end_x = self.canvas.canvasx(event.x)
         end_y = self.canvas.canvasy(event.y)
         
