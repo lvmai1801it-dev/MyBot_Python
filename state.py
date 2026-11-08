@@ -1,18 +1,6 @@
-# ==== state.py ====
-import threading
+# ==== src/state.py (Backward-Compatibility Shim) ====
+import sys
+import COCbot.core.paths  # noqa: F401
+import COCbot.core.state as _state
 
-# ADB target
-host = None
-ld_index = 0
-ld_name = None
-emulator_key = None
-
-# Flow control
-stop_event = threading.Event()
-pause_event = threading.Event()
-pause_event.set()
-
-# Cycle counter / vestigial
-_cycle_count = 0
-_saved_wall_offset = None
-wall_save = False
+sys.modules[__name__] = _state

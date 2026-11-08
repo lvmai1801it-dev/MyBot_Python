@@ -8,7 +8,7 @@ import os
 class CropTool:
     def __init__(self, root):
         self.root = root
-        self.root.title("Bot Coords & Template Capture Tool (Fixed)")
+        self.root.title("Bot Coords & Template Capture Tool (Color Picker)")
         self.root.geometry("1200x950")
 
         self.start_x = None
@@ -46,7 +46,6 @@ class CropTool:
         btn_save_crop = tk.Button(top_frame, text="💾 Lưu Ảnh Mẫu", command=self.save_crop, bg="#2196F3", fg="white", font=("Arial", 10, "bold"))
         btn_save_crop.pack(side=tk.LEFT, padx=10)
 
-        # --- TÁCH NÚT COPY RA LÀM 2 ---
         btn_copy_xyxy = tk.Button(top_frame, text="📋 Copy XYXY", command=self.copy_xyxy, bg="#4CAF50", fg="white", font=("Arial", 10, "bold"))
         btn_copy_xyxy.pack(side=tk.LEFT, padx=2)
 
@@ -76,12 +75,16 @@ class CropTool:
         self.chk_click_mode = tk.Checkbutton(capture_frame, text="Bật Click Capture", variable=self.click_mode_var, font=("Arial", 10, "bold"), fg="red")
         self.chk_click_mode.grid(row=0, column=6, padx=15, pady=5)
 
-        # --- HIỂN THỊ TỌA ĐỘ & PREVIEW ---
+        # --- HIỂN THỊ TỌA ĐỘ & MÀU SẮC & PREVIEW ---
         info_frame = tk.Frame(root)
         info_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        self.lbl_coords = tk.Label(info_frame, text="Bấm 'Chụp Màn Hình' để bắt đầu...", font=("Consolas", 11), fg="red", justify=tk.LEFT)
+        self.lbl_coords = tk.Label(info_frame, text="Bấm 'Chụp Màn Hình' để bắt đầu...\n(Chuột phải để hút màu Hex)", font=("Consolas", 11), fg="red", justify=tk.LEFT)
         self.lbl_coords.pack(side=tk.LEFT, anchor="w")
+
+        # Label hiển thị màu vừa hút
+        self.lbl_color_info = tk.Label(info_frame, text="Màu: Chưa chọn", font=("Consolas", 12, "bold"), bg="white", fg="black", width=25)
+        self.lbl_color_info.pack(side=tk.LEFT, padx=20)
 
         self.lbl_preview = tk.Label(info_frame, text="[Preview Ảnh Cắt]", bg="gray")
         self.lbl_preview.pack(side=tk.RIGHT, padx=10)
@@ -99,10 +102,12 @@ class CropTool:
         vbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
+        # Bind sự kiện chuột
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_move_press)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
         self.canvas.bind("<MouseWheel>", self.on_mousewheel)
+        self.canvas.bind("<Button-3>", self.pick_color) # Chuột phải để hút màu
 
     def capture_screen(self):
         device_id = self.entry_adb.get().strip()
@@ -114,25 +119,47 @@ class CropTool:
         self.root.update()
 
         try:
-            adb_bin = "adb"
-            try:
-                from emulators.adb_config import ADB_BIN
-                adb_bin = ADB_BIN
-            except ImportError:
-                pass
+            # ========================================================
+            # TỰ ĐỘNG TÌM ĐƯỜNG DẪN ADB.EXE (CẬP NHẬT CHO src/adb/adb.exe)
+            # ========================================================
+            current_dir = os.path.dirname(os.path.abspath(__file__))
             
+            possible_adb_paths = [
+                os.path.join(current_dir, "adb", "adb.exe"),          # Đường dẫn mới của bạn (src/adb/adb.exe)
+                os.path.join(current_dir, "adb.exe"),                 # Nếu để chung thư mục src
+                os.path.join(current_dir, "COCbot", "emulator", "bin", "adb.exe"), # Cấu trúc cũ
+                "adb" # Fallback
+            ]
+            
+            adb_bin = None
+            for path in possible_adb_paths:
+                if path == "adb" or os.path.exists(path):
+                    adb_bin = path
+                    break
+            
+            if not adb_bin:
+                from tkinter import filedialog
+                adb_bin = filedialog.askopenfilename(
+                    title="Không tìm thấy adb.exe. Vui lòng trỏ đến file adb.exe",
+                    filetypes=[("ADB Executable", "adb.exe")]
+                )
+                if not adb_bin: return
+
+            print(f"✅ Đang dùng ADB tại: {adb_bin}")
+            # ========================================================
+
             command = [adb_bin, "-s", device_id, "exec-out", "screencap", "-p"]
             creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             result = subprocess.run(command, capture_output=True, creationflags=creationflags)
             
             if result.returncode != 0:
-                messagebox.showerror("Lỗi ADB", "Không thể chụp màn hình. Kiểm tra lại kết nối.")
+                messagebox.showerror("Lỗi ADB", "Không thể chụp màn hình. Kiểm tra lại kết nối giả lập.")
                 return
 
-            self.original_image = Image.open(io.BytesIO(result.stdout))
+            self.original_image = Image.open(io.BytesIO(result.stdout)).convert("RGB")
             self.zoom_factor = 1.0 
             self.update_canvas_image()
-            self.lbl_coords.config(text="Chụp thành công! Kéo chuột hoặc Click Capture để chọn vùng.", fg="green")
+            self.lbl_coords.config(text="Chụp thành công! Kéo chuột trái để cắt, chuột phải để hút màu.", fg="green")
             self.lbl_preview.config(image="", text="[Chưa chọn vùng]")
 
         except Exception as e:
@@ -166,6 +193,40 @@ class CropTool:
     def on_mousewheel(self, event):
         self.zoom_image(1.1 if event.delta > 0 else 0.9)
 
+    # ============================================================
+    # TÍNH NĂNG MỚI: HÚT MÀU (COLOR PICKER)
+    # ============================================================
+    def pick_color(self, event):
+        if not self.original_image:
+            return
+            
+        # Lấy tọa độ thực trên ảnh gốc
+        cx = self.canvas.canvasx(event.x)
+        cy = self.canvas.canvasy(event.y)
+        real_x = int(cx / self.zoom_factor)
+        real_y = int(cy / self.zoom_factor)
+
+        # Kiểm tra giới hạn ảnh
+        if 0 <= real_x < self.original_image.width and 0 <= real_y < self.original_image.height:
+            r, g, b = self.original_image.getpixel((real_x, real_y))
+            hex_color = f"0x{r:02X}{g:02X}{b:02X}"
+            
+            # Copy vào clipboard
+            self.root.clipboard_clear()
+            self.root.clipboard_append(hex_color)
+            
+            # Cập nhật giao diện
+            self.lbl_color_info.config(text=f"Màu: {hex_color} (Đã Copy)", bg=f"#{r:02X}{g:02X}{b:02X}", 
+                                       fg="white" if (r+g+b) < 400 else "black")
+            
+            # Vẽ một dấu chấm nhỏ tại điểm vừa hút để dễ nhìn
+            self.canvas.delete("color_pick")
+            draw_x = real_x * self.zoom_factor
+            draw_y = real_y * self.zoom_factor
+            self.canvas.create_oval(draw_x-3, draw_y-3, draw_x+3, draw_y+3, fill="red", outline="white", tags="color_pick")
+
+    # ============================================================
+
     def on_button_press(self, event):
         if not self.pil_image: return
         
@@ -189,30 +250,18 @@ class CropTool:
             real_y = int(self.canvas.canvasy(click_y) / self.zoom_factor)
             
             half_size = size // 2
-            
             x1 = real_x - half_size
             y1 = real_y - half_size
             x2 = x1 + size
             y2 = y1 + size
 
-            if x1 < 0:
-                x1 = 0
-                x2 = size
-            if y1 < 0:
-                y1 = 0
-                y2 = size
-            if x2 > self.original_image.width:
-                x2 = self.original_image.width
-                x1 = x2 - size
-            if y2 > self.original_image.height:
-                y2 = self.original_image.height
-                y1 = y2 - size
+            if x1 < 0: x1, x2 = 0, size
+            if y1 < 0: y1, y2 = 0, size
+            if x2 > self.original_image.width: x2, x1 = self.original_image.width, self.original_image.width - size
+            if y2 > self.original_image.height: y2, y1 = self.original_image.height, self.original_image.height - size
 
-            x1, y1 = max(0, x1), max(0, y1)
-            x2, y2 = min(self.original_image.width, x2), min(self.original_image.height, y2)
-
-            self.current_x1, self.current_y1 = x1, y1
-            self.current_x2, self.current_y2 = x2, y2
+            self.current_x1, self.current_y1 = max(0, x1), max(0, y1)
+            self.current_x2, self.current_y2 = min(self.original_image.width, x2), min(self.original_image.height, y2)
 
             self.draw_selection_box()
             self.update_coords_label()
@@ -238,17 +287,11 @@ class CropTool:
         
         img_x1 = int(min(self.start_x, end_x) / self.zoom_factor)
         img_y1 = int(min(self.start_y, end_y) / self.zoom_factor)
-        
         img_x2 = int(max(self.start_x, end_x) / self.zoom_factor) + 1
         img_y2 = int(max(self.start_y, end_y) / self.zoom_factor) + 1
 
-        img_x1 = max(0, img_x1)
-        img_y1 = max(0, img_y1)
-        img_x2 = min(self.original_image.width, img_x2)
-        img_y2 = min(self.original_image.height, img_y2)
-
-        self.current_x1, self.current_y1 = img_x1, img_y1
-        self.current_x2, self.current_y2 = img_x2, img_y2
+        self.current_x1, self.current_y1 = max(0, img_x1), max(0, img_y1)
+        self.current_x2, self.current_y2 = min(self.original_image.width, img_x2), min(self.original_image.height, img_y2)
 
         self.update_coords_label()
         self.update_preview()
@@ -264,7 +307,6 @@ class CropTool:
     def update_coords_label(self):
         w = self.current_x2 - self.current_x1
         h = self.current_y2 - self.current_y1
-        
         text = f"XYXY: ({self.current_x1}, {self.current_y1}, {self.current_x2}, {self.current_y2})\n"
         text += f"X={self.current_x1}, Y={self.current_y1}, W={w}, H={h}"
         self.lbl_coords.config(text=text, fg="red")
@@ -272,18 +314,14 @@ class CropTool:
     def update_preview(self):
         if not self.original_image or self.current_x2 <= self.current_x1:
             return
-            
         cropped = self.original_image.crop((self.current_x1, self.current_y1, self.current_x2, self.current_y2))
-        
         cw, ch = cropped.size
         if cw > 100 or ch > 100:
             scale = min(100/cw, 100/ch)
             cropped = cropped.resize((int(cw*scale), int(ch*scale)), Image.Resampling.LANCZOS)
-            
         self.preview_tk = ImageTk.PhotoImage(cropped)
         self.lbl_preview.config(image=self.preview_tk, text="")
 
-    # --- HÀM COPY XYXY MỚI ---
     def copy_xyxy(self):
         if self.current_x2 == 0 or self.current_x2 <= self.current_x1: 
             messagebox.showwarning("Cảnh báo", "Chưa chọn vùng nào hợp lệ!")
@@ -293,7 +331,6 @@ class CropTool:
         self.root.clipboard_append(coord_str)
         self.lbl_coords.config(text=f"📋 Đã Copy XYXY: {coord_str}", fg="green")
 
-    # --- HÀM COPY X Y W H MỚI ---
     def copy_xywh(self):
         if self.current_x2 == 0 or self.current_x2 <= self.current_x1: 
             messagebox.showwarning("Cảnh báo", "Chưa chọn vùng nào hợp lệ!")
@@ -309,21 +346,16 @@ class CropTool:
         if not self.original_image:
             messagebox.showerror("Lỗi", "Chưa có ảnh! Hãy chụp màn hình trước.")
             return
-        
         w = self.current_x2 - self.current_x1
         h = self.current_y2 - self.current_y1
-        
         if w <= 0 or h <= 0:
             messagebox.showerror("Lỗi", "Vùng chọn không hợp lệ!")
             return
 
         cropped = self.original_image.crop((self.current_x1, self.current_y1, self.current_x2, self.current_y2))
-        
         name = self.entry_name.get().strip() or "template"
-        try:
-            index = int(self.entry_index.get())
-        except ValueError:
-            index = 0
+        try: index = int(self.entry_index.get())
+        except ValueError: index = 0
             
         save_path = filedialog.asksaveasfilename(
             defaultextension=".png", 
@@ -336,7 +368,6 @@ class CropTool:
         if save_path:
             cropped.save(save_path)
             messagebox.showinfo("Thành công", f"Đã lưu ảnh tại:\n{save_path}")
-            
             self.entry_index.delete(0, tk.END)
             self.entry_index.insert(0, str(index + 1))
             self.lbl_coords.config(text=f"✅ Đã lưu file: {os.path.basename(save_path)}", fg="green")

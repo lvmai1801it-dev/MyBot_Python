@@ -11,7 +11,8 @@
       },
       "siege": {
         "slammer": 1
-      }
+      },
+      "side": "Ngẫu nhiên"
     },
     "E-Drag Rush": {
       "troops": {
@@ -24,21 +25,24 @@
       },
       "siege": {
         "slammer": 1
-      }
+      },
+      "side": "Ngẫu nhiên"
     },
     "gaint_baba_wiza": {
       "troops": {},
       "spells": {},
-      "siege": {}
+      "siege": {},
+      "side": "Ngẫu nhiên"
     },
     "combonew": {
       "troops": {
         "barbarian": 20,
         "giant": 20,
-        "wizard": 20
+        "wizard": 10
       },
       "spells": {},
-      "siege": {}
+      "siege": {},
+      "side": "Ngẫu nhiên"
     }
   },
   "active": "combonew"

@@ -1,3 +1,2 @@
-"""Backward-compatibility shim. Canonical coordinates live in core.coords."""
-import core.paths
-from core.coords import *
+# ==== src/coords.py (Backward-Compatibility Shim) ====
+from COCbot.core.coords import *
