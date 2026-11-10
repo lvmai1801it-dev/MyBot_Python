@@ -579,20 +579,10 @@ def bot_loop(cfg):
     except Exception:
         pass
 
-    ensure_home_base()
-    tap(*MENU_TAP)
-    time.sleep(2)
     state.pause_event.wait()
 
-    if connection_popup_visible():
-        print('Connection lost detected—recovering…')
-        boot_recovery()
-        ensure_home_base()
-        tap(*MENU_TAP)
-        time.sleep(2)
-
-    # Entry check: must be on the Home Village (not Builder Base / attack).
-    # On success it zooms out and reads the village's current resources.
+    # Entry: wait for CoC to load, close any btn_close popup, confirm the
+    # Home Village, then zoom out and read its resources.
     try:
         from COCbot.game.village.main_village import prepare_main_village
         resources = prepare_main_village()

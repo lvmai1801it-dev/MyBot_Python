@@ -172,11 +172,15 @@ tools/eval_redline_yolo.py     # IoU, drop safety, coverage, latency
 ## 4.4b. Kiểm tra làng chính khi vào game
 
 - `game/village/main_village.py` → `prepare_main_village()`:
-  1. Xác nhận Home Village: có UI Shop/Build **và** đọc được thanh Dark Elixir.
-     Builder Base không có thanh DE nên bị loại.
-  2. `multi_zoom_out()` để nhìn toàn làng.
-  3. `get_home_resources()` đọc Gold / Elixir / DE, lưu vào
+  1. Quét toàn màn hình tìm `Templates/btn_close.png`; nếu thấy thì tap để
+     đóng popup/overlay và lặp lại đến khi không còn.
+  2. Chỉ sau đó mới xác nhận Home Village: có UI Shop/Build **và** đọc được
+     thanh Dark Elixir. Builder Base không có thanh DE nên bị loại.
+  3. `multi_zoom_out()` để nhìn toàn làng.
+  4. `get_home_resources()` đọc Gold / Elixir / DE, lưu vào
      `COCbot.app.state.current_resources`.
+- `emulator/memu.py` (`ensure_memu`) tự mở MEmu nếu chưa chạy; nếu đang chạy
+  thì đưa về màn hình chính của emulator trước khi `setup_emulator()` mở game.
 - `bootstrap.bot_loop()` gọi bước này ngay khi vào game; nếu không xác nhận
   được làng chính thì dừng bot để tránh thao tác sai.
 
