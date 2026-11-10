@@ -4,3 +4,10 @@
 -r requirements.txt
 
 pyinstaller==6.11.1
+pillow==10.4.0
+
+# === Test & quality tooling ===
+pytest==8.3.3
+ruff==0.6.9
+mypy==1.11.2
+import-linter==2.1
