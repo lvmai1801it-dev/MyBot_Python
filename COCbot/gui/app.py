@@ -279,10 +279,7 @@ def load_settings():
         "wall_gold_threshold": 5000000,
         "wall_elixir_threshold": 5000000,
         "upgrade_hero": False,
-        "hero_targets": {
-            "King": 0, "Queen": 0,
-            "Grand Warden": 0, "Royal Champion": 0,
-        },
+        "hero_priorities": [],
         "upgrade_defense": False,
         "defense_priorities": [],
         "upgrade_resource": False,
@@ -1598,30 +1595,36 @@ class MainWindow(QMainWindow):
         hero_root.setContentsMargins(0, 8, 0, 8)
         hero_root.setSpacing(8)
         hero_card, hero_box = _card(
-            "Hero upgrade", "Cấu hình mục tiêu nâng Hero.")
+            "Hero upgrade", "Tick các tướng muốn ưu tiên nâng cấp.")
         self.upgrade_hero_chk = QCheckBox("Enable Hero Upgrade")
         self.upgrade_hero_chk.setChecked(
             self.settings.get("upgrade_hero", False))
         hero_box.addWidget(self.upgrade_hero_chk)
 
-        hero_targets = self.settings.get("hero_targets", {}) or {}
+        hero_names = (
+            ("Barbarian King", "barbarian_king.png"),
+            ("Archer Queen", "archer_queen.png"),
+            ("Minion Prince", "minion_prince.png"),
+            ("Grand Warden", "grand_warden.png"),
+            ("Royal Champion", "royal_champion.png"),
+            ("Dragon Duke", "dragon_duke.png"),
+        )
+        saved_hero = set(self.settings.get("hero_priorities", []) or [])
+        hero_icon_dir = os.path.join(TEMPLATES_DIR, "upgrade", "hero")
         hero_grid = QGridLayout()
         hero_grid.setHorizontalSpacing(10)
         hero_grid.setVerticalSpacing(6)
-        hero_grid.setColumnStretch(2, 1)
-        self.hero_level_spins = {}
-        for row, name in enumerate(
-                ("King", "Queen", "Grand Warden", "Royal Champion")):
-            lbl = QLabel(name)
-            lbl.setStyleSheet("font-size:11px; color:#193431;")
-            spin = QSpinBox()
-            spin.setRange(0, 100)
-            spin.setValue(int(hero_targets.get(name, 0) or 0))
-            spin.setFixedWidth(90)
-            spin.setFixedHeight(26)
-            hero_grid.addWidget(lbl, row, 0)
-            hero_grid.addWidget(spin, row, 1)
-            self.hero_level_spins[name] = spin
+        self.hero_checks = {}
+        for i, (name, icon_file) in enumerate(hero_names):
+            cb = QCheckBox(name)
+            cb.setChecked(name in saved_hero)
+            icon_path = os.path.join(hero_icon_dir, icon_file)
+            if os.path.exists(icon_path):
+                cb.setIcon(QIcon(icon_path))
+                cb.setIconSize(QSize(28, 28))
+            cb.setMinimumHeight(32)
+            hero_grid.addWidget(cb, i // 2, i % 2)
+            self.hero_checks[name] = cb
         hero_box.addLayout(hero_grid)
 
         hero_note = QLabel(
@@ -2338,10 +2341,10 @@ class MainWindow(QMainWindow):
             "wall_gold_threshold": int(self.wall_gold_entry.text()),
             "wall_elixir_threshold": int(self.wall_elixir_entry.text()),
             "upgrade_hero": self.upgrade_hero_chk.isChecked(),
-            "hero_targets": {
-                name: int(spin.value())
-                for name, spin in self.hero_level_spins.items()
-            },
+            "hero_priorities": [
+                name for name, cb in self.hero_checks.items()
+                if cb.isChecked()
+            ],
             "upgrade_defense": self.upgrade_defense_chk.isChecked(),
             "defense_priorities": [
                 name for name, cb in self.defense_checks.items()
