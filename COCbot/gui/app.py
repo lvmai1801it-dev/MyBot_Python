@@ -278,6 +278,15 @@ def load_settings():
         "wall_level": 5,
         "wall_gold_threshold": 5000000,
         "wall_elixir_threshold": 5000000,
+        "upgrade_hero": False,
+        "hero_targets": {
+            "King": 0, "Queen": 0,
+            "Grand Warden": 0, "Royal Champion": 0,
+        },
+        "upgrade_defense": False,
+        "defense_priorities": [],
+        "upgrade_resource": False,
+        "resource_priorities": [],
         "enable_clan_games": False,
         "request_troops": True,
         "attack": "Dragon_Attack",
@@ -1521,10 +1530,20 @@ class MainWindow(QMainWindow):
 
         # ===== TAB 1.5: Upgrade tab =====
         upgrade_tab = QWidget()
-        up_root = QVBoxLayout(upgrade_tab)
-        up_root.setContentsMargins(0, 8, 0, 8)
-        up_root.setSpacing(8)
+        up_page = QVBoxLayout(upgrade_tab)
+        up_page.setContentsMargins(0, 0, 0, 0)
+        up_page.setSpacing(0)
 
+        up_tabs = QTabWidget()
+        up_tabs.setObjectName("subTabs")
+        up_tabs.setDocumentMode(True)
+        self.upgrade_tabs = up_tabs
+
+        # --- Wall upgrade ---
+        wall_page = QWidget()
+        wall_root = QVBoxLayout(wall_page)
+        wall_root.setContentsMargins(0, 8, 0, 8)
+        wall_root.setSpacing(8)
         wall_card, wall_box = _card(
             "Wall upgrade", "Tự động nâng tường khi đủ tài nguyên.")
         self.upgrade_chk = QCheckBox("Enable Upgrade Wall")
@@ -1550,17 +1569,16 @@ class MainWindow(QMainWindow):
         _add_field(wall_grid, 2, "icon_wall.png", "Target wall level",
                    self.wall_level_spin)
         wall_box.addLayout(wall_grid)
-        up_root.addWidget(wall_card)
+        wall_root.addWidget(wall_card)
 
-        up_tips = QFrame()
-        up_tips.setObjectName("card")
-        tips_box = QVBoxLayout(up_tips)
-        tips_box.setContentsMargins(12, 10, 12, 10)
-        tips_box.setSpacing(6)
-        tips_title = QLabel("Cách hoạt động")
-        tips_title.setStyleSheet(
-            "font-size:12px; font-weight:600; color:#193431;")
-        tips_box.addWidget(tips_title)
+        wall_tips = QFrame()
+        wall_tips.setObjectName("card")
+        wtips = QVBoxLayout(wall_tips)
+        wtips.setContentsMargins(12, 10, 12, 10)
+        wtips.setSpacing(6)
+        wt_title = QLabel("Cách hoạt động")
+        wt_title.setStyleSheet("font-size:12px; font-weight:600; color:#193431;")
+        wtips.addWidget(wt_title)
         for line in (
             "Kiểm tra kho vàng/tiêu mỗi chu kỳ.",
             "Chỉ nâng khi đạt ngưỡng đã đặt.",
@@ -1569,9 +1587,130 @@ class MainWindow(QMainWindow):
             bullet = QLabel(f"•  {line}")
             bullet.setWordWrap(True)
             bullet.setStyleSheet("font-size:10px; color:#657877;")
-            tips_box.addWidget(bullet)
-        up_root.addWidget(up_tips)
-        up_root.addStretch()
+            wtips.addWidget(bullet)
+        wall_root.addWidget(wall_tips)
+        wall_root.addStretch()
+        up_tabs.addTab(wall_page, "Wall upgrade")
+
+        # --- Hero upgrade ---
+        hero_page = QWidget()
+        hero_root = QVBoxLayout(hero_page)
+        hero_root.setContentsMargins(0, 8, 0, 8)
+        hero_root.setSpacing(8)
+        hero_card, hero_box = _card(
+            "Hero upgrade", "Cấu hình mục tiêu nâng Hero.")
+        self.upgrade_hero_chk = QCheckBox("Enable Hero Upgrade")
+        self.upgrade_hero_chk.setChecked(
+            self.settings.get("upgrade_hero", False))
+        hero_box.addWidget(self.upgrade_hero_chk)
+
+        hero_targets = self.settings.get("hero_targets", {}) or {}
+        hero_grid = QGridLayout()
+        hero_grid.setHorizontalSpacing(10)
+        hero_grid.setVerticalSpacing(6)
+        hero_grid.setColumnStretch(2, 1)
+        self.hero_level_spins = {}
+        for row, name in enumerate(
+                ("King", "Queen", "Grand Warden", "Royal Champion")):
+            lbl = QLabel(name)
+            lbl.setStyleSheet("font-size:11px; color:#193431;")
+            spin = QSpinBox()
+            spin.setRange(0, 100)
+            spin.setValue(int(hero_targets.get(name, 0) or 0))
+            spin.setFixedWidth(90)
+            spin.setFixedHeight(26)
+            hero_grid.addWidget(lbl, row, 0)
+            hero_grid.addWidget(spin, row, 1)
+            self.hero_level_spins[name] = spin
+        hero_box.addLayout(hero_grid)
+
+        hero_note = QLabel(
+            "Chưa hỗ trợ tự động. Cấu hình được lưu để dùng khi logic "
+            "nâng Hero được thêm.")
+        hero_note.setWordWrap(True)
+        hero_note.setStyleSheet("font-size:10px; color:#9A6B00;")
+        hero_box.addWidget(hero_note)
+        hero_root.addWidget(hero_card)
+        hero_root.addStretch()
+        up_tabs.addTab(hero_page, "Hero upgrade")
+
+        # --- Defense upgrade ---
+        defense_page = QWidget()
+        defense_root = QVBoxLayout(defense_page)
+        defense_root.setContentsMargins(0, 8, 0, 8)
+        defense_root.setSpacing(8)
+        defense_card, defense_box = _card(
+            "Defense upgrade", "Ưu tiên nâng công trình phòng thủ.")
+        self.upgrade_defense_chk = QCheckBox("Enable Defense Upgrade")
+        self.upgrade_defense_chk.setChecked(
+            self.settings.get("upgrade_defense", False))
+        defense_box.addWidget(self.upgrade_defense_chk)
+
+        defense_names = (
+            "Air Defense", "Inferno Tower", "X-Bow", "Eagle Artillery",
+            "Scattershot", "Monolith",
+        )
+        saved_defense = set(self.settings.get("defense_priorities", []) or [])
+        defense_grid = QGridLayout()
+        defense_grid.setHorizontalSpacing(10)
+        defense_grid.setVerticalSpacing(4)
+        self.defense_checks = {}
+        for i, name in enumerate(defense_names):
+            cb = QCheckBox(name)
+            cb.setChecked(name in saved_defense)
+            defense_grid.addWidget(cb, i // 2, i % 2)
+            self.defense_checks[name] = cb
+        defense_box.addLayout(defense_grid)
+
+        defense_note = QLabel(
+            "Chưa hỗ trợ tự động. Tick các công trình muốn ưu tiên; "
+            "cấu hình được lưu lại.")
+        defense_note.setWordWrap(True)
+        defense_note.setStyleSheet("font-size:10px; color:#9A6B00;")
+        defense_box.addWidget(defense_note)
+        defense_root.addWidget(defense_card)
+        defense_root.addStretch()
+        up_tabs.addTab(defense_page, "Defense")
+
+        # --- Resource upgrade ---
+        resource_page = QWidget()
+        resource_root = QVBoxLayout(resource_page)
+        resource_root.setContentsMargins(0, 8, 0, 8)
+        resource_root.setSpacing(8)
+        resource_card, resource_box = _card(
+            "Resource upgrade", "Ưu tiên nâng mỏ / collector / kho.")
+        self.upgrade_resource_chk = QCheckBox("Enable Resource Upgrade")
+        self.upgrade_resource_chk.setChecked(
+            self.settings.get("upgrade_resource", False))
+        resource_box.addWidget(self.upgrade_resource_chk)
+
+        resource_names = (
+            "Gold Mine", "Elixir Collector", "Dark Elixir Drill",
+            "Gold Storage", "Elixir Storage", "Dark Elixir Storage",
+        )
+        saved_resource = set(self.settings.get("resource_priorities", []) or [])
+        resource_grid = QGridLayout()
+        resource_grid.setHorizontalSpacing(10)
+        resource_grid.setVerticalSpacing(4)
+        self.resource_checks = {}
+        for i, name in enumerate(resource_names):
+            cb = QCheckBox(name)
+            cb.setChecked(name in saved_resource)
+            resource_grid.addWidget(cb, i // 2, i % 2)
+            self.resource_checks[name] = cb
+        resource_box.addLayout(resource_grid)
+
+        resource_note = QLabel(
+            "Chưa hỗ trợ tự động. Tick các công trình muốn ưu tiên; "
+            "cấu hình được lưu lại.")
+        resource_note.setWordWrap(True)
+        resource_note.setStyleSheet("font-size:10px; color:#9A6B00;")
+        resource_box.addWidget(resource_note)
+        resource_root.addWidget(resource_card)
+        resource_root.addStretch()
+        up_tabs.addTab(resource_page, "Resource")
+
+        up_page.addWidget(up_tabs)
 
         wall_widgets = [
             self.wall_gold_entry,
@@ -2082,6 +2221,7 @@ class MainWindow(QMainWindow):
                     atexit.register(test_sock.close)
             print(f"[INFO] Using emulator: {emu}")
             cfg = self._collect_cfg()
+            save_settings(cfg)
             cfg["stats"] = {}
             main.stop_event.clear()
             self._worker = QtThreadCompat(
@@ -2197,6 +2337,21 @@ class MainWindow(QMainWindow):
             "wall_level": int(self.wall_level_spin.value()),
             "wall_gold_threshold": int(self.wall_gold_entry.text()),
             "wall_elixir_threshold": int(self.wall_elixir_entry.text()),
+            "upgrade_hero": self.upgrade_hero_chk.isChecked(),
+            "hero_targets": {
+                name: int(spin.value())
+                for name, spin in self.hero_level_spins.items()
+            },
+            "upgrade_defense": self.upgrade_defense_chk.isChecked(),
+            "defense_priorities": [
+                name for name, cb in self.defense_checks.items()
+                if cb.isChecked()
+            ],
+            "upgrade_resource": self.upgrade_resource_chk.isChecked(),
+            "resource_priorities": [
+                name for name, cb in self.resource_checks.items()
+                if cb.isChecked()
+            ],
             "request_troops": self.req_chk.isChecked(),
             "attack": attack_type,
             "recipe_name": self.army_tab.get_active_name(),
@@ -2249,6 +2404,11 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         print("\n[SHUTDOWN] Closing application...")
+
+        try:
+            save_settings(self._collect_cfg())
+        except Exception as e:
+            print(f"[SHUTDOWN] could not save settings: {e}")
 
         try:
             sys.stdout = sys.__stdout__
