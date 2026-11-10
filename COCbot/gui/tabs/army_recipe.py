@@ -59,13 +59,13 @@ class TroopCell(QWidget):
         self.setFixedSize(64, 86)
         self.setStyleSheet("""
             TroopCell {
-                background: rgba(17, 29, 49, 200);
-                border: 1px solid #243854;
+                background: #FFFFFF;
+                border: 1px solid #DCE5E1;
                 border-radius: 7px;
             }
             TroopCell:hover {
-                background: rgba(22, 36, 59, 230);
-                border: 1px solid #e8b64c;
+                background: #F5F7F6;
+                border: 1px solid #13775F;
             }
         """)
 
@@ -88,7 +88,7 @@ class TroopCell(QWidget):
         # 2. Tên
         name_lbl = QLabel(name.replace("_", " ").title())
         name_lbl.setAlignment(Qt.AlignCenter)
-        name_lbl.setStyleSheet("color:#dbe7f7; font-size:8px; font-weight:bold;")
+        name_lbl.setStyleSheet("color:#193431; font-size:8px; font-weight:bold;")
         name_lbl.setMinimumWidth(1)
         vbox.addWidget(name_lbl)
 
@@ -103,16 +103,16 @@ class TroopCell(QWidget):
 
         self.spin.setStyleSheet("""
             QSpinBox {
-                background: #0b1424;
-                border: 1px solid #243854;
+                background: #FFFFFF;
+                border: 1px solid #DCE5E1;
                 border-radius: 4px;
-                color: #ffd76a;
+                color: #193431;
                 padding: 0px;
                 margin: 0px;
             }
             QSpinBox:focus {
-                background: #111d31;
-                border: 1px solid #e8b64c;
+                background: #F5F7F6;
+                border: 1px solid #13775F;
             }
         """)
         self.spin.valueChanged.connect(self.changed.emit)
@@ -190,65 +190,54 @@ class ArmyRecipeTab(QWidget):
         vbox.setSpacing(6)
 
         # ── Thanh Công Cụ (Preset & Hướng) ──
-        preset_bar = QHBoxLayout()
+        preset_row = QHBoxLayout()
+        preset_row.setSpacing(6)
 
         lbl = QLabel("Preset:")
-        lbl.setStyleSheet("color:#e8b64c; font-weight:bold;")
-        preset_bar.addWidget(lbl)
+        lbl.setStyleSheet("color:#193431; font-weight:600;")
+        preset_row.addWidget(lbl)
 
         self.preset_combo = QComboBox()
-        self.preset_combo.setMinimumWidth(150)
+        self.preset_combo.setMinimumWidth(120)
         self.preset_combo.currentTextChanged.connect(self._on_preset_selected)
-        preset_bar.addWidget(self.preset_combo)
+        preset_row.addWidget(self.preset_combo, 1)
 
         self.new_btn = QPushButton("New")
         self.new_btn.clicked.connect(self._on_new_preset)
-        preset_bar.addWidget(self.new_btn)
+        preset_row.addWidget(self.new_btn)
 
         self.save_btn = QPushButton("Save")
         self.save_btn.clicked.connect(self._on_save_preset)
-        preset_bar.addWidget(self.save_btn)
+        preset_row.addWidget(self.save_btn)
 
         self.del_btn = QPushButton("Delete")
         self.del_btn.clicked.connect(self._on_delete_preset)
-        preset_bar.addWidget(self.del_btn)
+        preset_row.addWidget(self.del_btn)
+        vbox.addLayout(preset_row)
 
-        preset_bar.addSpacing(20)
-
-        # --- CHỌN HƯỚNG THẢ QUÂN (lưu theo preset) ---
+        side_row = QHBoxLayout()
+        side_row.setSpacing(6)
         lbl_side = QLabel("Hướng thả:")
-        lbl_side.setStyleSheet("color:#e8b64c; font-weight:bold;")
-        preset_bar.addWidget(lbl_side)
+        lbl_side.setStyleSheet("color:#193431; font-weight:600;")
+        side_row.addWidget(lbl_side)
 
         self.side_combo = QComboBox()
         self.side_combo.addItems(VALID_SIDES)
-        self.side_combo.setStyleSheet(
-            "background: #111d31; color: #dbe7f7; padding: 3px;"
-            " border: 1px solid #243854; border-radius: 4px;"
-        )
         self.side_combo.currentTextChanged.connect(self._on_side_changed)
-        preset_bar.addWidget(self.side_combo)
+        side_row.addWidget(self.side_combo, 1)
 
-        preset_bar.addSpacing(20)
         self.check_troops_chk = QCheckBox("Check quân")
         self.check_troops_chk.setChecked(False)
-        self.check_troops_chk.setStyleSheet("color:#e8b64c; font-weight:bold;")
         self.check_troops_chk.setToolTip(
             "Bật: kiểm tra/train quân trước khi tìm trận.\n"
             "Tắt (mặc định): bỏ qua kiểm tra, cứ tìm trận đủ điều kiện rồi đánh."
         )
-        preset_bar.addWidget(self.check_troops_chk)
-
-        preset_bar.addStretch()
-        vbox.addLayout(preset_bar)
+        side_row.addWidget(self.check_troops_chk)
+        side_row.addStretch()
+        vbox.addLayout(side_row)
 
         # ── Sub-tabs: 4 Tabs (Elixir, Dark, Spells, Siege) ──
         self.sub_tabs = QTabWidget()
-        self.sub_tabs.setStyleSheet("""
-            QTabWidget::pane { border: 1px solid #243854; background: rgba(13,23,39,200); border-radius: 6px; }
-            QTabBar::tab { background:#111d31; color:#8fa3bf; padding:5px 12px; border:1px solid #243854; border-bottom:none; }
-            QTabBar::tab:selected { background:#e8b64c; color:#080d18; border-color:#ffd76a; font-weight:700; }
-        """)
 
         elixir_troops = {k: v for k, v in TROOPS.items() if v[1] == "elixir"}
         dark_troops = {k: v for k, v in TROOPS.items() if v[1] == "dark"}
@@ -298,13 +287,13 @@ class ArmyRecipeTab(QWidget):
         # ── Footer: space calculator ──
         footer = QFrame()
         footer.setStyleSheet(
-            "QFrame { background: rgba(8,13,24,220); border-top: 1px solid #243854; }"
+            "QFrame { background: #FFFFFF; border-top: 1px solid #DCE5E1; }"
         )
         footer_h = QHBoxLayout(footer)
 
         self.space_lbl = QLabel("Army Space: 0 / 260   |   Spell Space: 0 / 11")
         self.space_lbl.setStyleSheet(
-            "color:#e8b64c; font-weight:bold; padding:6px;"
+            "color:#193431; font-weight:600; padding:6px;"
         )
         footer_h.addWidget(self.space_lbl)
         footer_h.addStretch()
@@ -444,8 +433,8 @@ class ArmyRecipeTab(QWidget):
                        self.troop_grid_dark.total_space())
         spell_space = self.spell_grid.total_space()
 
-        t_color = "#FF4444" if troop_space > ARMY_SPACE_MAX else "#FFF"
-        s_color = "#FF4444" if spell_space > SPELL_SPACE_MAX else "#FFF"
+        t_color = "#A82921" if troop_space > ARMY_SPACE_MAX else "#193431"
+        s_color = "#A82921" if spell_space > SPELL_SPACE_MAX else "#193431"
 
         self.space_lbl.setText(
             f"Army Space: <span style='color:{t_color}'>{troop_space}</span> / {ARMY_SPACE_MAX}"

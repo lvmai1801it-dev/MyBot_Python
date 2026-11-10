@@ -62,12 +62,6 @@ class DebugTab(QWidget):
 
         # --- PHẦN 1: NÚT TEST TÍNH NĂNG ---
         group_tests = QGroupBox("Bảng Điều Khiển Test Tính Năng")
-        group_tests.setStyleSheet(
-            "QGroupBox { color: #dbe7f7; font-weight: 700; border: 1px solid #243854;"
-            " border-radius: 8px; margin-top: 12px; background: rgba(17,29,49,210); }"
-            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px;"
-            " color: #e8b64c; }"
-        )
         
         grid = QGridLayout(group_tests)
         grid.setSpacing(10)
@@ -94,16 +88,16 @@ class DebugTab(QWidget):
             # Nút số 9 sẽ có màu khác để dễ nhận biết
             if "9." in text:
                 btn.setStyleSheet(
-                    "QPushButton { background: #5a2222; color: #ffd76a; font-weight: 700;"
-                    " padding: 8px; border: 1px solid #e05353; border-radius: 6px; }"
-                    "QPushButton:hover { background: #7a2a2a; border-color: #ffd76a; }"
+                    "QPushButton { background: #FFF3F1; color: #A82921; font-weight: 700;"
+                    " padding: 8px; border: 1px solid #D9A199; border-radius: 6px; }"
+                    "QPushButton:hover { background: #FFE8E4; border-color: #A82921; }"
                 )
             else:
                 btn.setStyleSheet(
-                    "QPushButton { background: #16243b; color: #dbe7f7; font-weight: 600;"
-                    " padding: 8px; border: 1px solid #243854; border-radius: 6px; }"
-                    "QPushButton:hover { background: #1f3150; border-color: #e8b64c;"
-                    " color: #ffd76a; }"
+                    "QPushButton { background: #FFFFFF; color: #193431; font-weight: 600;"
+                    " padding: 8px; border: 1px solid #DCE5E1; border-radius: 6px; }"
+                    "QPushButton:hover { background: #EAF3EE; border-color: #13775F;"
+                    " color: #13775F; }"
                 )
             
             btn.clicked.connect(lambda checked, m=module_name, f=func_name, t=text: self.run_test(t, m, f))
@@ -118,13 +112,13 @@ class DebugTab(QWidget):
 
         # --- PHẦN 2: LOG OUTPUT ---
         log_title = QLabel("Nhật ký hoạt động (Log):")
-        log_title.setStyleSheet("color:#e8b64c; font-weight:700;")
+        log_title.setStyleSheet("color:#193431; font-weight:600;")
         vbox.addWidget(log_title)
         self.txt_log = QTextEdit()
         self.txt_log.setReadOnly(True)
         self.txt_log.setStyleSheet(
-            "background-color: #0b1424; color: #9fe8b0;"
-            " border: 1px solid #243854; border-radius: 6px;"
+            "background-color: #FFFFFF; color: #193431;"
+            " border: 1px solid #DCE5E1; border-radius: 6px;"
             " font-family: Consolas, monospace; font-size: 12px; padding: 4px;"
         )
         vbox.addWidget(self.txt_log, 1) # stretch=1 để log chiếm toàn bộ phần còn lại

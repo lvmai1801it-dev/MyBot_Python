@@ -8,6 +8,7 @@ except Exception:
 
 import ctypes
 import os
+import re
 import sys
 
 import COCbot.app.paths
@@ -65,10 +66,7 @@ import webbrowser
 from pathlib import Path
 
 from PyQt5.QtCore import (
-    QEasingCurve,
     QObject,
-    QPropertyAnimation,
-    QRect,
     QSize,
     QTimer,
     QVariantAnimation,
@@ -79,8 +77,6 @@ from PyQt5.QtGui import (
     QColor,
     QFont,
     QIcon,
-    QLinearGradient,
-    QPainter,
     QPixmap,
     QTextCursor,
 )
@@ -89,8 +85,8 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
+    QFileDialog,
     QFrame,
-    QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
@@ -104,9 +100,9 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QRadioButton,
     QButtonGroup,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
-    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -153,19 +149,19 @@ class EmulatorSelectionDialog(QDialog):
         self.selected = None
         self.setWindowTitle("Select Emulator")
         self.setModal(True)
-        self.setFixedSize(820, 280)
+        self.setFixedSize(720, 260)
         self.setStyleSheet(
             """
             QDialog {
-                background-color: #0b1220;
-                border: 1px solid #243854;
+                background-color: #F2F5F3;
+                border: 1px solid #DCE5E1;
                 border-radius: 12px;
             }
             """
         )
         header = QLabel("CHOOSE YOUR EMULATOR", self)
         header.setFont(QFont("Segoe UI", 13, QFont.Bold))
-        header.setStyleSheet("color:#e8b64c; letter-spacing: 1px;")
+        header.setStyleSheet("color:#193431; letter-spacing: 1px;")
         header.setAlignment(Qt.AlignCenter)
         hbox = QHBoxLayout()
         hbox.setContentsMargins(20, 20, 20, 8)
@@ -182,8 +178,8 @@ class EmulatorSelectionDialog(QDialog):
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setStyleSheet(
-                "QToolButton { color:#dbe7f7; background:transparent; border:none; }"
-                "QToolButton:hover { color:#ffd76a; }"
+                "QToolButton { color:#193431; background:transparent; border:none; }"
+                "QToolButton:hover { color:#13775F; }"
             )
             return btn
 
@@ -214,95 +210,6 @@ class EmulatorSelectionDialog(QDialog):
 
     def getSelection(self):
         return self.selected
-
-
-class AnimatedButton(QPushButton):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._base_geom = None
-        self._hovered = False
-        self._anim = QPropertyAnimation(self, b"geometry", self)
-        self._anim.setDuration(120)
-        self.setMouseTracking(True)
-        self.setCursor(Qt.PointingHandCursor)
-
-    def showEvent(self, ev):
-        super().showEvent(ev)
-        if self._base_geom is None:
-            self._base_geom = self.geometry()
-            self._orig_font = QFont(self.font())
-
-    def enterEvent(self, ev):
-        super().enterEvent(ev)
-        self._hovered = True
-        f = QFont(self._orig_font)
-        f.setPointSizeF(self._orig_font.pointSizeF() * 0.95)
-        f.setBold(self._orig_font.bold())
-        self.setFont(f)
-        self._run_anim(scale=0.95)
-
-    def leaveEvent(self, ev):
-        super().leaveEvent(ev)
-        self._hovered = False
-        self.setFont(self._orig_font)
-        self._run_anim(scale=1.0)
-
-    def mousePressEvent(self, ev):
-        super().mousePressEvent(ev)
-        self._run_anim(scale=1.1)
-
-    def mouseReleaseEvent(self, ev):
-        super().mouseReleaseEvent(ev)
-        if self._hovered:
-            f = QFont(self._orig_font)
-            f.setPointSizeF(self._orig_font.pointSizeF() * 0.95)
-            f.setBold(self._orig_font.bold())
-            self.setFont(f)
-            self._run_anim(scale=0.95)
-        else:
-            self.setFont(self._orig_font)
-            self._run_anim(scale=1.0)
-
-    def _run_anim(self, scale: float):
-        if not self._base_geom:
-            return
-        base = self._base_geom
-        w0, h0 = base.width(), base.height()
-        cx = base.x() + w0 // 2
-        cy = base.y() + h0 // 2
-        new_w = int(w0 * scale)
-        new_h = int(h0 * scale)
-        new_x = cx - new_w // 2
-        new_y = cy - new_h // 2
-        end = QRect(new_x, new_y, new_w, new_h)
-        self._anim.stop()
-        self._anim.setStartValue(self.geometry())
-        self._anim.setEndValue(end)
-        self._anim.start()
-
-
-class ClickBounceButton(AnimatedButton):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._anim.setDuration(100)
-        self._easing = QEasingCurve.OutBack
-
-    def mousePressEvent(self, ev):
-        super().mousePressEvent(ev)
-        self._anim.setEasingCurve(QEasingCurve.InQuad)
-        self._run_anim(scale=0.9)
-
-    def mouseReleaseEvent(self, ev):
-        super().mouseReleaseEvent(ev)
-        self._anim.setEasingCurve(self._easing)
-        self._run_anim(scale=1.05)
-        QTimer.singleShot(
-            self._anim.duration(),
-            lambda: (
-                self._anim.setEasingCurve(QEasingCurve.OutQuad),
-                self._run_anim(scale=1.0),
-            ),
-        )
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -344,18 +251,24 @@ class TimestampStream(QObject):
         return
 
 
-COLOR_TAGS = {"gold": "#FFD700", "elixir": "#800080", "warn": "orange"}
+LOG_LEVEL_COLORS = {
+    "INFO": "#536D80",
+    "SUCCESS": "#13775F",
+    "WARNING": "#9A6B00",
+    "ERROR": "#A82921",
+}
 
 
-def classify_colour(line: str) -> str:
+def classify_level(line: str) -> str:
     lo = line.lower()
-    if "gold" in lo:
-        return "gold"
-    if "elixir" in lo:
-        return "elixir"
-    if "warn" in line.upper():
-        return "warn"
-    return "info"
+    if any(k in lo for k in ("error", "❌", "failed", "fail", "lỗi", "traceback")):
+        return "ERROR"
+    if any(k in lo for k in ("warn", "⚠", "cảnh báo", "skipped", "missing")):
+        return "WARNING"
+    if any(k in lo for k in ("success", "✅", "ready", "confirmed", "hoàn tất",
+                             "done", " complete", " ok", "sẵn sàng")):
+        return "SUCCESS"
+    return "INFO"
 
 
 def load_settings():
@@ -407,44 +320,13 @@ def load_attack_assets(name: str):
     return pix, desc
 
 
-class WoodBackground(QWidget):
-    """Full-window Clash of Clans artwork with a dark readability overlay."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.bg = QPixmap(os.path.join(BG, "BG_2.png"))
-        if self.bg.isNull():
-            self.bg = QPixmap(os.path.join(BG, "BG_1.png"))
-        if self.bg.isNull():
-            self.bg = QPixmap(os.path.join(BG, "BG.png"))
-
-    def paintEvent(self, ev):
-        painter = QPainter(self)
-        if not self.bg.isNull():
-            scaled = self.bg.scaled(
-                self.size(),
-                Qt.KeepAspectRatioByExpanding,
-                Qt.SmoothTransformation,
-            )
-            x = (self.width() - scaled.width()) // 2
-            y = (self.height() - scaled.height()) // 2
-            painter.drawPixmap(x, y, scaled)
-
-        gradient = QLinearGradient(0, 0, 0, self.height())
-        gradient.setColorAt(0.0, QColor(8, 13, 24, 175))
-        gradient.setColorAt(0.45, QColor(8, 13, 24, 200))
-        gradient.setColorAt(1.0, QColor(8, 13, 24, 228))
-        painter.fillRect(self.rect(), gradient)
-        super().paintEvent(ev)
-
-
 class LDInstancePickerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Select LDPlayer Instance")
         self.setModal(True)
         self.setFixedSize(520, 380)
-        self.setStyleSheet("background:#0b1220; border:1px solid #243854;")
+        self.setStyleSheet("background:#F2F5F3; border:1px solid #DCE5E1;")
         self.index = None
         self.name = None
         self.layout = QVBoxLayout(self)
@@ -452,7 +334,7 @@ class LDInstancePickerDialog(QDialog):
         self.layout.setSpacing(8)
         hdr = QLabel("CHOOSE AN LDPLAYER INSTANCE")
         hdr.setAlignment(Qt.AlignCenter)
-        hdr.setStyleSheet("color:#e8b64c; font-weight:700; font-size:15px;")
+        hdr.setStyleSheet("color:#193431; font-weight:600; font-size:15px;")
         self.layout.addWidget(hdr)
         self.table = QTableWidget(0, 3, self)
         self.table.setHorizontalHeaderLabels(["Name", "Status", "Action"])
@@ -462,13 +344,6 @@ class LDInstancePickerDialog(QDialog):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet(
-            "\n            QTableWidget { background:#1a1a1a; color:#eaeaea; border:1px solid #333; }\n"
-            "            QHeaderView::section { background:#222; color:#eaeaea; padding:6px; border:none; }\n"
-            "            QTableWidget::item { background:#1a1a1a; }\n"
-            "            QTableWidget::item:alternate { background:#202020; }\n"
-            "            QTableWidget::item:selected { background:#2e2e2e; }\n        "
-        )
         self.table.horizontalHeader().setStretchLastSection(False)
         for c in range(3):
             self.table.horizontalHeader().setSectionResizeMode(c, QHeaderView.Fixed)
@@ -477,10 +352,6 @@ class LDInstancePickerDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
         self.refresh_btn = QPushButton("Refresh")
-        self.refresh_btn.setStyleSheet(
-            "QPushButton{background:#444;color:#fff;border:none;border-radius:6px;padding:6px 12px;} "
-            "QPushButton:hover{background:#666;}"
-        )
         self.refresh_btn.clicked.connect(self._populate_table)
         btn_row.addWidget(self.refresh_btn)
         self.layout.addLayout(btn_row)
@@ -622,37 +493,61 @@ class LDInstancePickerDialog(QDialog):
         QTimer.singleShot(0, self._equalize_columns)
 
 
+class TitleBar(QWidget):
+    """Frameless-window title bar with drag and double-click maximize."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self._drag_pos = None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = (
+                event.globalPos() - self.window().frameGeometry().topLeft()
+            )
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._drag_pos is not None and event.buttons() & Qt.LeftButton:
+            self.window().move(event.globalPos() - self._drag_pos)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        parent = self.window()
+        if hasattr(parent, "_toggle_maximized"):
+            parent._toggle_maximized()
+        super().mouseDoubleClickEvent(event)
+
+
 class MainWindow(QMainWindow):
     update_available = pyqtSignal(str, str)
-
-    def _apply_image_button(self, btn: QPushButton, filename: str, w: int, h: int):
-        btn.setText("")
-        btn.setFlat(True)
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setIcon(QIcon(os.path.join(TEMPLATES_DIR, filename)))
-        btn.setIconSize(QSize(w, h))
-        btn.setFixedSize(w, h)
-        btn.setStyleSheet("QPushButton{border:none;background:transparent;}")
 
     def _on_toggle_pause_play(self):
         if not self.paused:
             pause_bot()
-            icon_play = QIcon(QPixmap(os.path.join(TEMPLATES_DIR, "play_button.png")))
-            self._toggle_btn.setIcon(icon_play)
+            self._toggle_btn.setText("Resume")
             self.start_btn.setEnabled(False)
-            self.stop_btn.setEnabled(False)
+            self.stop_btn.setEnabled(True)
+            self._toggle_btn.setObjectName("primaryBtn")
+            self._toggle_btn.style().unpolish(self._toggle_btn)
+            self._toggle_btn.style().polish(self._toggle_btn)
             if hasattr(self, "status_lbl"):
                 self.status_lbl.setText("Status: Paused")
-                self.status_lbl.setStyleSheet("color: #ff5252; padding-left: 8px;")
         else:
             resume_bot()
-            icon_stop = QIcon(QPixmap(os.path.join(TEMPLATES_DIR, "stop_button.png")))
-            self._toggle_btn.setIcon(icon_stop)
+            self._toggle_btn.setText("Pause")
             self.start_btn.setEnabled(True)
             self.stop_btn.setEnabled(True)
+            self._toggle_btn.setObjectName("")
+            self._toggle_btn.style().unpolish(self._toggle_btn)
+            self._toggle_btn.style().polish(self._toggle_btn)
             if hasattr(self, "status_lbl"):
                 self.status_lbl.setText("Status: Working")
-                self.status_lbl.setStyleSheet("color: #f0b64c; padding-left: 8px;")
         self.paused = not self.paused
 
     def _stats_file_path(self, village_idx: int) -> Path:
@@ -720,57 +615,71 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(8)
 
-        bar = QHBoxLayout()
+        top = QVBoxLayout()
+        top.setSpacing(6)
+        prof_row = QHBoxLayout()
         lbl = QLabel("Profile:")
-        lbl.setStyleSheet("color:#e8b64c; font-weight:700;")
-        bar.addWidget(lbl)
+        lbl.setStyleSheet("color:#193431; font-weight:600;")
+        prof_row.addWidget(lbl)
         self.acc_profile_combo = QComboBox()
         self.acc_profile_combo.setEditable(True)
         self.acc_profile_combo.setMinimumWidth(180)
-        bar.addWidget(self.acc_profile_combo, 1)
-        bar.addSpacing(8)
-        bar.addWidget(QLabel("Slot:"))
+        prof_row.addWidget(self.acc_profile_combo, 1)
+        top.addLayout(prof_row)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
+        btn_row.addWidget(QLabel("Slot:"))
         self.acc_slot_spin = QSpinBox()
         self.acc_slot_spin.setRange(1, 5)
-        self.acc_slot_spin.setFixedWidth(54)
-        bar.addWidget(self.acc_slot_spin)
-        self.acc_pull_btn = QPushButton("Pull current")
-        self.acc_push_btn = QPushButton("Push selected")
-        self.acc_switch_btn = QPushButton("Switch now")
+        self.acc_slot_spin.setFixedWidth(46)
+        btn_row.addWidget(self.acc_slot_spin)
+        self.acc_pull_btn = QPushButton("Pull")
+        self.acc_pull_btn.setToolTip("Pull shared_prefs của account hiện tại")
+        self.acc_push_btn = QPushButton("Push")
+        self.acc_push_btn.setToolTip("Push profile đang chọn vào game")
+        self.acc_switch_btn = QPushButton("Switch")
+        self.acc_switch_btn.setToolTip("Chuyển sang profile đang chọn")
         self.acc_refresh_btn = QPushButton("Refresh")
+        self.acc_refresh_btn.setToolTip("Tải lại danh sách profile")
         self.acc_delete_btn = QPushButton("Delete")
+        self.acc_delete_btn.setToolTip("Xoá profile đang chọn")
         for b in (self.acc_pull_btn, self.acc_push_btn, self.acc_switch_btn,
                   self.acc_refresh_btn, self.acc_delete_btn):
-            bar.addWidget(b)
-        root.addLayout(bar)
+            b.setFixedHeight(26)
+            btn_row.addWidget(b)
+        btn_row.addStretch()
+        top.addLayout(btn_row)
+        root.addLayout(top)
 
         status = QHBoxLayout()
         self.acc_current_lbl = QLabel("Current: (chưa đặt)")
-        self.acc_current_lbl.setStyleSheet("color:#e8b64c; font-weight:700;")
+        self.acc_current_lbl.setStyleSheet("color:#13775F; font-weight:600;")
         status.addWidget(self.acc_current_lbl)
         status.addStretch()
         self.acc_root_lbl = QLabel("Root: kiểm tra khi dùng")
-        self.acc_root_lbl.setStyleSheet("color:#8fa3bf;")
+        self.acc_root_lbl.setStyleSheet("color:#657877; font-size:9px;")
         status.addWidget(self.acc_root_lbl)
         root.addLayout(status)
 
         grp = QGroupBox("Switch Accounts")
-        g = QVBoxLayout(grp)
-        g.setSpacing(6)
+        g = QGridLayout(grp)
+        g.setHorizontalSpacing(8)
+        g.setVerticalSpacing(6)
 
-        row1 = QHBoxLayout()
         self.switch_enable_chk = QCheckBox("Enable Switch Accounts")
         self.switch_wait_cc_chk = QCheckBox("Switch While Waiting")
+        g.addWidget(self.switch_enable_chk, 0, 0, 1, 2)
         self.switch_wait_cc_chk.setToolTip("Chưa hỗ trợ tự động; chỉ lưu cấu hình.")
-        row1.addWidget(self.switch_enable_chk)
-        row1.addWidget(self.switch_wait_cc_chk)
-        row1.addSpacing(14)
-        row1.addWidget(QLabel("Accounts:"))
+        g.addWidget(self.switch_wait_cc_chk, 0, 2, 1, 2)
+
+        g.addWidget(QLabel("Accounts:"), 1, 0)
         self.switch_total_spin = QSpinBox()
         self.switch_total_spin.setRange(2, MAX_ACCOUNTS)
-        row1.addWidget(self.switch_total_spin)
-        row1.addSpacing(14)
-        row1.addWidget(QLabel("Mode:"))
+        g.addWidget(self.switch_total_spin, 1, 1)
+        mode_row = QHBoxLayout()
+        mode_row.setSpacing(6)
+        mode_row.addWidget(QLabel("Mode:"))
         self.switch_shared_radio = QRadioButton("Shared_prefs")
         self.switch_scid_radio = QRadioButton("Supercell ID")
         self.switch_shared_radio.setToolTip(
@@ -780,49 +689,55 @@ class MainWindow(QMainWindow):
         self.switch_mode_group = QButtonGroup(self)
         self.switch_mode_group.addButton(self.switch_shared_radio)
         self.switch_mode_group.addButton(self.switch_scid_radio)
-        row1.addWidget(self.switch_shared_radio)
-        row1.addWidget(self.switch_scid_radio)
-        row1.addSpacing(14)
-        row1.addWidget(QLabel("Attacks / acc:"))
+        mode_row.addWidget(self.switch_shared_radio)
+        mode_row.addWidget(self.switch_scid_radio)
+        mode_row.addStretch()
+        g.addLayout(mode_row, 1, 2, 1, 2)
+
+        g.addWidget(QLabel("Attacks / acc:"), 2, 0)
         self.switch_max_spin = QSpinBox()
         self.switch_max_spin.setRange(1, 100)
         self.switch_max_spin.setToolTip(
             "Số trận mặc định cho mỗi account. Account nào có ô 'Trận' riêng "
             "(khác 0) sẽ dùng số đó.")
-        row1.addWidget(self.switch_max_spin)
-        row1.addStretch()
-        g.addLayout(row1)
+        g.addWidget(self.switch_max_spin, 2, 1)
 
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Trigger:"))
+        trig_row = QHBoxLayout()
+        trig_row.setSpacing(6)
+        trig_row.addWidget(QLabel("Trigger:"))
         self.switch_by_attacks_chk = QCheckBox("By attacks")
-        self.switch_by_time_chk = QCheckBox("By time, every")
+        self.switch_by_time_chk = QCheckBox("By time")
         self.switch_interval_spin = QSpinBox()
         self.switch_interval_spin.setRange(1, 1440)
         self.switch_interval_spin.setSuffix(" min")
-        self.switch_interval_spin.setFixedWidth(90)
+        self.switch_interval_spin.setFixedWidth(80)
+        trig_row.addWidget(self.switch_by_attacks_chk)
+        trig_row.addWidget(self.switch_by_time_chk)
+        trig_row.addWidget(self.switch_interval_spin)
+        trig_row.addStretch()
+        g.addLayout(trig_row, 3, 0, 1, 4)
+
+        full_row = QHBoxLayout()
+        full_row.setSpacing(6)
         self.switch_by_full_chk = QCheckBox("By full 3 storages")
         self.switch_by_full_chk.setToolTip(
             "Chuyển account khi cả 3 kho (vàng, tiêu, DE) đầy. "
             "Dùng template gold/elixir/DE_collector_full.png.")
-        row2.addWidget(self.switch_by_attacks_chk)
-        row2.addWidget(self.switch_by_time_chk)
-        row2.addWidget(self.switch_interval_spin)
-        row2.addSpacing(10)
-        row2.addWidget(self.switch_by_full_chk)
-        row2.addWidget(QLabel("Wait:"))
+        full_row.addWidget(self.switch_by_full_chk)
+        full_row.addWidget(QLabel("Wait:"))
         self.switch_full_wait_spin = QSpinBox()
         self.switch_full_wait_spin.setRange(1, 1440)
         self.switch_full_wait_spin.setSuffix(" min")
-        self.switch_full_wait_spin.setFixedWidth(90)
+        self.switch_full_wait_spin.setFixedWidth(80)
         self.switch_full_wait_spin.setToolTip(
             "Nếu đầy kho mà không còn account khác: treo online và kiểm tra "
             "lại sau số phút này.")
-        row2.addWidget(self.switch_full_wait_spin)
-        row2.addStretch()
-        g.addLayout(row2)
+        full_row.addWidget(self.switch_full_wait_spin)
+        full_row.addStretch()
+        g.addLayout(full_row, 4, 0, 1, 4)
 
-        body = QHBoxLayout()
+        body = QVBoxLayout()
+        body.setSpacing(6)
         rows_box = QVBoxLayout()
         rows_box.setSpacing(3)
         header = QHBoxLayout()
@@ -869,24 +784,25 @@ class MainWindow(QMainWindow):
         self.switch_page_btn.setFixedWidth(32)
         rows_box.addWidget(self.switch_page_btn, 0, Qt.AlignLeft)
         rows_box.addStretch(1)
-        body.addLayout(rows_box, 3)
+        body.addLayout(rows_box)
 
         self.switch_log = QTextEdit()
         self.switch_log.setReadOnly(True)
         self.switch_log.setFont(QFont("Consolas", 8))
         self.switch_log.setStyleSheet(
-            "background:#0b1424; color:#dbe7f7; border:1px solid #243854;"
-            " border-radius:6px; padding:4px;"
-        )
-        body.addWidget(self.switch_log, 2)
-        g.addLayout(body)
+            "background:#FFFFFF; color:#193431; border:1px solid #DCE5E1;"
+            " border-radius:5px; padding:4px;")
+        self.switch_log.setMinimumHeight(80)
+        self.switch_log.setMaximumHeight(120)
+        body.addWidget(self.switch_log)
+        g.addLayout(body, 5, 0, 1, 4)
         root.addWidget(grp, 1)
 
         self.acc_mode_note = QLabel(
             "Supercell ID: KHÔNG cần root. Shared_prefs: cần root/adb root."
         )
         self.acc_mode_note.setWordWrap(True)
-        self.acc_mode_note.setStyleSheet("color:#8fa3bf; font-size:9px;")
+        self.acc_mode_note.setStyleSheet("color:#657877; font-size:9px;")
         root.addWidget(self.acc_mode_note)
 
         self.acc_refresh_btn.clicked.connect(self._refresh_accounts)
@@ -968,7 +884,7 @@ class MainWindow(QMainWindow):
                 self.acc_root_lbl.setText(mgr.root_label())
             else:
                 self.acc_root_lbl.setText("Root: chưa chọn emulator")
-            self.acc_root_lbl.setStyleSheet("color:#8fa3bf;")
+            self.acc_root_lbl.setStyleSheet("color:#657877; font-size:9px;")
 
             # First-run convenience: assign available profiles to account rows.
             cfg = self._switch_cfg
@@ -1261,6 +1177,12 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Delete profile", str(e))
 
+    def _toggle_maximized(self):
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
     def _on_tab_changed(self, idx: int):
         if hasattr(self, "accounts_tab_index") and idx == self.accounts_tab_index:
             self._refresh_accounts(silent=True)
@@ -1322,11 +1244,15 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.active_village_idx = None
-        self.setWindowTitle("Clash of Clans Bot  •  Automation Control Panel")
+        self.setWindowTitle("MyBot PHMOD v15.9")
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        self.resize(480, 670)
+        self.setMinimumSize(480, 670)
+        self._drag_pos = None
+        self._log_lines = []
+        self._log_filter = "All events"
         self.host = None
         self.no_host = False
-        self.resize(900, 760)
-        self.setMinimumSize(820, 660)
         self.active_village_idx = None
         self._worker = None
         self.settings = load_settings()
@@ -1339,153 +1265,167 @@ class MainWindow(QMainWindow):
         hdrF = QFont("Segoe UI", 12, QFont.Bold)
         labF = QFont("Segoe UI", 10, QFont.Bold)
 
-        central = WoodBackground()
+        central = QWidget()
+        central.setObjectName("appRoot")
+        central.setStyleSheet("QWidget#appRoot { background: #F2F5F3; }")
         vroot = QVBoxLayout(central)
         vroot.setContentsMargins(0, 0, 0, 0)
         vroot.setSpacing(0)
         self.setCentralWidget(central)
 
-        # 1. Header — official Clash of Clans logo + gold/navy bar
-        header_bar = QWidget()
-        header_bar.setObjectName("headerBar")
-        header_bar.setFixedHeight(72)
-        header_bar.setStyleSheet(
-            """
-            QWidget#headerBar {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #101c31, stop:1 #090f1c);
-                border-bottom: 2px solid #e8b64c;
-            }
-            """
-        )
+        # 1. Title bar — compact MyBot header (Figma: 480x40, #142C2B)
+        header_bar = TitleBar(self)
+        header_bar.setObjectName("titleBar")
+        header_bar.setFixedHeight(40)
+        header_bar.setStyleSheet("QWidget#titleBar { background: #142C2B; }")
         header_layout = QHBoxLayout(header_bar)
-        header_layout.setContentsMargins(12, 6, 12, 6)
-        header_layout.setSpacing(10)
+        header_layout.setContentsMargins(12, 0, 0, 0)
+        header_layout.setSpacing(6)
 
-        logo_frame = QFrame()
-        logo_frame.setObjectName("logoFrame")
-        logo_frame.setStyleSheet(
-            """
-            QFrame#logoFrame {
-                background: #070c16;
-                border: 1px solid #e8b64c;
-                border-radius: 9px;
-            }
-            """
-        )
-        logo_layout = QHBoxLayout(logo_frame)
-        logo_layout.setContentsMargins(5, 3, 5, 3)
-        logo_lbl = QLabel()
-        logo_path = os.path.join(TEMPLATES_DIR, "coc_logo.png")
-        if os.path.exists(logo_path):
-            pix = QPixmap(logo_path)
+        app_icon = QLabel()
+        icon_path = os.path.join(TEMPLATES_DIR, "coc_icon.png")
+        if os.path.exists(icon_path):
+            pix = QPixmap(icon_path)
             if not pix.isNull():
-                logo_lbl.setPixmap(
-                    pix.scaledToHeight(48, Qt.SmoothTransformation)
-                )
-        logo_layout.addWidget(logo_lbl)
-        header_layout.addWidget(logo_frame)
+                app_icon.setPixmap(
+                    pix.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        header_layout.addWidget(app_icon)
+        header_layout.addSpacing(2)
 
-        title_box = QVBoxLayout()
-        title_box.setSpacing(0)
-        title_lbl = QLabel("CLASH OF CLANS")
-        title_lbl.setFont(QFont("Segoe UI", 15, QFont.Bold))
-        title_lbl.setStyleSheet(
-            "color: #e8b64c; letter-spacing: 2px; background: transparent;"
-        )
-        sub_lbl = QLabel("AUTOMATION CONTROL PANEL")
-        sub_lbl.setFont(QFont("Segoe UI", 8, QFont.Bold))
-        sub_lbl.setStyleSheet(
-            "color: #8fa3bf; letter-spacing: 1px; background: transparent;"
-        )
-        title_box.addWidget(title_lbl)
-        title_box.addWidget(sub_lbl)
-        header_layout.addLayout(title_box)
+        title_lbl = QLabel("MyBot")
+        title_lbl.setObjectName("appTitle")
+        title_lbl.setStyleSheet("color:#FFFFFF; font-size:16px; font-weight:600;")
+        header_layout.addWidget(title_lbl)
+
+        version_lbl = QLabel("PHMOD v15.9")
+        version_lbl.setObjectName("appSub")
+        version_lbl.setStyleSheet("color:#BFD3CE; font-size:10px;")
+        header_layout.addWidget(version_lbl)
+        header_layout.addSpacing(6)
+
+        free_lbl = QLabel("Freeware · Open source")
+        free_lbl.setObjectName("appBadge")
+        free_lbl.setStyleSheet("color:#9FB8B1; font-size:10px;")
+        header_layout.addWidget(free_lbl)
         header_layout.addStretch()
 
-        version_chip = QLabel("CoC Bot  •  v3.50")
-        version_chip.setFont(QFont("Segoe UI", 8, QFont.Bold))
-        version_chip.setStyleSheet(
-            """
-            QLabel {
-                color: #ffd76a;
-                background: rgba(232, 182, 76, 28);
-                border: 1px solid #9c741f;
-                border-radius: 9px;
-                padding: 4px 10px;
-            }
-            """
-        )
-        header_layout.addWidget(version_chip)
+        btn_min = QPushButton("—")
+        btn_min.setObjectName("winBtn")
+        btn_min.setFixedSize(36, 40)
+        btn_min.clicked.connect(self.showMinimized)
+
+        btn_max = QPushButton("□")
+        btn_max.setObjectName("winBtn")
+        btn_max.setFixedSize(36, 40)
+        btn_max.clicked.connect(self._toggle_maximized)
+
+        btn_close = QPushButton("✕")
+        btn_close.setObjectName("winClose")
+        btn_close.setFixedSize(36, 40)
+        btn_close.clicked.connect(self.close)
+
+        header_layout.addWidget(btn_min)
+        header_layout.addWidget(btn_max)
+        header_layout.addWidget(btn_close)
         vroot.addWidget(header_bar)
 
-        # 2. QTabWidget - 7 horizontal tabs
+        # 2. Main tabs (6 tabs per Figma: Log / Village / Attack plan / Bot settings / Statistics / About)
+        tabs_container = QWidget()
+        tabs_layout = QHBoxLayout(tabs_container)
+        tabs_layout.setContentsMargins(12, 0, 12, 0)
+        tabs_layout.setSpacing(0)
         self.tab_widget = QTabWidget()
-        # Tab styling comes from COCbot.gui.theme.GLOBAL_QSS.
+        self.tab_widget.setObjectName("mainTabs")
+        self.tab_widget.setDocumentMode(True)
+        self.tab_widget.tabBar().setElideMode(Qt.ElideNone)
+        self.tab_widget.setUsesScrollButtons(False)
+        tabs_layout.addWidget(self.tab_widget)
+        vroot.addWidget(tabs_container, 1)
 
         # ===== TAB 0: Logs tab =====
         logs_tab = QWidget()
         logs_layout = QVBoxLayout(logs_tab)
-        logs_layout.setContentsMargins(6, 6, 6, 6)
-        logs_layout.setSpacing(4)
+        logs_layout.setContentsMargins(0, 10, 0, 0)
+        logs_layout.setSpacing(12)
 
-        splitter = QSplitter(Qt.Vertical)
-        splitter.setStyleSheet(
-            """
-            QSplitter::handle {
-                background-color: #1c2b42;
-                height: 4px;
-            }
-            QSplitter::handle:hover {
-                background-color: #9c741f;
-            }
-            """
-        )
+        # Bot log card
+        bot_card = QFrame()
+        bot_card.setObjectName("card")
+        bot_card_v = QVBoxLayout(bot_card)
+        bot_card_v.setContentsMargins(12, 10, 12, 8)
+        bot_card_v.setSpacing(6)
+        bot_head = QHBoxLayout()
+        bot_head.setSpacing(8)
+        bot_title = QLabel("Bot log")
+        bot_title.setStyleSheet("font-size:14px; font-weight:600; color:#193431;")
+        bot_head.addWidget(bot_title)
+        bot_head.addStretch()
+        self.log_filter = QComboBox()
+        self.log_filter.addItems(["All events", "INFO", "SUCCESS", "WARNING", "ERROR"])
+        self.log_filter.setFixedWidth(96)
+        self.log_filter.currentTextChanged.connect(self._on_log_filter_changed)
+        bot_head.addWidget(self.log_filter)
+        export_btn = QPushButton("Export")
+        export_btn.setFixedHeight(28)
+        export_btn.clicked.connect(self._export_log)
+        bot_head.addWidget(export_btn)
+        bot_card_v.addLayout(bot_head)
 
-        top_widget = QWidget()
-        top_vbox = QVBoxLayout(top_widget)
-        top_vbox.setContentsMargins(0, 0, 0, 0)
-        top_vbox.setSpacing(2)
-        top_label = QLabel("BOT LOG")
-        top_label.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        top_label.setStyleSheet(
-            "color: #ffd76a; background: transparent; padding-left: 2px;"
-        )
         self.log = QTextEdit()
+        self.log.setObjectName("logView")
         self.log.setReadOnly(True)
         self.log.setFont(QFont("Consolas", 9))
-        self.log.setStyleSheet(
-            "background: #0b1424; color: #dbe7f7; border: 1px solid #243854;"
-            " border-radius: 6px; padding: 4px;"
-        )
-        top_vbox.addWidget(top_label)
-        top_vbox.addWidget(self.log)
+        self.log.setMinimumHeight(240)
+        bot_card_v.addWidget(self.log, 1)
 
-        bot_widget = QWidget()
-        bot_vbox = QVBoxLayout(bot_widget)
-        bot_vbox.setContentsMargins(0, 0, 0, 0)
-        bot_vbox.setSpacing(2)
-        bot_label = QLabel("ATTACK LOG")
-        bot_label.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        bot_label.setStyleSheet(
-            "color: #e8b64c; background: transparent; padding-left: 2px;"
-        )
-        self.attack_log = QTextEdit()
-        self.attack_log.setReadOnly(True)
-        self.attack_log.setFont(QFont("Consolas", 9))
-        self.attack_log.setStyleSheet(
-            "background: #0b1424; color: #dbe7f7; border: 1px solid #243854;"
-            " border-radius: 6px; padding: 4px;"
-        )
-        bot_vbox.addWidget(bot_label)
-        bot_vbox.addWidget(self.attack_log)
+        bot_foot = QHBoxLayout()
+        bot_foot.setSpacing(6)
+        self.auto_scroll_chk = QCheckBox("Auto-scroll")
+        self.auto_scroll_chk.setChecked(True)
+        bot_foot.addWidget(self.auto_scroll_chk)
+        bot_foot.addStretch()
+        self.log_count_lbl = QLabel("0 events · All systems ready")
+        self.log_count_lbl.setStyleSheet("color:#657877; font-size:10px;")
+        bot_foot.addWidget(self.log_count_lbl)
+        bot_card_v.addLayout(bot_foot)
+        logs_layout.addWidget(bot_card, 65)
 
-        splitter.addWidget(top_widget)
-        splitter.addWidget(bot_widget)
-        splitter.setStretchFactor(0, 65)
-        splitter.setStretchFactor(1, 35)
-        splitter.setSizes([380, 200])
-        logs_layout.addWidget(splitter)
+        # Attack log card
+        atk_card = QFrame()
+        atk_card.setObjectName("card")
+        atk_v = QVBoxLayout(atk_card)
+        atk_v.setContentsMargins(12, 10, 12, 10)
+        atk_v.setSpacing(6)
+        atk_head = QHBoxLayout()
+        atk_head.setSpacing(8)
+        atk_title = QLabel("Attack log")
+        atk_title.setStyleSheet("font-size:14px; font-weight:600; color:#193431;")
+        atk_head.addWidget(atk_title)
+        self.attack_count_lbl = QLabel("0")
+        self.attack_count_lbl.setStyleSheet(
+            "background:#EEF2F6; color:#536D80; border-radius:3px;"
+            " padding:1px 5px; font-size:8px; font-weight:600;")
+        atk_head.addWidget(self.attack_count_lbl)
+        atk_head.addStretch()
+        atk_sub = QLabel("This session")
+        atk_sub.setStyleSheet("color:#657877; font-size:10px;")
+        atk_head.addWidget(atk_sub)
+        atk_v.addLayout(atk_head)
+
+        self.attack_table = QTableWidget(0, 7)
+        self.attack_table.setHorizontalHeaderLabels(
+            ["TIME", "MODE", "GOLD", "ELIXIR", "DARK", "TROPHIES", "BONUS"])
+        self.attack_table.verticalHeader().setVisible(False)
+        self.attack_table.setShowGrid(False)
+        self.attack_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.attack_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.attack_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch)
+        self.attack_table.verticalHeader().setDefaultSectionSize(22)
+        self.attack_table.setMinimumHeight(100)
+        atk_v.addWidget(self.attack_table, 1)
+        self._reset_attack_table()
+        logs_layout.addWidget(atk_card, 35)
 
         # ===== TAB 1: General tab =====
         gen_tab = QWidget()
@@ -1501,49 +1441,6 @@ class MainWindow(QMainWindow):
             return l
 
         row = 0
-        header_container = QWidget()
-        header_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(0)
-
-        left_lbl = QLabel()
-        pix_left = QPixmap(os.path.join(TEMPLATES_DIR, "icon_siege.png"))
-        if not pix_left.isNull():
-            pix_left = pix_left.scaledToWidth(50, Qt.SmoothTransformation)
-            left_lbl.setPixmap(pix_left)
-            left_lbl.setFixedSize(pix_left.size())
-            left_eff = QGraphicsOpacityEffect(left_lbl)
-            left_eff.setOpacity(0.7)
-            left_lbl.setGraphicsEffect(left_eff)
-        header_layout.addWidget(left_lbl)
-        header_layout.addStretch()
-
-        mid_lbl = QLabel()
-        pix_mid_orig = QPixmap(os.path.join(TEMPLATES_DIR, "icon_attack_criteria.png"))
-        if not pix_mid_orig.isNull():
-            pix_mid = pix_mid_orig.scaledToWidth(180, Qt.SmoothTransformation)
-            mid_lbl.setPixmap(pix_mid)
-            mid_lbl.setFixedSize(pix_mid.size())
-        header_layout.addWidget(mid_lbl)
-        header_layout.addStretch()
-
-        right_lbl = QLabel()
-        pix_right = QPixmap(os.path.join(TEMPLATES_DIR, "icon_dragon.png"))
-        if not pix_right.isNull():
-            pix_right = pix_right.scaledToWidth(50, Qt.SmoothTransformation)
-            right_lbl.setPixmap(pix_right)
-            right_lbl.setFixedSize(pix_right.size())
-            right_eff = QGraphicsOpacityEffect(right_lbl)
-            right_eff.setOpacity(0.7)
-            right_lbl.setGraphicsEffect(right_eff)
-        header_layout.addWidget(right_lbl)
-
-        grid.addWidget(header_container, row, 0, 1, 2)
-        row += 1
-        grid.addWidget(line(), row, 0, 1, 2)
-        row += 1
-
         self.gold_entry = QLineEdit(str(self.settings.get("gold_threshold", 65000)))
         self.elixir_entry = QLineEdit(
             str(self.settings.get("elixir_threshold", 65000))
@@ -1567,7 +1464,7 @@ class MainWindow(QMainWindow):
         gold_hlay.addWidget(icon_gold_lbl)
         lbl_gold = QLabel("Gold:")
         lbl_gold.setFont(labF)
-        lbl_gold.setStyleSheet("color:#FFFFFF;")
+        lbl_gold.setStyleSheet("color:#193431;")
         gold_hlay.addWidget(lbl_gold)
         gold_hlay.addStretch()
         grid.addWidget(gold_container, row, 0)
@@ -1586,7 +1483,7 @@ class MainWindow(QMainWindow):
         elixir_hlay.addWidget(icon_elixir_lbl)
         lbl_elixir = QLabel("Elixir:")
         lbl_elixir.setFont(labF)
-        lbl_elixir.setStyleSheet("color:#FFFFFF;")
+        lbl_elixir.setStyleSheet("color:#193431;")
         elixir_hlay.addWidget(lbl_elixir)
         elixir_hlay.addStretch()
         grid.addWidget(elixir_container, row, 0)
@@ -1605,7 +1502,7 @@ class MainWindow(QMainWindow):
         de_hlay.addWidget(icon_de_lbl)
         lbl_de = QLabel("Dark Elixir:")
         lbl_de.setFont(labF)
-        lbl_de.setStyleSheet("color:#FFFFFF;")
+        lbl_de.setStyleSheet("color:#193431;")
         de_hlay.addWidget(lbl_de)
         de_hlay.addStretch()
         grid.addWidget(de_container, row, 0)
@@ -1621,7 +1518,7 @@ class MainWindow(QMainWindow):
         up_layout.setSpacing(6)
         self.upgrade_chk = QCheckBox("Enable Upgrade Wall")
         self.upgrade_chk.setFont(hdrF)
-        self.upgrade_chk.setStyleSheet("color:#FFFFFF;")
+        self.upgrade_chk.setStyleSheet("color:#193431;")
         self.upgrade_chk.setChecked(self.settings.get("upgrade_wall", False))
         up_layout.addWidget(self.upgrade_chk)
         icon_up_lbl = QLabel()
@@ -1659,7 +1556,7 @@ class MainWindow(QMainWindow):
         wg_gold_hlay.addWidget(icon_wall_gold)
         lbl_wg_gold = QLabel("Gold Threshold:")
         lbl_wg_gold.setFont(labF)
-        lbl_wg_gold.setStyleSheet("color:#FFFFFF;")
+        lbl_wg_gold.setStyleSheet("color:#193431;")
         wg_gold_hlay.addWidget(lbl_wg_gold)
         wg_gold_hlay.addStretch()
         grid.addWidget(wg_gold_container, row, 0)
@@ -1678,7 +1575,7 @@ class MainWindow(QMainWindow):
         wg_elixir_hlay.addWidget(icon_wall_elixir)
         lbl_wg_elixir = QLabel("Elixir Threshold:")
         lbl_wg_elixir.setFont(labF)
-        lbl_wg_elixir.setStyleSheet("color:#FFFFFF;")
+        lbl_wg_elixir.setStyleSheet("color:#193431;")
         wg_elixir_hlay.addWidget(lbl_wg_elixir)
         wg_elixir_hlay.addStretch()
         grid.addWidget(wg_elixir_container, row, 0)
@@ -1697,7 +1594,7 @@ class MainWindow(QMainWindow):
         wl_hlay.addWidget(icon_wall_level)
         lbl_wl = QLabel("Target Wall Level:")
         lbl_wl.setFont(labF)
-        lbl_wl.setStyleSheet("color:#FFFFFF;")
+        lbl_wl.setStyleSheet("color:#193431;")
         wl_hlay.addWidget(lbl_wl)
         wl_hlay.addStretch()
         grid.addWidget(wl_container, row, 0)
@@ -1713,7 +1610,7 @@ class MainWindow(QMainWindow):
         req_layout.setSpacing(6)
         self.req_chk = QCheckBox("Enable Request Troops")
         self.req_chk.setFont(hdrF)
-        self.req_chk.setStyleSheet("color:#FFFFFF;")
+        self.req_chk.setStyleSheet("color:#193431;")
         self.req_chk.setChecked(self.settings.get("request_troops", False))
         req_layout.addWidget(self.req_chk)
         icon_cc = QLabel()
@@ -1775,7 +1672,7 @@ class MainWindow(QMainWindow):
         enable_layout.setSpacing(6)
         self.clan_games_toggle = QCheckBox("Enable Clan Games")
         self.clan_games_toggle.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        self.clan_games_toggle.setStyleSheet("color: #FFFFFF;")
+        self.clan_games_toggle.setStyleSheet("color: #193431;")
         self.clan_games_toggle.setChecked(self.settings.get("enable_clan_games", False))
         enable_layout.addWidget(self.clan_games_toggle)
         games_icon_lbl = QLabel()
@@ -1821,7 +1718,7 @@ class MainWindow(QMainWindow):
         cc_en_h.setSpacing(4)
         self.clan_capital_toggle = QCheckBox("Enable Clan Capital")
         self.clan_capital_toggle.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        self.clan_capital_toggle.setStyleSheet("color:#FFFFFF;")
+        self.clan_capital_toggle.setStyleSheet("color:#193431;")
         self.clan_capital_toggle.setChecked(
             self.settings.get("enable_clan_capital", False)
         )
@@ -1847,7 +1744,7 @@ class MainWindow(QMainWindow):
         )
         note_lbl.setWordWrap(True)
         note_lbl.setStyleSheet(
-            "\n            color: #FFFFFF;\n            font-size: 13px;\n"
+            "\n            color: #193431;\n            font-size: 13px;\n"
             "            font-weight: 600;\n            margin-top: 4px;\n        "
         )
         cc_layout.addWidget(note_lbl)
@@ -1857,7 +1754,7 @@ class MainWindow(QMainWindow):
         cc_lvl_h.setContentsMargins(0, 0, 0, 0)
         cc_lvl_h.setSpacing(8)
         lvl_label = QLabel("Capital Hall level:")
-        lvl_label.setStyleSheet("color:#FFFFFF; font-size:15px; font-weight:600;")
+        lvl_label.setStyleSheet("color:#193431; font-size:15px; font-weight:600;")
         cc_lvl_h.addWidget(lvl_label, 0, Qt.AlignLeft | Qt.AlignVCenter)
         self.cc_level = QSpinBox()
         self.cc_level.setRange(1, 10)
@@ -1866,29 +1763,6 @@ class MainWindow(QMainWindow):
         self.cc_level.setToolTip("Select your Clan Capital Hall level (1–10).")
         self.cc_level.setFixedSize(90, 34)
         self.cc_level.setFont(QFont("Segoe UI", 13, QFont.DemiBold))
-        self.cc_level.setStyleSheet(
-            """
-            QSpinBox {
-                color: #ffd76a;
-                background: #0b1424;
-                padding: 4px 8px;
-                border: 1px solid #243854;
-                border-radius: 6px;
-            }
-            QSpinBox:focus {
-                border-color: #e8b64c;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 16px; height: 16px;
-                margin: 1px;
-            }
-            QSpinBox:disabled {
-                color: #5a6a80;
-                background: #0d1727;
-                border: 1px solid #1c2b42;
-            }
-            """
-        )
         cc_lvl_h.addWidget(self.cc_level, 0, Qt.AlignLeft | Qt.AlignVCenter)
         cc_lvl_h.addStretch(1)
         cc_layout.addWidget(cc_lvl_row)
@@ -1917,25 +1791,47 @@ class MainWindow(QMainWindow):
         # ===== TAB 7: Debug tab (Crop Tool) =====
         self.debug_tab = DebugTab()
 
-        # Add tabs in order (Log at index 0)
-        def _tab_icon(filename):
-            path = os.path.join(TEMPLATES_DIR, filename)
-            return QIcon(path) if os.path.exists(path) else QIcon()
+        # ===== Assemble the 6 top-level tabs =====
+        def _scroll(widget):
+            sa = QScrollArea()
+            sa.setWidgetResizable(True)
+            sa.setFrameShape(QFrame.NoFrame)
+            sa.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            sa.viewport().setAutoFillBackground(False)
+            sa.setStyleSheet(
+                "QScrollArea, QScrollArea > QWidget > QWidget "
+                "{ background: transparent; }")
+            sa.setWidget(widget)
+            return sa
+
+        village_tabs = QTabWidget()
+        village_tabs.setObjectName("subTabs")
+        village_tabs.setDocumentMode(True)
+        village_tabs.addTab(_scroll(gen_tab), "General")
+        village_tabs.addTab(_scroll(self.accounts_tab), "Accounts")
+        village_tabs.currentChanged.connect(
+            lambda i: self._refresh_accounts(silent=True) if i == 1 else None)
+
+        settings_tabs = QTabWidget()
+        settings_tabs.setObjectName("subTabs")
+        settings_tabs.setDocumentMode(True)
+        settings_tabs.addTab(_scroll(clan_tab), "Clan Games")
+        settings_tabs.addTab(_scroll(cc_tab), "Clan Capital")
+        settings_tabs.addTab(_scroll(self.debug_tab), "Debug")
+
+        about_tab = self._build_about_tab()
 
         self.tab_widget.addTab(logs_tab, "Log")
-        self.tab_widget.addTab(gen_tab, _tab_icon("settings_logo.png"), "General")
-        self.tab_widget.addTab(self.army_tab, _tab_icon("icon_barb.png"), "Army")
-        self.accounts_tab_index = self.tab_widget.addTab(
-            self.accounts_tab, _tab_icon("icon_switch.png"), "Accounts")
-        self.tab_widget.addTab(clan_tab, _tab_icon("icon_games.png"), "Clan Games")
-        self.tab_widget.addTab(cc_tab, _tab_icon("clan_capital_logo.png"), "Clan Capital")
-        self.tab_widget.addTab(self.stats_tab, _tab_icon("icon_trophy.png"), "Statistics")
-        self.tab_widget.addTab(self.debug_tab, _tab_icon("icon_target.png"), "Debug")
+        self.tab_widget.addTab(village_tabs, "Village")
+        self.tab_widget.addTab(_scroll(self.army_tab), "Attack plan")
+        self.tab_widget.addTab(settings_tabs, "Bot settings")
+        self.tab_widget.addTab(_scroll(self.stats_tab), "Statistics")
+        self.tab_widget.addTab(about_tab, "About")
+        self.attack_tab_index = 2
+        self.accounts_tab_index = 1  # Village tab (kept for _on_tab_changed)
         self.tab_widget.setCurrentIndex(0)
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
         self._refresh_accounts(silent=True)
-
-        vroot.addWidget(self.tab_widget, 1)
 
         # ===== Log stream =====
         self.stream = TimestampStream()
@@ -1943,58 +1839,46 @@ class MainWindow(QMainWindow):
         sys.stdout = self.stream
         sys.stderr = self.stream
 
-        # ===== Bottom Bar (Fixed) =====
+        # ===== Bottom Bar (fixed, Figma 12px margins) =====
         bottom_bar = QFrame()
-        bottom_bar.setFixedHeight(60)
-        bottom_bar.setStyleSheet(
-            """
-            QFrame {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #101c31, stop:1 #080d18);
-                border-top: 2px solid #e8b64c;
-            }
-            """
-        )
+        bottom_bar.setFixedHeight(54)
+        bottom_bar.setStyleSheet("QFrame { background: #F2F5F3; border: none; }")
         bottom_layout = QHBoxLayout(bottom_bar)
-        bottom_layout.setContentsMargins(12, 6, 12, 6)
-        bottom_layout.setSpacing(10)
+        bottom_layout.setContentsMargins(12, 0, 12, 12)
+        bottom_layout.setSpacing(12)
 
-        self.start_btn = ClickBounceButton()
-        self.start_btn.setObjectName("startBtn")
-        self._apply_image_button(self.start_btn, "start.png", 120, 44)
+        self.start_btn = QPushButton("Start bot")
+        self.start_btn.setObjectName("primaryBtn")
+        self.start_btn.setFixedSize(108, 42)
+        self.start_btn.setCursor(Qt.PointingHandCursor)
 
-        self.stop_btn = ClickBounceButton()
-        self.stop_btn.setObjectName("endBtn")
-        self._apply_image_button(self.stop_btn, "end.png", 120, 44)
-        self.stop_btn.setEnabled(False)
-
-        self._toggle_btn = ClickBounceButton()
-        self._toggle_btn.setFlat(True)
+        self._toggle_btn = QPushButton("Pause")
+        self._toggle_btn.setFixedSize(88, 42)
         self._toggle_btn.setCursor(Qt.PointingHandCursor)
-        self._toggle_btn.setIcon(QIcon(os.path.join(TEMPLATES_DIR, "stop_button.png")))
-        self._toggle_btn.setIconSize(QSize(36, 36))
-        self._toggle_btn.setFixedSize(44, 44)
-        self._toggle_btn.setStyleSheet(
-            "QPushButton { background: #111d31; border: 1px solid #243854; border-radius: 8px; } "
-            "QPushButton:hover { background: #16243b; border-color: #e8b64c; }"
-        )
         self.paused = False
         self._toggle_btn.clicked.connect(self._on_toggle_pause_play)
 
-        self.status_lbl = QLabel("Status: Ready")
-        self.status_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
-        self.status_lbl.setStyleSheet("color: #5fd38d; padding-left: 8px;")
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setObjectName("stopBtn")
+        self.stop_btn.setFixedSize(88, 42)
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.setCursor(Qt.PointingHandCursor)
 
-        version_lbl = QLabel("CoC Bot  •  v3.50")
-        version_lbl.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        version_lbl.setStyleSheet("color: #8fa3bf; padding-right: 4px;")
+        self.search_btn = QPushButton("⌕  Search mode")
+        self.search_btn.setFixedSize(136, 42)
+        self.search_btn.setCursor(Qt.PointingHandCursor)
+        self.search_btn.setToolTip("Mở tab Attack plan để chỉnh chế độ tìm trận.")
+        self.search_btn.clicked.connect(
+            lambda: self.tab_widget.setCurrentIndex(self.attack_tab_index))
+
+        self.status_lbl = QLabel("Status: Ready")
+        self.status_lbl.setVisible(False)
 
         bottom_layout.addWidget(self.start_btn)
-        bottom_layout.addWidget(self.stop_btn)
         bottom_layout.addWidget(self._toggle_btn)
-        bottom_layout.addWidget(self.status_lbl)
+        bottom_layout.addWidget(self.stop_btn)
+        bottom_layout.addWidget(self.search_btn)
         bottom_layout.addStretch()
-        bottom_layout.addWidget(version_lbl)
 
         vroot.addWidget(bottom_bar)
 
@@ -2006,20 +1890,55 @@ class MainWindow(QMainWindow):
         self.updater.update_available.connect(self.on_update_available)
         QTimer.singleShot(500, self.updater.check_for_update)
 
-    def _lbl(self, text: str, colour: str, font: QFont):
-        lbl = QLabel(text)
-        font.setBold(True)
-        lbl.setFont(font)
-        lbl.setStyleSheet(
-            f"\n            color: {colour};\n            border: 1px solid #FFFFFF;\n"
-            "            background: rgba(0,0,0,120);\n            padding: 2px 4px;\n        "
+    def _build_about_tab(self):
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 10, 0, 0)
+        outer.setSpacing(12)
+
+        card = QFrame()
+        card.setObjectName("card")
+        cv = QVBoxLayout(card)
+        cv.setContentsMargins(16, 16, 16, 16)
+        cv.setSpacing(8)
+
+        title = QLabel("MyBot PHMOD v15.9")
+        title.setStyleSheet("font-size:16px; font-weight:600; color:#193431;")
+        cv.addWidget(title)
+
+        subtitle = QLabel("Clash of Clans automation control panel")
+        subtitle.setStyleSheet("font-size:11px; color:#657877;")
+        cv.addWidget(subtitle)
+
+        desc = QLabel(
+            "Bot tự động farm tài nguyên, huấn luyện quân, xin quân, "
+            "Clan Games / Clan Capital và chuyển account. "
+            "Redline dùng OpenCV fallback, có thể nâng cấp bằng YOLO-seg."
         )
-        shadow = QGraphicsDropShadowEffect(lbl)
-        shadow.setBlurRadius(6)
-        shadow.setOffset(1, 1)
-        shadow.setColor(QColor(0, 0, 0, 180))
-        lbl.setGraphicsEffect(shadow)
-        return lbl
+        desc.setWordWrap(True)
+        desc.setStyleSheet("font-size:11px; color:#193431; line-height: 150%;")
+        cv.addWidget(desc)
+
+        meta = QLabel(
+            "Python 3.13 · PyQt5 · OpenCV · Ultralytics (optional)\n"
+            "Freeware · Open source · Không liên kết với Supercell."
+        )
+        meta.setWordWrap(True)
+        meta.setStyleSheet("font-size:10px; color:#657877;")
+        cv.addWidget(meta)
+
+        btn_row = QHBoxLayout()
+        github_btn = QPushButton("GitHub repository")
+        github_btn.clicked.connect(
+            lambda: webbrowser.open(
+                "https://github.com/lvmai1801it-dev/MyBot_Python"))
+        btn_row.addWidget(github_btn)
+        btn_row.addStretch()
+        cv.addLayout(btn_row)
+
+        outer.addWidget(card)
+        outer.addStretch()
+        return page
 
     def _on_army_recipe_changed(self):
         name = self.army_tab.get_active_name()
@@ -2031,21 +1950,118 @@ class MainWindow(QMainWindow):
             w.setEnabled(enabled)
             w.setFocusPolicy(policy)
 
-    def _append_log(self, line: str):
-        colour = COLOR_TAGS.get(classify_colour(line), "info")
-        html_line = f"<span class='{colour}'>{line}</span><br>"
-        lo = line.lower()
-        attack_keywords = ("attack", "loot", "star", "destroy", "gain")
-        if any(kw in lo for kw in attack_keywords):
-            if hasattr(self, "attack_log") and self.attack_log is not None:
-                self.attack_log.moveCursor(QTextCursor.End)
-                self.attack_log.insertHtml(html_line)
-                self.attack_log.moveCursor(QTextCursor.End)
-                return
+    def _log_line_html(self, level: str, text: str) -> str:
+        colour = LOG_LEVEL_COLORS.get(level, LOG_LEVEL_COLORS["INFO"])
+        safe = (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+        return f'<span style="color:{colour};">{safe}</span><br>'
 
+    def _append_log(self, line: str):
+        if not line:
+            return
+        text = str(line).rstrip("\r\n")
+        if not text.strip():
+            return
+        level = classify_level(text)
+        self._log_lines.append((level, text))
+        if len(self._log_lines) > 4000:
+            self._log_lines = self._log_lines[-3000:]
+        self._add_attack_row(text)
+
+        if self._log_filter == "All events" or self._log_filter == level:
+            self.log.moveCursor(QTextCursor.End)
+            self.log.insertHtml(self._log_line_html(level, text))
+            if self.auto_scroll_chk.isChecked():
+                self.log.moveCursor(QTextCursor.End)
+
+        if hasattr(self, "log_count_lbl"):
+            self.log_count_lbl.setText(
+                f"{len(self._log_lines)} events · All systems ready")
+
+    def _on_log_filter_changed(self, value: str):
+        self._log_filter = value or "All events"
+        self.log.clear()
+        for level, text in self._log_lines:
+            if self._log_filter == "All events" or self._log_filter == level:
+                self.log.insertHtml(self._log_line_html(level, text))
         self.log.moveCursor(QTextCursor.End)
-        self.log.insertHtml(html_line)
-        self.log.moveCursor(QTextCursor.End)
+
+    def _export_log(self):
+        default = os.path.join(
+            os.path.expanduser("~"), "mybot-log.txt")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export bot log", default, "Text files (*.txt)")
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                for level, text in self._log_lines:
+                    fh.write(f"[{level}] {text}\n")
+            print(f"[UI] Log exported: {path}")
+        except Exception as e:
+            QMessageBox.warning(self, "Export", f"Không ghi được log:\n{e}")
+
+    def _reset_attack_table(self):
+        self.attack_table.clearSpans()
+        self.attack_table.setRowCount(0)
+        self.attack_table.insertRow(0)
+        item = QTableWidgetItem(
+            "No attacks yet — Start the bot to see results here.")
+        item.setTextAlignment(Qt.AlignCenter)
+        item.setForeground(QBrush(QColor("#657877")))
+        self.attack_table.setItem(0, 0, item)
+        self.attack_table.setSpan(0, 0, 1, 7)
+        self._attack_placeholder = True
+        if hasattr(self, "attack_count_lbl"):
+            self.attack_count_lbl.setText("0")
+
+    def _add_attack_row(self, text: str):
+        match = re.search(
+            r"\[LOOT\]\s*GOLD:\s*([\d,]+)\s*ELIXIR:\s*([\d,]+)"
+            r"\s*DARK_ELIXIR:\s*([\d,]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if not match or not hasattr(self, "attack_table"):
+            return
+        if getattr(self, "_attack_placeholder", False):
+            self.attack_table.clearSpans()
+            self.attack_table.removeRow(0)
+            self._attack_placeholder = False
+        time_str = text.split("•")[0].strip() if "•" in text else time.strftime("%H:%M:%S")
+        attack = str(self.settings.get("attack", "") or "")
+        mode = {
+            "Dragon_Attack": "Dragon",
+            "ElectroDragon_Attack": "E-Dragon",
+        }.get(attack, attack or "Attack")
+        values = [
+            time_str,
+            mode,
+            self._fmt_number(match.group(1)),
+            self._fmt_number(match.group(2)),
+            self._fmt_number(match.group(3)),
+            "—",
+            "—",
+        ]
+        row = self.attack_table.rowCount()
+        self.attack_table.insertRow(row)
+        for col, value in enumerate(values):
+            item = QTableWidgetItem(value)
+            item.setTextAlignment(
+                Qt.AlignVCenter | (Qt.AlignLeft if col < 2 else Qt.AlignRight))
+            self.attack_table.setItem(row, col, item)
+        self.attack_count_lbl.setText(str(row + 1))
+        self.attack_table.scrollToBottom()
+
+    @staticmethod
+    def _fmt_number(value: str) -> str:
+        try:
+            return f"{int(str(value).replace(',', '')):,}"
+        except Exception:
+            return str(value)
 
     def on_start(self):
         if self._worker and self._worker.is_alive():
@@ -2167,12 +2183,13 @@ class MainWindow(QMainWindow):
 
         if self.paused:
             self.paused = False
-            icon_stop = QIcon(QPixmap(os.path.join(TEMPLATES_DIR, "stop_button.png")))
-            self._toggle_btn.setIcon(icon_stop)
+            self._toggle_btn.setText("Pause")
+            self._toggle_btn.setObjectName("")
+            self._toggle_btn.style().unpolish(self._toggle_btn)
+            self._toggle_btn.style().polish(self._toggle_btn)
 
         if hasattr(self, "status_lbl"):
             self.status_lbl.setText("Status: Ready")
-            self.status_lbl.setStyleSheet("color: #60d394; padding-left: 8px;")
 
         if hasattr(self, "_emu_socket") and self._emu_socket is not None:
             try:

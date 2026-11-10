@@ -60,9 +60,9 @@ class StatsTab(QWidget):
         hdrF = QFont('Segoe UI', 13, QFont.Bold)
         numF = QFont('Segoe UI', 12, QFont.Bold)
         labelF = QFont('Segoe UI', 11, QFont.Bold)
-        gold_c = '#EFE2BA'
-        elixir_c = '#EFE2BA'
-        de_c = '#EFE2BA'
+        gold_c = '#193431'
+        elixir_c = '#193431'
+        de_c = '#193431'
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
@@ -85,7 +85,7 @@ class StatsTab(QWidget):
 
         self.enable_stats_chk = QCheckBox('Enable Statistics', self)
         self.enable_stats_chk.setFont(QFont('Segoe UI', 13, QFont.Bold))
-        self.enable_stats_chk.setStyleSheet('color: #FFFFFF;')
+        self.enable_stats_chk.setStyleSheet('color: #193431;')
         self.enable_stats_chk.setChecked(self.cfg.get('enable_stats', False))
         enable_layout.addWidget(self.enable_stats_chk)
 
@@ -108,14 +108,14 @@ class StatsTab(QWidget):
             '''
             QGroupBox {
                 background: transparent;
-                border: 1px solid #FFFFFF;
+                border: 1px solid #DCE5E1;
                 border-radius: 4px;
                 margin-top: 6px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px; padding: 0 4px;
-                color: #FFFFFF;
+                color: #193431;
             }
             '''
         )
@@ -155,14 +155,14 @@ class StatsTab(QWidget):
 
         lbl_att = QLabel('Total Attacks:')
         lbl_att.setFont(labelF)
-        lbl_att.setStyleSheet('color:#FFFFFF;')
+        lbl_att.setStyleSheet('color:#193431;')
         att_hlay.addWidget(lbl_att)
         att_hlay.addStretch()
         grid.addWidget(att_container, 3, 0)
 
         self.val_att = QLabel('0')
         self.val_att.setFont(numF)
-        self.val_att.setStyleSheet('color:#FFFFFF;')
+        self.val_att.setStyleSheet('color:#193431;')
         grid.addWidget(self.val_att, 3, 1, alignment=Qt.AlignRight)
 
         line = QFrame()
@@ -172,30 +172,30 @@ class StatsTab(QWidget):
 
         l = QLabel('Avg Gold/hr:')
         l.setFont(labelF)
-        l.setStyleSheet('color:#FFFFFF;')
+        l.setStyleSheet('color:#193431;')
         grid.addWidget(l, 5, 0)
         avg_gold_row = _ResourceRow(
-            os.path.join(self.templates_dir, 'icon_gold.png'), numF, '#EFE2BA'
+            os.path.join(self.templates_dir, 'icon_gold.png'), numF, '#193431'
         )
         grid.addWidget(avg_gold_row, 5, 1)
         self.avg_labels['avg_gold'] = avg_gold_row
 
         l = QLabel('Avg Elixir/hr:')
         l.setFont(labelF)
-        l.setStyleSheet('color:#FFFFFF;')
+        l.setStyleSheet('color:#193431;')
         grid.addWidget(l, 6, 0)
         avg_elixir_row = _ResourceRow(
-            os.path.join(self.templates_dir, 'icon_elixir.png'), numF, '#EFE2BA'
+            os.path.join(self.templates_dir, 'icon_elixir.png'), numF, '#193431'
         )
         grid.addWidget(avg_elixir_row, 6, 1)
         self.avg_labels['avg_elixir'] = avg_elixir_row
 
         l = QLabel('Avg DE/hr:')
         l.setFont(labelF)
-        l.setStyleSheet('color:#FFFFFF;')
+        l.setStyleSheet('color:#193431;')
         grid.addWidget(l, 7, 0)
         avg_de_row = _ResourceRow(
-            os.path.join(self.templates_dir, 'icon_de.png'), numF, '#EFE2BA'
+            os.path.join(self.templates_dir, 'icon_de.png'), numF, '#193431'
         )
         grid.addWidget(avg_de_row, 7, 1)
         self.avg_labels['avg_de'] = avg_de_row
@@ -208,14 +208,14 @@ class StatsTab(QWidget):
             '''
             QGroupBox {
                 background: transparent;
-                border: 1px solid #FFFFFF;
+                border: 1px solid #DCE5E1;
                 border-radius: 4px;
                 margin-top: 6px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px; padding: 0 4px;
-                color: #FFFFFF;
+                color: #193431;
             }
             '''
         )
@@ -247,7 +247,7 @@ class StatsTab(QWidget):
 
             star_text = QLabel(star_labels[i])
             star_text.setFont(labelF)
-            star_text.setStyleSheet('color:#FFFFFF;')
+            star_text.setStyleSheet('color:#193431;')
             star_hlay.addWidget(star_text)
             star_hlay.addStretch()
             grid_ar.addWidget(star_container, i, 0)
@@ -297,7 +297,7 @@ class StatsTab(QWidget):
 
         self.session_lbl = QLabel('0 h 00 m 00 s')
         self.session_lbl.setFont(labelF)
-        self.session_lbl.setStyleSheet('color: #FFFFFF;')
+        self.session_lbl.setStyleSheet('color: #193431;')
         session_layout.addWidget(self.session_lbl)
 
         vroot.addWidget(session_bottom)
@@ -382,11 +382,11 @@ class StatsTab(QWidget):
         for k in ('Gold', 'Elixir', 'Dark Elixir', 'Attacks', 'Session Duration'):
             l = QLabel(k + ':')
             l.setFont(labelF)
-            l.setStyleSheet('color:#FFFFFF;')
+            l.setStyleSheet('color:#193431;')
 
             v = QLabel('0')
             v.setFont(numF)
-            v.setStyleSheet('color:#FFFFFF;')
+            v.setStyleSheet('color:#193431;')
 
             grid.addWidget(l, row, 0)
             grid.addWidget(v, row, 1, alignment=Qt.AlignRight)
@@ -402,11 +402,11 @@ class StatsTab(QWidget):
         for k in ('Avg Gold/hr', 'Avg Elixir/hr', 'Avg DE/hr'):
             l = QLabel(k + ':')
             l.setFont(labelF)
-            l.setStyleSheet('color:#FFFFFF;')
+            l.setStyleSheet('color:#193431;')
 
             v = QLabel('0')
             v.setFont(numF)
-            v.setStyleSheet('color:#FFFFFF;')
+            v.setStyleSheet('color:#193431;')
 
             grid.addWidget(l, row, 0)
             grid.addWidget(v, row, 1, alignment=Qt.AlignRight)

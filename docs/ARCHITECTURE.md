@@ -8,9 +8,6 @@ dễ test từng phần, giữ nguyên hành vi bot.
 ```text
 src/
 ├── run.py                  # entry point chính (GUI)
-├── main.py                 # shim tương thích cũ -> COCbot.app.bootstrap
-├── bot_gui.py              # shim tương thích cũ -> COCbot.gui.app
-├── coords.py / state.py    # shim tương thích cũ
 ├── settings.json           # cấu hình runtime (gitignored)
 ├── COCbot/
 │   ├── app/                # lõi ứng dụng: config, state, paths, coords, stats
@@ -153,11 +150,17 @@ tools/eval_redline_yolo.py     # IoU, drop safety, coverage, latency
 
 ---
 
-## 4.4. GUI theme
+## 4.4. GUI theme & layout
 
-- `COCbot/gui/theme.py`: palette navy + gold và `GLOBAL_QSS`.
-- `Templates/coc_logo.png`: logo Clash of Clans dùng ở header.
+- `COCbot/gui/theme.py`: palette sáng theo Figma — nền `#F2F5F3`, title bar
+  `#142C2B`, card `#FFFFFF`, primary `#13775F`, viền `#DCE5E1`.
+- Cửa sổ 480×670, frameless title bar kéo được, nút minimize / maximize / close.
+- 6 tab: **Log**, **Village** (General + Accounts), **Attack plan**,
+  **Bot settings** (Clan Games / Clan Capital / Debug), **Statistics**, **About**.
+- Log tab: Bot log (filter INFO/SUCCESS/WARNING/ERROR, Export) + Attack log
+  (TIME/MODE/GOLD/ELIXIR/DARK/TROPHIES/BONUS) + Start/Pause/Stop/Search mode.
 - `Templates/coc_icon.ico` / `coc_icon.png`: icon cửa sổ.
+- `Templates/ui_check.png` / `ui_radio.png`: checkbox/radio asset.
 - Không còn thương hiệu "Simplicity" trong GUI.
 
 ---

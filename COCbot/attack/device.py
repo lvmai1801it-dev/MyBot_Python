@@ -21,12 +21,8 @@ try:
 except ImportError:
     pytesseract = None
 
-try:
-    from COCbot.app import state
-    from COCbot.platform.adb_utils import _get_target_device, tap as adb_tap
-except ImportError:
-    import state
-    from COCbot.platform.adb_utils import _get_target_device, tap as adb_tap
+from COCbot.app import state
+from COCbot.platform.adb_utils import _get_target_device, tap as adb_tap
 
 
 _device = None
