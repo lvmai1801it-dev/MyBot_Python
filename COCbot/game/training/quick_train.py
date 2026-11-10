@@ -1,25 +1,30 @@
 # ==== COCbot/game/training/quick_train.py ====
 from __future__ import annotations
-from typing import Tuple
-from COCbot.platform.unicode import imread_unicode
+
 import os
+import subprocess
 import sys
 import time
+
 import cv2
-import subprocess
-import numpy as np
-import re
 
 import COCbot.app.paths
+from COCbot.platform.unicode import imread_unicode
+
 TEMPLATE_ROOT = os.path.join(COCbot.app.paths.TEMPLATE_DIR, 'Smart_Auto_train')
 PNG_EXT = '.png'
 
+from COCbot.app.coords import (
+    QT_ARMY_RECIPE_PANE,
+    QT_CLOSE_ARMY_WINDOW,
+    QT_CONFIRM_TAP,
+    QT_ROI_ARMY1,
+    QT_ROI_ARMY2,
+)
+from COCbot.game.training.smart_train_utils import _roi
+from COCbot.game.training.smart_train_validators import _validate_army_window
+from COCbot.game.training.smart_train_trainers import tap
 from COCbot.vision.capture import take_screenshot
-from COCbot.platform.adb_config import ADB_BIN
-from COCbot.vision.ocr import reader
-from COCbot.game.training.smart_train import _validate_army_window, tap, _roi
-
-from COCbot.app.coords import QT_CLOSE_ARMY_WINDOW, QT_ARMY_RECIPE_PANE, QT_ROI_ARMY1, QT_ROI_ARMY2, QT_CONFIRM_TAP
 
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
 
