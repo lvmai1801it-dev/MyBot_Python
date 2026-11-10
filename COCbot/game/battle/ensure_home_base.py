@@ -2,10 +2,9 @@
 import time
 
 import COCbot.app.paths  # noqa: F401
-
+from COCbot.app import state
 from COCbot.game.account.boot_recovery import boot_recovery
 from COCbot.game.battle.detect_home_base import detect_home_base
-from COCbot.app import state
 
 
 def ensure_home_base(max_wait=50):

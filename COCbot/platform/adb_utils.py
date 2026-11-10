@@ -3,9 +3,9 @@ import subprocess
 import time
 
 import COCbot.app.paths  # noqa: F401
+from COCbot.app import state
 from COCbot.app.config import ADB_BIN, CREATE_NO_WINDOW
 from COCbot.app.coords import RETURN_HOME_TAP
-import COCbot.app.state as state
 
 
 def _get_target_device(device: str = None) -> str:

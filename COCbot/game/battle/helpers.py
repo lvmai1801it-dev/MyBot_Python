@@ -2,11 +2,21 @@
 import os
 import time
 from pathlib import Path
-from typing import Tuple
 
 import cv2
 
 import COCbot.app.paths  # noqa: F401
+from COCbot.app import state
+from COCbot.app.config import (
+    BATTLE_KEYWORDS,
+    END_BATTLE_TEMPLATE,
+    MAX_WAIT_BATTLE,
+    NEXT_BTN_TEMPLATE,
+    NEXT_THRESH,
+    TEMPLATE_DIR,
+    TEMPLATE_FILES,
+    THRESHOLD,
+)
 from COCbot.app.coords import (
     ATTACK_CONFIRM_TAP,
     BATTLE_BUTTON_TAP,
@@ -20,7 +30,6 @@ from COCbot.app.coords import (
     GAIN_GOLD_R,
     HAMMER_REGION,
     NEXT_BTN_REGION,
-    NEXT_SEARCH_TAP,
     SCOUT_SCREEN_ROI,
     STAR1_ROI,
     STAR2_ROI,
@@ -29,21 +38,10 @@ from COCbot.app.coords import (
     TREASURE_TAP,
 )
 from COCbot.game.account.boot_recovery import boot_recovery
-from COCbot.app import state
-from COCbot.vision.ocr import reader
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
 from COCbot.platform.adb_utils import tap
-from COCbot.app.config import (
-    BATTLE_KEYWORDS,
-    END_BATTLE_TEMPLATE,
-    MAX_WAIT_BATTLE,
-    NEXT_BTN_TEMPLATE,
-    NEXT_THRESH,
-    TEMPLATE_DIR,
-    TEMPLATE_FILES,
-    THRESHOLD,
-)
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
+from COCbot.vision.ocr import reader
 from COCbot.vision.templates import _match_template
 
 BATTLE_X1, BATTLE_Y1, BATTLE_X2, BATTLE_Y2 = BATTLE_ROI
@@ -305,7 +303,7 @@ def get_stars_from_screen() -> int:
     return 2
 
 
-def gain_resources(stars: int) -> Tuple[int, int, int]:
+def gain_resources(stars: int) -> tuple[int, int, int]:
     time.sleep(0.5)
     shot = take_screenshot('resources_gained.png')
     time.sleep(0.5)

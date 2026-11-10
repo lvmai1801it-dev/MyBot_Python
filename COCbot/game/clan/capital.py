@@ -1,15 +1,35 @@
 # ==== COCbot/game/clan/capital.py ====
 from __future__ import annotations
+
 import math
 import os
 import random
 import time
-from typing import Optional, List, Dict, Tuple
 
 import cv2
 import numpy as np
 
 import COCbot.app.paths  # noqa: F401
+from COCbot.app.config import (
+    CC_DIR_SPELLS,
+    CC_DIR_TROOPS,
+    CC_THRESH_PCT,
+    CC_TPL_AVAILABLE_ATKS,
+    CC_TPL_ENEMY_LAND,
+    CC_TPL_FULL_GOLD_WINDOW,
+    CC_TPL_TROOPS_READY,
+    CC_TPL_VILLAGE_3STAR,
+    CC_TPL_VILLAGE_AVAIL,
+    CC_TROOP_TAP_COUNTS,
+    CC_VILLAGE_ORDER,
+    CLAN_CAPITAL_CACHE,
+    CLAN_CAPITAL_DIR,
+    CLAN_CAPITAL_SCENERY_DIR,
+    CLAN_CAPITAL_THRESH,
+    CP_FRESH_TEMPLATE,
+    CP_FRESH_THRESHOLD,
+    DROP_SPACING,
+)
 from COCbot.app.coords import (
     CC_ARMY_WINDOW_TAP,
     CC_ATTACK_READY_ROI,
@@ -40,32 +60,12 @@ from COCbot.app.coords import (
     GLOW_TL,
     MENU_TAP,
 )
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
-from COCbot.platform.adb_utils import run_adb, tap
+from COCbot.app.state import pause_event
 from COCbot.game.account.boot_recovery import boot_recovery
 from COCbot.game.battle.ensure_home_base import ensure_home_base
-from COCbot.app.config import (
-    CC_DIR_SPELLS,
-    CC_DIR_TROOPS,
-    CC_THRESH_PCT,
-    CC_TPL_AVAILABLE_ATKS,
-    CC_TPL_ENEMY_LAND,
-    CC_TPL_FULL_GOLD_WINDOW,
-    CC_TPL_TROOPS_READY,
-    CC_TPL_VILLAGE_3STAR,
-    CC_TPL_VILLAGE_AVAIL,
-    CC_TROOP_TAP_COUNTS,
-    CC_VILLAGE_ORDER,
-    CLAN_CAPITAL_CACHE,
-    CLAN_CAPITAL_DIR,
-    CLAN_CAPITAL_SCENERY_DIR,
-    CLAN_CAPITAL_THRESH,
-    CP_FRESH_TEMPLATE,
-    CP_FRESH_THRESHOLD,
-    DROP_SPACING,
-)
-from COCbot.app.state import pause_event
+from COCbot.platform.adb_utils import run_adb, tap
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
 from COCbot.vision.templates import _match_color, _match_gray
 
 CLAN_CAPITAL_ROI = CC_SCENERY_ROI
@@ -190,7 +190,7 @@ def popup_warning(message: str, title: str = 'Clan Capital') -> bool:
         return False
 
 
-def _villages_for_ch_level(ch_level: int) -> List[str]:
+def _villages_for_ch_level(ch_level: int) -> list[str]:
     sets = {
         1: {'Capital Peak'},
         2: {'Capital Peak', 'Barbarian Camp'},
@@ -216,7 +216,7 @@ def _villages_for_ch_level(ch_level: int) -> List[str]:
     return [v for v in CC_VILLAGE_ORDER if v in avail]
 
 
-def _scan_icons_in_panel(img_bgr, folder_path: str, roi, threshold_pct: int = 80) -> Dict:
+def _scan_icons_in_panel(img_bgr, folder_path: str, roi, threshold_pct: int = 80) -> dict:
     results = {}
     if not os.path.isdir(folder_path):
         print(f'[CC P4] ❌ folder missing: {folder_path}')
@@ -250,7 +250,7 @@ def _scan_icons_in_panel(img_bgr, folder_path: str, roi, threshold_pct: int = 80
     return results
 
 
-def _load_last_cc_tpl() -> Optional[str]:
+def _load_last_cc_tpl() -> str | None:
     try:
         if os.path.isfile(CLAN_CAPITAL_CACHE):
             with open(CLAN_CAPITAL_CACHE, 'r', encoding='utf-8') as f:
@@ -466,7 +466,7 @@ def clan_capital_phase2(threshold_pct=CC_THRESH_PCT) -> bool:
     return False
 
 
-def clan_capital_phase3(prev_img=None, capital_hall_level: int = 9) -> Dict:
+def clan_capital_phase3(prev_img=None, capital_hall_level: int = 9) -> dict:
     summary = {
         'status': 'ok', 'selected': None, 'selected_coord': None,
         'available': [], 'complete': [], 'busy': [], 'peak_unlocked': False,
@@ -575,7 +575,7 @@ def clan_capital_phase4(
     retry_delay=1.0,
     max_retries=None,
     is_peak_unlocked=False,
-) -> Dict:
+) -> dict:
     is_first_attack = False
     vname_canon = _canon(selected_village)
     if vname_canon == 'Capital Peak' and is_peak_unlocked:

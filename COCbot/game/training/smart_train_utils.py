@@ -1,7 +1,7 @@
 # ==== COCbot/game/training/smart_train_utils.py ====
 import os
+
 import cv2
-import numpy as np
 
 import COCbot.app.paths
 from COCbot.platform.unicode import imread_unicode

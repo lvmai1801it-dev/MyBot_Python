@@ -2,6 +2,7 @@
 import time
 
 import cv2
+
 from COCbot.app.coords import (
     ST_CLOSE_ARMY_TAB,
     ST_CLOSE_ARMY_WINDOW,
@@ -14,18 +15,21 @@ from COCbot.app.coords import (
     ST_SPELL_ROI,
     ST_SPELL_SPACE_ROI,
 )
-from COCbot.vision.ocr import reader
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
-
-from COCbot.game.training.smart_train_trainers import tap, train_siege, train_spells, train_troops
-from COCbot.game.training.smart_train_utils import roi as _roi
+from COCbot.game.training.smart_train_trainers import (
+    tap,
+    train_siege,
+    train_spells,
+    train_troops,
+)
 from COCbot.game.training.smart_train_validators import (
     _validate_army_window,
     validate_siege,
     validate_spells,
     validate_troops,
 )
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
+from COCbot.vision.ocr import reader
 
 
 def smart_train(cfg):

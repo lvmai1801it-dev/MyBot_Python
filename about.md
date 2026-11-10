@@ -44,7 +44,7 @@ docs/                      # ARCHITECTURE, ACCOUNT-SWITCH, LABELING-GUIDE...
 
 ## Giao diện
 
-6 tab: **Log**, **Village** (General + Accounts), **Attack plan**,
+6 tab: **Log**, **Village** (General / Upgrade / Accounts), **Attack plan**,
 **Bot settings** (Clan Games / Clan Capital / Debug), **Statistics**, **About**.
 
 ## Tài liệu

@@ -155,7 +155,7 @@ tools/eval_redline_yolo.py     # IoU, drop safety, coverage, latency
 - `COCbot/gui/theme.py`: palette sáng theo Figma — nền `#F2F5F3`, title bar
   `#142C2B`, card `#FFFFFF`, primary `#13775F`, viền `#DCE5E1`.
 - Cửa sổ 480×670, frameless title bar kéo được, nút minimize / maximize / close.
-- 6 tab: **Log**, **Village** (General + Accounts), **Attack plan**,
+- 6 tab: **Log**, **Village** (General + Upgrade + Accounts), **Attack plan**,
   **Bot settings** (Clan Games / Clan Capital / Debug), **Statistics**, **About**.
 - Log tab: Bot log (filter INFO/SUCCESS/WARNING/ERROR, Export) + Attack log
   (TIME/MODE/GOLD/ELIXIR/DARK/TROPHIES/BONUS) + Start/Pause/Stop/Search mode.

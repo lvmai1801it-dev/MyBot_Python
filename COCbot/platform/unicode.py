@@ -4,9 +4,9 @@ Unicode-safe image loading for OpenCV on Windows.
 Returns None if file does not exist, is empty, or decoding fails,
 matching cv2.imread's standard failure behavior.
 """
-import os
 import time
 from pathlib import Path
+
 import cv2
 import numpy as np
 

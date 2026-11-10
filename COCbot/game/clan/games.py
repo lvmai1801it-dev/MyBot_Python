@@ -1,21 +1,28 @@
 # ==== COCbot/game/clan/games.py ====
-import os
+import subprocess
 import sys
 import time
-import subprocess
-import cv2
-import numpy as np
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 import COCbot.app.paths
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
 from COCbot.app.coords import (
-    CG_OPEN_EVENTS_TAP, CG_EVENTS_WINDOW_ROI, CG_SEARCH_ROI,
-    CG_SWIPE_1, CG_SWIPE_2,
-    CG_CLOSE_TAP_1, CG_CLOSE_TAP_2, CG_CLOSE_TAP_3,
-    CG_FINISHED_ROI, CG_BUSY_ROI, CG_OPEN_REGION_OFFSETS,
+    CG_BUSY_ROI,
+    CG_CLOSE_TAP_1,
+    CG_CLOSE_TAP_2,
+    CG_CLOSE_TAP_3,
+    CG_EVENTS_WINDOW_ROI,
+    CG_FINISHED_ROI,
+    CG_OPEN_EVENTS_TAP,
+    CG_OPEN_REGION_OFFSETS,
+    CG_SEARCH_ROI,
+    CG_SWIPE_1,
+    CG_SWIPE_2,
 )
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
 
 ADB_BIN = str(COCbot.app.paths.ADB_BIN)
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0

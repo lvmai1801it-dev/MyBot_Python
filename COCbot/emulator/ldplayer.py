@@ -19,15 +19,14 @@ import string
 import subprocess
 import sys
 import time
-from typing import Optional, Tuple  # noqa: UP035
+
+import cv2
 
 import COCbot.app.paths
-import cv2
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
-
-from COCbot.platform.adb_config import ADB_BIN, DPI, HEIGHT, WIDTH
 from COCbot.game.account.boot_recovery import boot_recovery
+from COCbot.platform.adb_config import ADB_BIN, DPI, HEIGHT, WIDTH
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
 
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
@@ -300,7 +299,7 @@ def _iter_depth_limited(root: str, max_depth: int = 6):
         yield dirpath, filenames
 
 
-def _has_console_player(base: str) -> tuple[Optional[str], Optional[str]]:
+def _has_console_player(base: str) -> tuple[str | None, str | None]:
     console = None
     for exe in ("ldconsole.exe", "dnconsole.exe"):
         p = os.path.join(base, exe)
@@ -317,7 +316,7 @@ def _has_console_player(base: str) -> tuple[Optional[str], Optional[str]]:
 
 def _find_ldplayer_by_foldername(
     max_depth: int = 6,
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     multi_dir_names = ("ldmultiplayer", "ldmutiplayer")
     for drive in _drive_order():
         root = f"{drive}:\\"
@@ -358,6 +357,7 @@ def _find_ldplayer_by_foldername(
 
 def _main():
     from COCbot.app import state as main
+
     return main
 
 
@@ -547,7 +547,7 @@ def _patch_ld_cfg_basic_flags(cfg_path: str) -> bool:
             r'"basicSettings\.rootMode"\s*:\s*(false|0)',
             '"basicSettings.rootMode": true',
             new,
-            flags=re.I,
+            flags=re.IGNORECASE,
         )
         if new != raw:
             try:
@@ -614,7 +614,7 @@ def _patch_ld_cfg_file(cfg_path: str, port: int = 5555) -> bool:
 
         def _repl(pattern, repl):
             nonlocal new
-            out = re.sub(pattern, repl, new, flags=re.I | re.M)
+            out = re.sub(pattern, repl, new, flags=re.IGNORECASE | re.MULTILINE)
             changed_local = out != new
             new = out
             return changed_local
@@ -643,6 +643,7 @@ def _patch_ld_cfg_file(cfg_path: str, port: int = 5555) -> bool:
 def _chosen_ld_name(default: str | None = None) -> str | None:
     try:
         from COCbot.app import state as main
+
         return getattr(main, "ld_name", None) or default
     except Exception:
         return default
@@ -674,7 +675,7 @@ def _is_root_enabled(ldconsole: str, index: int) -> bool:
         m = re.search(
             f'"index"\\s*:\\s*{index}.*?(?:"isRoot"|"root"|"rooted")\\s*:\\s*(true|false|1|0)',
             out,
-            re.I | re.S,
+            re.IGNORECASE | re.DOTALL,
         )
         if m:
             return m.group(1).lower() in ("true", "1")
@@ -724,7 +725,7 @@ def _force_adb_tcp(ldconsole: str, index: int, port: int = 5555):
 
 def find_ldplayer_tools(
     allow_deep_scan: bool = True,
-) -> Tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     cache = _load_cache()
     if cache.get("console") and cache.get("player"):
         if os.path.isfile(cache["console"]) and os.path.isfile(cache["player"]):

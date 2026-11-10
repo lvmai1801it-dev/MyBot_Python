@@ -6,7 +6,7 @@ Tesseract fallback). This keeps one PaddleOCR instance for the whole app and
 avoids loading it twice.
 """
 
-from COCbot.vision.read_text.numbers import read_number, paddle_available
+from COCbot.vision.read_text.numbers import paddle_available, read_number
 
 PADDLE_AVAILABLE = None  # lazily resolved by read_number()
 

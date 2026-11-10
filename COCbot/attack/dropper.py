@@ -4,10 +4,10 @@ Keeps the existing fast multi-point behaviour and adds an API that accepts a
 dynamic list of active edges (used by planner.py).
 """
 
-import time
 import random
+import time
 
-from COCbot.attack.device import tap, select_drop_troop
+from COCbot.attack.device import select_drop_troop, tap
 from COCbot.vision.redline.geometry import edge_midpoint
 
 

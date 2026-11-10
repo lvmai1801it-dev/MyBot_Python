@@ -5,31 +5,28 @@ UI Clash of Clans hiện tại không còn nút "Army" riêng trên màn hình h
 và bảng Army Overview cũng không có nút Request. Cách đúng (giống MyBot)
 là: mở Clan Chat -> bấm icon Clan Castle ở footer chat -> Send.
 """
-import os
 import subprocess
 import sys
 import time
 
 import cv2
 
-import COCbot.app.paths as paths
-from COCbot.vision.ocr import reader
+from COCbot.app.coords import (
+    RT_CHAT_EXIT_CANCEL,
+    RT_CHAT_FOOTER_ROI,
+    RT_CHAT_OPEN_TAP,
+    RT_CHAT_REQUEST_SEND,
+    RT_CHAT_REQUEST_TAP,
+    RT_CHAT_WAR_CLOSE_TAP,
+    RT_EXIT_DIALOG_ROI,
+    RT_REQUEST_DIALOG_ROI,
+    RT_WAR_POPUP_ROI,
+)
 from COCbot.game.battle.ensure_home_base import ensure_home_base
 from COCbot.platform.adb_config import ADB_BIN
-from COCbot.vision.capture import take_screenshot
 from COCbot.platform.unicode import imread_unicode
-
-from COCbot.app.coords import (
-    RT_CHAT_OPEN_TAP,
-    RT_CHAT_WAR_CLOSE_TAP,
-    RT_CHAT_REQUEST_TAP,
-    RT_CHAT_REQUEST_SEND,
-    RT_CHAT_EXIT_CANCEL,
-    RT_WAR_POPUP_ROI,
-    RT_REQUEST_DIALOG_ROI,
-    RT_CHAT_FOOTER_ROI,
-    RT_EXIT_DIALOG_ROI,
-)
+from COCbot.vision.capture import take_screenshot
+from COCbot.vision.ocr import reader
 
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
 

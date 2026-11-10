@@ -1,5 +1,6 @@
 # ==== COCbot/vision/templates.py ====
 import cv2
+
 import COCbot.app.paths  # noqa: F401
 from COCbot.platform.unicode import imread_unicode
 

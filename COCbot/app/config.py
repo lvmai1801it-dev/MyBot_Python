@@ -1,9 +1,9 @@
 # ==== COCbot/app/config.py ====
 import os
-import sys
 import subprocess
+import sys
 
-import COCbot.app.paths as paths
+from COCbot.app import paths
 
 BASE_DIR = str(paths.BASE_DIR)
 ADB_BIN = str(paths.ADB_BIN)

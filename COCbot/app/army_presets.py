@@ -1,7 +1,6 @@
 # ==== COCbot/app/army_presets.py ====
 import json
 import os
-import sys
 
 from COCbot.app.paths import SRC_DIR as BASE_DIR
 

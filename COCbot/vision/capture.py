@@ -7,9 +7,9 @@ import cv2
 import numpy as np
 
 import COCbot.app.paths  # noqa: F401
-import COCbot.app.state as state
-from COCbot.platform.adb_config import ADB_BIN
+from COCbot.app import state
 from COCbot.game.account.boot_recovery import boot_recovery
+from COCbot.platform.adb_config import ADB_BIN
 
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
 PNG_MAGIC = b'\x89PNG\r\n\x1a\n'

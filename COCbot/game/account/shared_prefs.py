@@ -23,10 +23,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from COCbot.app import state
 from COCbot.app.paths import SRC_DIR
 from COCbot.platform.adb_config import ADB_BIN
-
-import COCbot.app.state as state
 
 PACKAGE = "com.supercell.clashofclans"
 ACCOUNTS_DIR = Path(SRC_DIR) / "profiles" / "accounts"
@@ -36,11 +35,13 @@ CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 # MyBot updates these encrypted entries in storage_new.xml before pushing.
 # (old value, new value)
 STORAGE_TAGS = [
-    ("d0h6phQUOxO/uSfvat949w==", "FWCNTu39RUlYoSt0Y6mCwg=="),      # language
-    ("MjhxqoFNUV+begGvsz3gkg==", "vJsDdCCIGCzyfC7c1FsIrA=="),      # zoom level
-    ("7lJCTt3TmNyzikZuHh9wZQ==", "pmvEzdQuRQuKZob4KB0IeA=="),      # rated
-    ("AQ+/D2n+JXPIPpMLdPZcqHpYSGJ5PpF3sOnowks5I5s=",
-     "pmvEzdQuRQuKZob4KB0IeA=="),                                   # google disconnected
+    ("d0h6phQUOxO/uSfvat949w==", "FWCNTu39RUlYoSt0Y6mCwg=="),  # language
+    ("MjhxqoFNUV+begGvsz3gkg==", "vJsDdCCIGCzyfC7c1FsIrA=="),  # zoom level
+    ("7lJCTt3TmNyzikZuHh9wZQ==", "pmvEzdQuRQuKZob4KB0IeA=="),  # rated
+    (
+        "AQ+/D2n+JXPIPpMLdPZcqHpYSGJ5PpF3sOnowks5I5s=",
+        "pmvEzdQuRQuKZob4KB0IeA==",
+    ),  # google disconnected
 ]
 
 
@@ -70,6 +71,7 @@ class SharedPrefsManager:
         if not host:
             try:
                 import COCbot.app.bootstrap as main
+
                 host = getattr(main, "host", None)
             except Exception:
                 host = None
@@ -93,7 +95,8 @@ class SharedPrefsManager:
 
         raise SharedPrefsError(
             "Chưa chọn emulator hoặc ADB chưa kết nối. "
-            "Hãy bấm Start một lần hoặc kiểm tra adb devices.")
+            "Hãy bấm Start một lần hoặc kiểm tra adb devices."
+        )
 
     def _adb_connect(self, host: str):
         try:
@@ -140,8 +143,12 @@ class SharedPrefsManager:
             pass
 
         # Last resort: common emulator ADB ports.
-        for host in ("127.0.0.1:21503", "127.0.0.1:5555",
-                     "127.0.0.1:5556", "127.0.0.1:62001"):
+        for host in (
+            "127.0.0.1:21503",
+            "127.0.0.1:5555",
+            "127.0.0.1:5556",
+            "127.0.0.1:62001",
+        ):
             self._adb_connect(host)
             if self._host_alive(host):
                 return host
@@ -183,13 +190,17 @@ class SharedPrefsManager:
             print(f"[ACCOUNT] root check error: {e}")
         try:
             p = self._shell("id")
-            print(f"[ACCOUNT] root check failed: host={self._host} "
-                  f"rc={p.returncode} out={(p.stdout or '').strip()!r} "
-                  f"err={(p.stderr or '').strip()!r}")
+            print(
+                f"[ACCOUNT] root check failed: host={self._host} "
+                f"rc={p.returncode} out={(p.stdout or '').strip()!r} "
+                f"err={(p.stderr or '').strip()!r}"
+            )
             d = subprocess.run(
                 [ADB_BIN, "devices"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, timeout=10,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
                 creationflags=CREATE_NO_WINDOW,
             )
             print(f"[ACCOUNT] adb devices: {(d.stdout or '').strip()!r}")
@@ -213,7 +224,8 @@ class SharedPrefsManager:
         if mode == "su":
             return self._shell(f'su -c "{cmd}"', timeout=timeout)
         raise SharedPrefsError(
-            "Shared_prefs cần adbd root (MEmu/LDPlayer thường có sẵn). Nếu không có, dùng Supercell ID.")
+            "Shared_prefs cần adbd root (MEmu/LDPlayer thường có sẵn). Nếu không có, dùng Supercell ID."
+        )
 
     def _require_ok(self, proc, what: str):
         if proc.returncode != 0:
@@ -254,14 +266,16 @@ class SharedPrefsManager:
                 meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
             except Exception:
                 pass
-            out.append({
-                "safe_name": d.name,
-                "name": meta.get("name", d.name),
-                "saved_at": meta.get("saved_at", ""),
-                "android_id": meta.get("android_id", ""),
-                "files": files,
-                "exists": files >= 5,
-            })
+            out.append(
+                {
+                    "safe_name": d.name,
+                    "name": meta.get("name", d.name),
+                    "saved_at": meta.get("saved_at", ""),
+                    "android_id": meta.get("android_id", ""),
+                    "files": files,
+                    "exists": files >= 5,
+                }
+            )
         return out
 
     def profile_names(self):
@@ -309,7 +323,9 @@ class SharedPrefsManager:
     def pull_profile(self, name: str, close_game: bool = True):
         """Save the game's current shared_prefs into profile `name`."""
         if self.root_mode() is None:
-            raise SharedPrefsError("Emulator không có adbd root. Dùng Supercell ID hoặc bật adb root.")
+            raise SharedPrefsError(
+                "Emulator không có adbd root. Dùng Supercell ID hoặc bật adb root."
+            )
 
         pdir = self.profile_dir(name)
         pdir.mkdir(parents=True, exist_ok=True)
@@ -328,7 +344,8 @@ class SharedPrefsManager:
             files = list(tmp.glob("*")) if tmp.is_dir() else []
             if len(files) < 5:
                 raise SharedPrefsError(
-                    f"Chỉ lấy được {len(files)} file shared_prefs (cần >=5).")
+                    f"Chỉ lấy được {len(files)} file shared_prefs (cần >=5)."
+                )
 
             prefs = pdir / "shared_prefs"
             old = pdir / "_old_shared_prefs"
@@ -349,22 +366,26 @@ class SharedPrefsManager:
                 "files": len(files),
             }
             (pdir / "meta.json").write_text(
-                json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+                json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
             print(f"[ACCOUNT] Pulled {len(files)} files -> {prefs}")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
             if close_game:
                 self._launch()
 
-    def push_profile(self, name: str, current_profile: str = "",
-                     close_game: bool = True):
+    def push_profile(
+        self, name: str, current_profile: str = "", close_game: bool = True
+    ):
         """Restore profile `name` into the game.
 
         If `current_profile` is given, the current account is pulled first so
         its progress is not lost.
         """
         if self.root_mode() is None:
-            raise SharedPrefsError("Emulator không có adbd root. Dùng Supercell ID hoặc bật adb root.")
+            raise SharedPrefsError(
+                "Emulator không có adbd root. Dùng Supercell ID hoặc bật adb root."
+            )
         if not self.has_profile(name):
             raise SharedPrefsError(f"Profile '{name}' không có shared_prefs.")
 
@@ -388,10 +409,12 @@ class SharedPrefsManager:
         finally:
             if close_game:
                 self._launch()
+
     def switch_profile(self, current_profile: str, target_profile: str):
         """Pull current account, then push the target account."""
-        self.push_profile(target_profile, current_profile=current_profile,
-                          close_game=True)
+        self.push_profile(
+            target_profile, current_profile=current_profile, close_game=True
+        )
 
     # ------------------------------------------------------------- internals
     def _pull_without_launch(self, name: str):
@@ -419,7 +442,8 @@ class SharedPrefsManager:
             "files": len(files),
         }
         (pdir / "meta.json").write_text(
-            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         print(f"[ACCOUNT] Auto-pulled {len(files)} files -> {prefs}")
 
     def _pull_remote_to_local(self, remote_prefs: str, local_dir: Path):
@@ -430,7 +454,8 @@ class SharedPrefsManager:
         # 2) fallback: copy to /sdcard, then pull
         shutil.rmtree(local_dir, ignore_errors=True)
         p = self._root_shell(
-            f"rm -rf {REMOTE_DIR} && cp -r {remote_prefs} {REMOTE_DIR}")
+            f"rm -rf {REMOTE_DIR} && cp -r {remote_prefs} {REMOTE_DIR}"
+        )
         self._require_ok(p, "Copy shared_prefs")
         p = self._adb(["pull", REMOTE_DIR, str(local_dir)], timeout=180)
         self._root_shell(f"rm -rf {REMOTE_DIR}")
@@ -442,8 +467,9 @@ class SharedPrefsManager:
         p = self._adb(["push", str(local_prefs), remote_parent], timeout=180)
         self._require_ok(p, "Push shared_prefs")
 
-        owner = (self._root_shell(
-            f"stat -c %u:%g {self.data_dir}").stdout or "").strip() or "1000:1000"
+        owner = (
+            self._root_shell(f"stat -c %u:%g {self.data_dir}").stdout or ""
+        ).strip() or "1000:1000"
         cmd = (
             f"rm -rf {remote_prefs} && "
             f"cp -r {remote_parent}/shared_prefs {remote_prefs} && "
@@ -479,7 +505,8 @@ class SharedPrefsManager:
                 updated = pattern.sub(replacement, updated, count=1)
             elif "</map>" in updated:
                 updated = updated.replace(
-                    "</map>", "    " + replacement + "\n</map>", 1)
+                    "</map>", "    " + replacement + "\n</map>", 1
+                )
 
         if updated != text:
             path.write_text(updated, encoding="utf-8")
@@ -489,5 +516,4 @@ class SharedPrefsManager:
         self._shell(f"am force-stop {self.package}")
 
     def _launch(self):
-        self._shell(
-            f"monkey -p {self.package} -c android.intent.category.LAUNCHER 1")
+        self._shell(f"monkey -p {self.package} -c android.intent.category.LAUNCHER 1")

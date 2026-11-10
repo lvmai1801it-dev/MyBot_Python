@@ -13,10 +13,10 @@ import random
 from COCbot.vision.redline.geometry import (
     ECD,
     EDGE_BY_SIDE,
+    choose_edges,
     ensure_four_edges,
     offset_edges_to_outer,
     side_for_point,
-    choose_edges,
 )
 
 
@@ -27,11 +27,11 @@ def legacy_edge_selection(edges, nb_sides):
     if nb_sides <= 0:
         nb_sides = 1
     if nb_sides == 2 and len(edges) >= 4:
-        return [edges[3], edges[2]]   # TL + BL (old behaviour)
+        return [edges[3], edges[2]]  # TL + BL (old behaviour)
     if nb_sides >= 4:
         return list(edges[:4])
     if nb_sides == 1:
-        return [edges[0]]             # TR (old behaviour)
+        return [edges[0]]  # TR (old behaviour)
     return list(edges[:3])
 
 
@@ -50,8 +50,8 @@ def build_attack_plan(edges, cfg=None, target_xy=None):
         return None
 
     cfg = cfg or {}
-    nb_sides = int(cfg.get('sides', 2) or 2)
-    ratio = float(cfg.get('redline_offset_ratio', 0.35))
+    nb_sides = int(cfg.get("sides", 2) or 2)
+    ratio = float(cfg.get("redline_offset_ratio", 0.35))
 
     fixed = offset_edges_to_outer(edges, ECD, ratio=ratio, y_max=615)
     if not ensure_four_edges(fixed):
@@ -59,7 +59,7 @@ def build_attack_plan(edges, cfg=None, target_xy=None):
         fixed = [list(e) for e in edges if e]
 
     target_side = ""
-    attack_sides = cfg.get('attack_sides')
+    attack_sides = cfg.get("attack_sides")
     if attack_sides:
         codes = list(attack_sides)
         if "RANDOM" in codes:
@@ -76,20 +76,20 @@ def build_attack_plan(edges, cfg=None, target_xy=None):
         target_side = side_for_point(target_xy[0], target_xy[1])
         if target_side:
             active_edges = choose_edges(fixed, target_side, nb_sides)
-            print(f"[PLAN] Target {target_xy} -> side {target_side}, "
-                  f"{len(active_edges)} edge(s)")
+            print(
+                f"[PLAN] Target {target_xy} -> side {target_side}, "
+                f"{len(active_edges)} edge(s)"
+            )
         else:
             active_edges = legacy_edge_selection(fixed, nb_sides)
     else:
         active_edges = legacy_edge_selection(fixed, nb_sides)
 
     if not active_edges:
-        active_edges = list(fixed[:max(1, min(4, nb_sides))])
+        active_edges = list(fixed[: max(1, min(4, nb_sides))])
 
     # Heroes/CC: target edge first; otherwise keep MyBot's TL preference.
-    if attack_sides and active_edges:
-        primary_edge = active_edges[0]
-    elif target_xy and target_side and active_edges:
+    if attack_sides and active_edges or target_xy and target_side and active_edges:
         primary_edge = active_edges[0]
     elif nb_sides >= 3 and len(fixed) >= 4:
         primary_edge = fixed[3]

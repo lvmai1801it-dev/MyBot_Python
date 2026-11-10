@@ -13,13 +13,13 @@ import subprocess
 import sys
 import time
 
-import COCbot.app.paths
 import cv2
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
 
-from COCbot.platform.adb_config import ADB_BIN, DPI, HEIGHT, WIDTH
+import COCbot.app.paths
 from COCbot.game.account.boot_recovery import boot_recovery
+from COCbot.platform.adb_config import ADB_BIN, DPI, HEIGHT, WIDTH
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
 
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
@@ -30,6 +30,7 @@ TEMPLATE_DIR = str(COCbot.app.paths.TEMPLATE_DIR)
 
 def run(cmd: list[str], **kw) -> str:
     from COCbot.app import state as main
+
     host = main.host
     if host and cmd and cmd[0] == ADB_BIN:
         cmd = [ADB_BIN, "-s", host] + cmd[1:]
@@ -103,7 +104,7 @@ def _write_conf(conf_path: str, new_lines: list[str]):
 
 
 def _detect_instance_prefix(lines):
-    m = re.search(r"^bst\.instance\.([^.]+)\.dpi=", "\n".join(lines), re.M)
+    m = re.search(r"^bst\.instance\.([^.]+)\.dpi=", "\n".join(lines), re.MULTILINE)
     if m:
         return f"bst.instance.{m.group(1)}."
     return "bst.instance.0."
@@ -152,6 +153,7 @@ def stop_player():
 
 def start_and_connect(player):
     from COCbot.app import state as main
+
     host = main.host
 
     if not is_running():
@@ -192,6 +194,7 @@ def _shot():
 
 def wait_for_settings_icon(template="store_home_page.png", thresh=0.8, timeout=25):
     from COCbot.app import state as main
+
     host = main.host
     tpl = imread_unicode(os.path.join(TEMPLATE_DIR, template), cv2.IMREAD_GRAYSCALE)
     if tpl is None:

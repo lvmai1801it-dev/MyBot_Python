@@ -4,11 +4,11 @@ import sys
 import time
 
 import COCbot.app.paths  # noqa: F401
-import COCbot.app.state as state
-from COCbot.app.config import ADB_BIN, MEMU, BLUESTACKS, CREATE_NO_WINDOW
-from COCbot.emulator.memu import ensure_memu
-from COCbot.emulator.ldplayer import ensure_ldplayer
+from COCbot.app import state
+from COCbot.app.config import ADB_BIN, BLUESTACKS, CREATE_NO_WINDOW, MEMU
 from COCbot.emulator.bluestacks import ensure_bluestacks
+from COCbot.emulator.ldplayer import ensure_ldplayer
+from COCbot.emulator.memu import ensure_memu
 
 
 def setup_emulator():

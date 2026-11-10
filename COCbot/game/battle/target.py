@@ -1,18 +1,16 @@
 # ==== COCbot/game/battle/target.py ====
 import os
-import cv2
-import sys
-import subprocess
-import numpy as np
-import pytesseract
 import re
+import subprocess
+import sys
 from datetime import datetime
 
+import cv2
+import pytesseract
+
 import COCbot.app.paths
-from COCbot.platform.adb_config import ADB_BIN
+from COCbot.app.coords import RES_DE_ROI, RES_ELIXIR_ROI, RES_GOLD_ROI
 from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
-from COCbot.app.coords import RES_GOLD_ROI, RES_ELIXIR_ROI, RES_DE_ROI
 from COCbot.vision.read_text.numbers import read_number
 
 # Cấu hình Tesseract
@@ -127,7 +125,7 @@ def extract_resources(debug=False, return_image=False):
         os.makedirs(debug_dir, exist_ok=True)
         
         print(f"\n{'='*60}")
-        print(f"=== DEBUG MODE (Định dạng X, Y, W, H) ===")
+        print("=== DEBUG MODE (Định dạng X, Y, W, H) ===")
         print(f"Thư mục debug: {debug_dir}")
         print(f"{'='*60}")
 

@@ -4,9 +4,9 @@ Split out from the old COCbot.attack.py monolith so redline/planner/dropper can 
 tested independently.
 """
 
+import random
 import re
 import time
-import random
 
 import cv2
 import numpy as np
@@ -22,8 +22,8 @@ except ImportError:
     pytesseract = None
 
 from COCbot.app import state
-from COCbot.platform.adb_utils import _get_target_device, tap as adb_tap
-
+from COCbot.platform.adb_utils import _get_target_device
+from COCbot.platform.adb_utils import tap as adb_tap
 
 _device = None
 _device_initialized = False

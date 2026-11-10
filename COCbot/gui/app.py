@@ -12,7 +12,6 @@ import re
 import sys
 
 import COCbot.app.paths
-
 from COCbot.gui.tabs.army_recipe import ArmyRecipeTab
 from COCbot.gui.tabs.debug import DebugTab
 
@@ -51,9 +50,6 @@ QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 app = QApplication(sys.argv)
 
 import json
-import logging
-import tempfile
-import threading
 import time
 import warnings
 
@@ -81,6 +77,7 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtWidgets import (
     QAbstractItemView,
+    QButtonGroup,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -90,14 +87,12 @@ from PyQt5.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
     QRadioButton,
-    QButtonGroup,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
@@ -108,12 +103,15 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from COCbot.app.updater import Updater
 
 from COCbot.app import state as main
+from COCbot.app.army_presets import attack_sides_for_label
 from COCbot.app.bootstrap import bot_loop
+from COCbot.app.controls import pause_bot, resume_bot
+from COCbot.app.stats import zero_all_stats_files
+from COCbot.app.updater import Updater
 from COCbot.emulator.ldplayer import list_ld_instances
-from COCbot.game.account.shared_prefs import SharedPrefsManager, SharedPrefsError
+from COCbot.game.account.shared_prefs import SharedPrefsManager
 from COCbot.game.account.switch_config import (
     ACCOUNTS_PER_PAGE,
     MAX_ACCOUNTS,
@@ -123,9 +121,6 @@ from COCbot.game.account.switch_config import (
 from COCbot.gui.services.qt_thread import QtThreadCompat
 from COCbot.gui.tabs.stats import StatsTab
 from COCbot.gui.theme import GLOBAL_QSS
-from COCbot.app.controls import pause_bot, resume_bot
-from COCbot.app.army_presets import attack_sides_for_label
-from COCbot.app.stats import  zero_all_stats_files
 
 BASE_DIR = str(COCbot.app.paths.SRC_DIR)
 APP_DIR = BASE_DIR
@@ -1509,7 +1504,27 @@ class MainWindow(QMainWindow):
         loot_box.addLayout(loot_grid)
         gen_root.addWidget(loot_card)
 
-        # Card 2: Wall upgrade
+        # Card 2: Clan
+        clan_card, clan_box = _card(
+            "Clan", "Xin quân từ Clan Castle qua Clan Chat.")
+        self.req_chk = QCheckBox("Enable Request Troops")
+        self.req_chk.setFont(hdrF)
+        self.req_chk.setChecked(self.settings.get("request_troops", False))
+        clan_box.addWidget(self.req_chk)
+        req_note = QLabel(
+            "Bot mở Clan Chat và gửi yêu cầu quân khi bắt đầu chu kỳ.")
+        req_note.setWordWrap(True)
+        req_note.setStyleSheet("font-size:10px; color:#657877;")
+        clan_box.addWidget(req_note)
+        gen_root.addWidget(clan_card)
+        gen_root.addStretch()
+
+        # ===== TAB 1.5: Upgrade tab =====
+        upgrade_tab = QWidget()
+        up_root = QVBoxLayout(upgrade_tab)
+        up_root.setContentsMargins(0, 8, 0, 8)
+        up_root.setSpacing(8)
+
         wall_card, wall_box = _card(
             "Wall upgrade", "Tự động nâng tường khi đủ tài nguyên.")
         self.upgrade_chk = QCheckBox("Enable Upgrade Wall")
@@ -1535,22 +1550,28 @@ class MainWindow(QMainWindow):
         _add_field(wall_grid, 2, "icon_wall.png", "Target wall level",
                    self.wall_level_spin)
         wall_box.addLayout(wall_grid)
-        gen_root.addWidget(wall_card)
+        up_root.addWidget(wall_card)
 
-        # Card 3: Clan
-        clan_card, clan_box = _card(
-            "Clan", "Xin quân từ Clan Castle qua Clan Chat.")
-        self.req_chk = QCheckBox("Enable Request Troops")
-        self.req_chk.setFont(hdrF)
-        self.req_chk.setChecked(self.settings.get("request_troops", False))
-        clan_box.addWidget(self.req_chk)
-        req_note = QLabel(
-            "Bot mở Clan Chat và gửi yêu cầu quân khi bắt đầu chu kỳ.")
-        req_note.setWordWrap(True)
-        req_note.setStyleSheet("font-size:10px; color:#657877;")
-        clan_box.addWidget(req_note)
-        gen_root.addWidget(clan_card)
-        gen_root.addStretch()
+        up_tips = QFrame()
+        up_tips.setObjectName("card")
+        tips_box = QVBoxLayout(up_tips)
+        tips_box.setContentsMargins(12, 10, 12, 10)
+        tips_box.setSpacing(6)
+        tips_title = QLabel("Cách hoạt động")
+        tips_title.setStyleSheet(
+            "font-size:12px; font-weight:600; color:#193431;")
+        tips_box.addWidget(tips_title)
+        for line in (
+            "Kiểm tra kho vàng/tiêu mỗi chu kỳ.",
+            "Chỉ nâng khi đạt ngưỡng đã đặt.",
+            "Level mục tiêu từ 8 đến 18.",
+        ):
+            bullet = QLabel(f"•  {line}")
+            bullet.setWordWrap(True)
+            bullet.setStyleSheet("font-size:10px; color:#657877;")
+            tips_box.addWidget(bullet)
+        up_root.addWidget(up_tips)
+        up_root.addStretch()
 
         wall_widgets = [
             self.wall_gold_entry,
@@ -1733,9 +1754,10 @@ class MainWindow(QMainWindow):
         village_tabs.setObjectName("subTabs")
         village_tabs.setDocumentMode(True)
         village_tabs.addTab(_scroll(gen_tab), "General")
+        village_tabs.addTab(_scroll(upgrade_tab), "Upgrade")
         village_tabs.addTab(_scroll(self.accounts_tab), "Accounts")
         village_tabs.currentChanged.connect(
-            lambda i: self._refresh_accounts(silent=True) if i == 1 else None)
+            lambda i: self._refresh_accounts(silent=True) if i == 2 else None)
 
         settings_tabs = QTabWidget()
         settings_tabs.setObjectName("subTabs")
@@ -1953,8 +1975,7 @@ class MainWindow(QMainWindow):
             return
         try:
             with open(path, "w", encoding="utf-8") as fh:
-                for level, text in self._log_lines:
-                    fh.write(f"[{level}] {text}\n")
+                fh.writelines(f"[{level}] {text}\n" for level, text in self._log_lines)
             print(f"[UI] Log exported: {path}")
         except Exception as e:
             QMessageBox.warning(self, "Export", f"Không ghi được log:\n{e}")

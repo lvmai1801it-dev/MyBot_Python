@@ -1,17 +1,21 @@
 # ==== COCbot/game/training/smart_train_trainers.py ====
 import os
-import time
-import cv2
 import subprocess
-from typing import Tuple
+import time
+
+import cv2
 
 import COCbot.app.paths  # noqa: F401
-import COCbot.app.state as state
-from COCbot.platform.adb_config import ADB_BIN
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
+from COCbot.app import state
 from COCbot.app.troop_registry import train_template_file
-from COCbot.game.training.smart_train_utils import find_template_path, match, match_multiscale
+from COCbot.game.training.smart_train_utils import (
+    find_template_path,
+    match,
+    match_multiscale,
+)
+from COCbot.platform.adb_config import ADB_BIN
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
 
 CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
 
@@ -36,7 +40,7 @@ def _get_host():
     return None
 
 
-def tap(pt: Tuple[int, int]):
+def tap(pt: tuple[int, int]):
     from COCbot.platform.tap_guard import blocked
     if blocked(pt[0], pt[1], "smart_train"):
         return

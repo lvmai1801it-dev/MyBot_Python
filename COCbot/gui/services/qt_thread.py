@@ -1,6 +1,7 @@
 # ==== COCbot/gui/services/qt_thread.py ====
-from PyQt5.QtCore import QThread
 import traceback
+
+from PyQt5.QtCore import QThread
 
 
 class QtThreadCompat(QThread):

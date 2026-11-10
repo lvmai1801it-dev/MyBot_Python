@@ -1,11 +1,10 @@
 # ==== COCbot/platform/ahk.py ====
-import os
-import sys
 import subprocess
+import sys
 import time
 from pathlib import Path
 
-import COCbot.app.paths as paths
+from COCbot.app import paths
 
 ahk_folder = Path(paths.AHK_DIR)
 ahk_exe = Path(paths.AHK_EXE)

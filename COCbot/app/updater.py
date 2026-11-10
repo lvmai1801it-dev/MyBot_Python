@@ -1,13 +1,13 @@
 # ==== COCbot/app/updater.py ====
 import threading
+
 import requests
 from packaging import version
 from PyQt5.QtCore import QObject, pyqtSignal
 
-import COCbot.app.paths
 from COCbot.app.version import __version__
 
-LATEST_JSON_URL = "https://DredHandsome.github.io/mybot-pages/latest.json"
+LATEST_JSON_URL = ""
 
 
 class Updater(QObject):

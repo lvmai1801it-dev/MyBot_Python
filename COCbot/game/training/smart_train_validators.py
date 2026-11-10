@@ -1,16 +1,16 @@
 # ==== COCbot/game/training/smart_train_validators.py ====
 import os
 import time
+
 import cv2
 
 import COCbot.app.paths
-from COCbot.vision.capture import take_screenshot
-from COCbot.platform.unicode import imread_unicode
-from COCbot.vision.ocr import reader
-from COCbot.app.troop_registry import troop_icon_file, spell_icon_file, siege_icon_file
-
+from COCbot.app.troop_registry import siege_icon_file, spell_icon_file, troop_icon_file
 from COCbot.game.training.smart_train_ocr import read_number_ocr, read_troop_count
 from COCbot.game.training.smart_train_utils import find_template_path, match, roi
+from COCbot.platform.unicode import imread_unicode
+from COCbot.vision.capture import take_screenshot
+from COCbot.vision.ocr import reader
 
 BASE_DIR = str(COCbot.app.paths.SRC_DIR)
 TEMPLATE_ROOT = os.path.join(COCbot.app.paths.TEMPLATE_DIR, "Smart_Auto_train")
@@ -31,8 +31,11 @@ def _validate_army_window():
     print("[WINDOW CHECK] BẮT ĐẦU QUÁ TRÌNH DEBUG MỞ BẢNG ARMY")
     print("="*50)
 
-    from COCbot.app import state as main
-    from COCbot.app.coords import ST_BATTLE_BUTTON, ST_EDIT_ARMY_BUTTON, ST_ARMY_WINDOW_ROI
+    from COCbot.app.coords import (
+        ST_ARMY_WINDOW_ROI,
+        ST_BATTLE_BUTTON,
+        ST_EDIT_ARMY_BUTTON,
+    )
     from COCbot.game.training.smart_train_trainers import tap
 
     tap(ST_BATTLE_BUTTON)

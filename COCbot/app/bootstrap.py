@@ -4,22 +4,27 @@ import os
 import time
 
 import COCbot.app.paths  # noqa: F401
-from COCbot.attack.api import run_attack as attack_dispatch
+from COCbot.app import state
 from COCbot.app.config import (
-    BASE_DIR,
     DEFAULT_CFG,
     END_BATTLE_TEMPLATE,
     NEXT_BTN_TEMPLATE,
 )
-from COCbot.app.controls import _check_stop, pause_bot, resume_bot
+from COCbot.app.controls import _check_stop
 from COCbot.app.coords import (
     MENU_TAP,
-    RV_BACK_TAP,
-    RV_CLOSE_SETTINGS_TAP,
 )
-from COCbot.app import state
-from COCbot.platform.adb_utils import return_home, tap
+from COCbot.app.stats import _load_stats_from_disk, _stats_file_path
+from COCbot.attack.api import run_attack as attack_dispatch
 from COCbot.emulator.setup import setup_emulator
+from COCbot.game.account.boot_recovery import boot_recovery
+from COCbot.game.account.shared_prefs import SharedPrefsManager
+from COCbot.game.account.switch_config import (
+    enabled_profiles,
+    load_switch_config,
+    save_switch_config,
+)
+from COCbot.game.battle.ensure_home_base import ensure_home_base
 from COCbot.game.battle.helpers import (
     connection_popup_visible,
     gain_resources,
@@ -31,26 +36,18 @@ from COCbot.game.battle.helpers import (
     wait_battle_end,
     wait_for_scout_screen,
 )
-from COCbot.game.account.boot_recovery import boot_recovery
+from COCbot.game.battle.target import extract_resources
 from COCbot.game.clan.capital import clan_capital
 from COCbot.game.clan.games import run_events_open
-from COCbot.game.battle.ensure_home_base import ensure_home_base
-from COCbot.game.village.home_routine import handle_home_resources
-from COCbot.game.battle.target import extract_resources
-from COCbot.game.training.quick_train import quick_train
 from COCbot.game.clan.requests import auto_request
+from COCbot.game.training.quick_train import quick_train
 from COCbot.game.training.smart_train import smart_train
 from COCbot.game.village.collectors import find_and_tap_collectors
-from COCbot.game.village.zoom import multi_zoom_out
+from COCbot.game.village.home_routine import handle_home_resources
 from COCbot.game.village.ui_state import close_open_panels
-from COCbot.app.stats import _load_stats_from_disk, _stats_file_path
+from COCbot.game.village.zoom import multi_zoom_out
+from COCbot.platform.adb_utils import return_home, tap
 from COCbot.vision.redline.dataset_capture import get_capture
-from COCbot.game.account.shared_prefs import SharedPrefsManager
-from COCbot.game.account.switch_config import (
-    enabled_profiles,
-    load_switch_config,
-    save_switch_config,
-)
 
 # Module-level emulator state & events
 host = None
