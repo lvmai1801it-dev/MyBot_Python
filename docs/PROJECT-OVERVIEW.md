@@ -53,13 +53,13 @@ run.py
 
 | Loại node | Số lượng |
 |---|---:|
-| Function | 390 |
-| Method | 204 |
-| Tổng callable | 594 |
-| File / Node / Edge | 111 / 1.503 / 3.551 |
-| Communities / Processes | 68 / 127 |
+| Function | 352 |
+| Method | 179 |
+| Tổng callable | 531 |
+| File / Node / Edge | 110 / 1.438 / 3.347 |
+| Communities / Processes | 65 / 121 |
 
-GitNexus đếm cả hàm lồng và method của class; vì vậy 594 > 458 của AST.
+GitNexus đếm cả hàm lồng và method của class; vì vậy 531 > 458 của AST.
 
 ---
 
