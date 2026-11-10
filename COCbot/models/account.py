@@ -1,0 +1,45 @@
+"""Account profile and rotation models."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from COCbot.models.enums import AccountSwitchMode
+
+
+@dataclass(frozen=True)
+class AccountProfile:
+    """One shared_prefs profile that the bot can switch to."""
+
+    name: str
+    path: str = ""
+    tag: str = ""
+    town_hall: int = 0
+    level: int = 0
+    last_used: float = 0.0
+
+    def display_name(self) -> str:
+        """Return a compact label for the account switcher UI."""
+        if self.tag:
+            return f"{self.name} ({self.tag})"
+        return self.name
+
+
+@dataclass(frozen=True)
+class AccountSwitchState:
+    """Current account-rotation configuration and counters."""
+
+    mode: AccountSwitchMode = AccountSwitchMode.OFF
+    current: str = ""
+    accounts_per_page: int = 1
+    max_accounts: int = 10
+    attacks_done: int = 0
+    attacks_per_account: int = 0
+
+    def should_rotate(self) -> bool:
+        """Return ``True`` when the per-account attack quota is reached."""
+        if self.mode is AccountSwitchMode.OFF:
+            return False
+        if self.attacks_per_account <= 0:
+            return False
+        return self.attacks_done >= self.attacks_per_account
