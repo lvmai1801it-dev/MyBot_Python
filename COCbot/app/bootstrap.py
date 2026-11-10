@@ -591,6 +591,17 @@ def bot_loop(cfg):
         tap(*MENU_TAP)
         time.sleep(2)
 
+    # Entry check: must be on the Home Village (not Builder Base / attack).
+    # On success it zooms out and reads the village's current resources.
+    try:
+        from COCbot.game.village.main_village import prepare_main_village
+        resources = prepare_main_village()
+        if resources is None:
+            print('[VILLAGE] Không xác nhận được làng chính — dừng bot.')
+            return
+    except Exception as e:
+        print(f'[VILLAGE] entry check skipped: {e}')
+
     state._cycle_count = 0
     while not state.stop_event.is_set():
         state.pause_event.wait()

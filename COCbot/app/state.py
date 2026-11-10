@@ -18,3 +18,5 @@ _saved_wall_offset = None
 wall_save = False
 # Per-account attack counters: {account_key: attacks_done}
 _switch_attack_counts = {}
+# Last resources read from the Home Village
+current_resources = {}
