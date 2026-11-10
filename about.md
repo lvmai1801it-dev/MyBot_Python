@@ -53,6 +53,7 @@ cấu hình cho sau này.
 
 ## Tài liệu
 
+- `docs/PROJECT-OVERVIEW.md` — tổng quan dự án, số hàm, ý nghĩa và luồng hoạt động.
 - `docs/ARCHITECTURE.md` — kiến trúc package.
 - `docs/ACCOUNT-SWITCH.md` — chuyển account, quota trận, đầy kho.
 - `docs/LABELING-GUIDE.md` — label dataset cho YOLO redline.
