@@ -47,7 +47,7 @@ src/
 │   │   ├── village/        # home routine, collectors, zoom
 │   │   ├── clan/           # capital, games, requests
 │   │   ├── training/       # quick_train, smart_train, OCR
-│   │   └── account/        # boot recovery, ready villages
+│   │   └── account/        # boot recovery, shared_prefs, switch config
 │   ├── attack/             # pipeline tấn công
 │   │   ├── api.py          # điểm vào run_attack / init_device
 │   │   ├── cycle.py        # một chu kỳ attack
@@ -56,17 +56,24 @@ src/
 │   │   ├── planner.py      # lập kế hoạch thả
 │   │   └── army.py         # chuẩn bị quân
 │   └── gui/
-│       ├── app.py          # QApplication + MainWindow
-│       ├── tabs/           # army_recipe, debug, stats, village_wizard
-│       └── services/       # wizard_bridge, qt_thread
-├── tools/                  # script hỗ trợ (dataset, OCR probe, icon)
+│       ├── app.py          # entry: MainWindow, main_gui
+│       ├── accounts.py     # AccountsMixin (shared_prefs)
+│       ├── logs.py         # LogsMixin (bot log / attack log)
+│       ├── dialogs.py      # emulator / LDPlayer dialogs
+│       ├── widgets.py      # TitleBar, TimestampStream
+│       ├── settings_store.py
+│       ├── constants.py
+│       ├── theme.py
+│       ├── services/       # qt_thread
+│       └── tabs/           # log_tab, village_tabs, clan_tabs, about_tab,
+│                           # army_recipe, debug, stats
+├── tools/                  # script hỗ trợ (dataset, YOLO, icon)
 ├── datasets/redline/       # dataset YOLO (images/labels/runs)
 ├── models/                 # redline_seg.pt / .onnx
 ├── Templates/              # template ảnh runtime
 ├── profiles/               # cấu hình làng
 ├── walls/                  # ảnh wall
 ├── docs/                   # tài liệu
-└── legacy/mybot/           # DLL MyBot cũ (chỉ tham khảo, không dùng runtime)
 ```
 
 ## 2. Quy tắc import

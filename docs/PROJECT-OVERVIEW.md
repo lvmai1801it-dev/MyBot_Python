@@ -33,19 +33,19 @@ run.py
 | Package | Files | Hàm top-level | Method | Dòng |
 |---|---:|---:|---:|---:|
 | `COCbot/app` | 12 | 41 | 2 | 1.527 |
-| `COCbot/attack` | 7 | 24 | 0 | 1.036 |
+| `COCbot/attack` | 7 | 24 | 0 | 1.035 |
 | `COCbot/emulator` | 5 | 72 | 0 | 2.056 |
 | `COCbot/game` | 28 | 104 | 31 | 4.720 |
-| `COCbot/gui` | 9 | 6 | 114 | 4.137 |
+| `COCbot/gui` | 19 | 9 | 113 | 4.302 |
 | `COCbot/platform` | 6 | 8 | 0 | 226 |
-| `COCbot/vision` | 14 | 43 | 13 | 1.327 |
-| **Tổng COCbot** | **82** | **298** | **160** | **15.033** |
+| `COCbot/vision` | 14 | 43 | 13 | 1.316 |
+| **Tổng COCbot** | **92** | **301** | **159** | **15.186** |
 | `tools/` | 10 | 30 | 19 | 1.580 |
-| **Tổng toàn dự án** | **92** | **328** | **179** | **16.613** |
+| **Tổng toàn dự án** | **102** | **331** | **178** | **16.766** |
 
-- **COCbot: 458 hàm/method** (298 hàm top-level + 160 method).
-- **Toàn dự án: 507 hàm/method** (328 + 179).
-- Có **20 class** trong COCbot (chưa kể class trong `tools/`).
+- **COCbot: 460 hàm/method** (301 hàm top-level + 159 method).
+- **Toàn dự án: 509 hàm/method** (331 + 178).
+- Có **22 class** trong COCbot (chưa kể class trong `tools/`).
 - Con số AST **không tính các hàm lồng bên trong hàm** (ví dụ helper trong
   `__init__` của GUI), nên thực tế nhiều hơn.
 
@@ -53,13 +53,13 @@ run.py
 
 | Loại node | Số lượng |
 |---|---:|
-| Function | 352 |
-| Method | 179 |
-| Tổng callable | 531 |
-| File / Node / Edge | 110 / 1.438 / 3.347 |
-| Communities / Processes | 65 / 121 |
+| Function | 355 |
+| Method | 178 |
+| Tổng callable | 533 |
+| File / Node / Edge | 120 / 1.457 / 3.393 |
+| Communities / Processes | 66 / 122 |
 
-GitNexus đếm cả hàm lồng và method của class; vì vậy 531 > 458 của AST.
+GitNexus đếm cả hàm lồng và method của class; vì vậy 533 > 460 của AST.
 
 ---
 
@@ -82,7 +82,7 @@ src/
 │   ├── gui/                   # MainWindow, tabs, theme, Qt thread
 │   ├── platform/              # ADB, tap guard, unicode, AHK
 │   └── vision/                # capture, OCR, redline (OpenCV + YOLO), dataset
-├── tools/                     # dataset/YOLO tooling, crop/OCR probe
+├── tools/                     # dataset/YOLO tooling, crop tool, icon converter
 ├── datasets/redline/          # images/raw + labels (gitignored)
 ├── Templates/                 # template ảnh cho bot + upgrade icons + hero
 ├── profiles/                  # shared_prefs profiles, switch_accounts.json
@@ -368,7 +368,9 @@ Redline OpenCV dùng các hằng trong `app/coords.py` và `vision/redline/geome
 | `main_gui` | Tạo QApplication, MainWindow, chạy event loop. |
 | `MainWindow.on_start` / `on_end` | Start/Stop worker. |
 | `_collect_cfg` | Gom cấu hình từ widget thành dict cho bot. |
-| `_append_log` / `_append_log_row` | Nhận stdout, đẩy vào bảng log + badge level. |
+| `AccountsMixin` (`gui/accounts.py`) | Card shared_prefs, auto-switch, Pull/Push/Switch. |
+| `LogsMixin` (`gui/logs.py`) | Bot log table, Attack log, filter, export. |
+| `build_logs_tab` / `build_village_tabs` / `build_clan_tabs` / `build_about_tab` | Dựng widget từng tab (`gui/tabs/*.py`). |
 | `_add_attack_row` | Parse `[LOOT]` thành dòng Attack log. |
 | `_export_log` | Xuất log ra file. |
 | `_build_accounts_tab` / `_acc_pull` / `_acc_push` / `_acc_switch` | UI shared_prefs. |
@@ -428,8 +430,8 @@ Redline OpenCV dùng các hằng trong `app/coords.py` và `vision/redline/geome
 | Chuyển account | `game/account/shared_prefs.py`, `app/bootstrap.py` |
 | Cấu hình switch | `game/account/switch_config.py` |
 | Thu dataset | `vision/redline/dataset_capture.py` |
-| GUI Accounts | `gui/app.py:_build_accounts_tab` |
-| Log/Attack log | `gui/app.py:_append_log`, `_add_attack_row` |
+| GUI Accounts | `gui/accounts.py:AccountsMixin` |
+| Log/Attack log | `gui/logs.py:LogsMixin` |
 | Theme | `gui/theme.py:GLOBAL_QSS` |
 
 ---
@@ -870,75 +872,72 @@ File cấu hình:
 - _safe_pinch_in (36)
 - multi_zoom_out (73)
 
-**COCbot/gui/app.py** — 67 hàm/method
+**COCbot/gui/accounts.py** — 16 hàm/method
 
-- EmulatorSelectionDialog.__init__ (139)
-- EmulatorSelectionDialog._choose (199)
-- EmulatorSelectionDialog.getSelection (203)
-- handle_exception (207)
-- TimestampStream.__init__ (228)
-- TimestampStream.write (232)
-- TimestampStream.flush (242)
-- classify_level (254)
-- load_settings (266)
-- save_settings (302)
-- load_attack_assets (310)
-- LDInstancePickerDialog.__init__ (326)
-- LDInstancePickerDialog._attach_bounce_icon (363)
-- LDInstancePickerDialog._populate_table (392)
-- LDInstancePickerDialog._add_row (408)
-- LDInstancePickerDialog._adjust_button_icons (444)
-- LDInstancePickerDialog._warn_busy (452)
-- LDInstancePickerDialog._on_start_clicked (462)
-- LDInstancePickerDialog._on_row_double_clicked (474)
-- LDInstancePickerDialog._equalize_columns (486)
-- LDInstancePickerDialog.resizeEvent (492)
-- TitleBar.__init__ (501)
-- TitleBar.mousePressEvent (506)
-- TitleBar.mouseMoveEvent (513)
-- TitleBar.mouseReleaseEvent (518)
-- TitleBar.mouseDoubleClickEvent (522)
-- MainWindow._on_toggle_pause_play (532)
-- MainWindow._stats_file_path (555)
-- MainWindow.load_village_stats (560)
-- MainWindow._refresh_stats_from_json (582)
-- MainWindow.on_update_available (591)
-- MainWindow._account_manager (602)
-- MainWindow._account_busy (605)
-- MainWindow._build_accounts_tab (614)
-- MainWindow._account_log (810)
-- MainWindow._current_profile_text (815)
-- MainWindow._set_current_profile (818)
-- MainWindow._refresh_accounts (825)
-- MainWindow._load_switch_ui (896)
-- MainWindow._save_switch_ui (944)
-- MainWindow._update_switch_rows (969)
-- MainWindow._switch_page (985)
-- MainWindow._selected_profile (991)
-- MainWindow._acc_pull (997)
-- MainWindow._acc_push (1016)
-- MainWindow._acc_switch (1043)
-- MainWindow._acc_delete (1077)
-- MainWindow._toggle_maximized (1096)
-- MainWindow._on_tab_changed (1102)
-- MainWindow.choose_emulator (1105)
-- MainWindow.__init__ (1160)
-- MainWindow._build_about_tab (1971)
-- MainWindow._on_army_recipe_changed (2021)
-- MainWindow._toggle_wall_inputs (2025)
-- MainWindow._append_log_row (2031)
-- MainWindow._append_log (2074)
-- MainWindow._on_log_filter_changed (2093)
-- MainWindow._export_log (2100)
-- MainWindow._reset_attack_table (2114)
-- MainWindow._add_attack_row (2128)
-- MainWindow._fmt_number (2167)
-- MainWindow.on_start (2173)
-- MainWindow.on_end (2263)
-- MainWindow._set_inputs_enabled (2310)
-- MainWindow._collect_cfg (2321)
-- MainWindow.closeEvent (2408)
-- main_gui (2456)
+- AccountsMixin._account_manager (33)
+- AccountsMixin._account_busy (36)
+- AccountsMixin._build_accounts_tab (45)
+- AccountsMixin._account_log (241)
+- AccountsMixin._current_profile_text (246)
+- AccountsMixin._set_current_profile (249)
+- AccountsMixin._refresh_accounts (256)
+- AccountsMixin._load_switch_ui (327)
+- AccountsMixin._save_switch_ui (375)
+- AccountsMixin._update_switch_rows (400)
+- AccountsMixin._switch_page (416)
+- AccountsMixin._selected_profile (422)
+- AccountsMixin._acc_pull (428)
+- AccountsMixin._acc_push (447)
+- AccountsMixin._acc_switch (474)
+- AccountsMixin._acc_delete (508)
+
+**COCbot/gui/app.py** — 18 hàm/method
+
+- handle_exception (113)
+- MainWindow._on_toggle_pause_play (132)
+- MainWindow._stats_file_path (155)
+- MainWindow.load_village_stats (160)
+- MainWindow._refresh_stats_from_json (182)
+- MainWindow.on_update_available (191)
+- MainWindow._toggle_maximized (201)
+- MainWindow._on_tab_changed (207)
+- MainWindow.choose_emulator (210)
+- MainWindow.__init__ (265)
+- MainWindow._on_army_recipe_changed (489)
+- MainWindow._toggle_wall_inputs (493)
+- MainWindow.on_start (499)
+- MainWindow.on_end (589)
+- MainWindow._set_inputs_enabled (636)
+- MainWindow._collect_cfg (647)
+- MainWindow.closeEvent (734)
+- main_gui (788)
+
+**COCbot/gui/dialogs.py** — 13 hàm/method
+
+- EmulatorSelectionDialog.__init__ (28)
+- EmulatorSelectionDialog._choose (88)
+- EmulatorSelectionDialog.getSelection (92)
+- LDInstancePickerDialog.__init__ (97)
+- LDInstancePickerDialog._attach_bounce_icon (134)
+- LDInstancePickerDialog._populate_table (163)
+- LDInstancePickerDialog._add_row (179)
+- LDInstancePickerDialog._adjust_button_icons (215)
+- LDInstancePickerDialog._warn_busy (223)
+- LDInstancePickerDialog._on_start_clicked (233)
+- LDInstancePickerDialog._on_row_double_clicked (245)
+- LDInstancePickerDialog._equalize_columns (257)
+- LDInstancePickerDialog.resizeEvent (263)
+
+**COCbot/gui/logs.py** — 8 hàm/method
+
+- classify_level (28)
+- LogsMixin._append_log_row (41)
+- LogsMixin._append_log (84)
+- LogsMixin._on_log_filter_changed (105)
+- LogsMixin._export_log (112)
+- LogsMixin._reset_attack_table (126)
+- LogsMixin._add_attack_row (140)
+- LogsMixin._fmt_number (179)
 
 **COCbot/gui/services/qt_thread.py** — 4 hàm/method
 
@@ -946,6 +945,15 @@ File cấu hình:
 - QtThreadCompat.run (20)
 - QtThreadCompat.join (27)
 - QtThreadCompat.is_alive (31)
+
+**COCbot/gui/settings_store.py** — 2 hàm/method
+
+- load_settings (9)
+- save_settings (45)
+
+**COCbot/gui/tabs/about_tab.py** — 1 hàm/method
+
+- build_about_tab (15)
 
 **COCbot/gui/tabs/army_recipe.py** — 28 hàm/method
 
@@ -978,6 +986,10 @@ File cấu hình:
 - ArmyRecipeTab.get_attack_side (472)
 - ArmyRecipeTab.get_check_troops (475)
 
+**COCbot/gui/tabs/clan_tabs.py** — 1 hàm/method
+
+- build_clan_tabs (20)
+
 **COCbot/gui/tabs/debug.py** — 10 hàm/method
 
 - EmittingStream.write (38)
@@ -990,6 +1002,10 @@ File cấu hình:
 - DebugTab._execute_task (180)
 - DebugTab.test_full_attack (212)
 - DebugTab.__del__ (229)
+
+**COCbot/gui/tabs/log_tab.py** — 1 hàm/method
+
+- build_logs_tab (19)
 
 **COCbot/gui/tabs/stats.py** — 11 hàm/method
 
@@ -1004,6 +1020,21 @@ File cấu hình:
 - StatsTab._create_village_tab (375)
 - StatsTab._refresh_village_tab (424)
 - StatsTab._fmt_secs (442)
+
+**COCbot/gui/tabs/village_tabs.py** — 1 hàm/method
+
+- build_village_tabs (26)
+
+**COCbot/gui/widgets.py** — 8 hàm/method
+
+- TimestampStream.__init__ (14)
+- TimestampStream.write (18)
+- TimestampStream.flush (28)
+- TitleBar.__init__ (35)
+- TitleBar.mousePressEvent (40)
+- TitleBar.mouseMoveEvent (47)
+- TitleBar.mouseReleaseEvent (52)
+- TitleBar.mouseDoubleClickEvent (56)
 
 **COCbot/platform/adb_utils.py** — 4 hàm/method
 
@@ -1191,4 +1222,3 @@ File cấu hình:
 - _copy_to_models (61)
 - _check_dataset (69)
 - main (84)
-
