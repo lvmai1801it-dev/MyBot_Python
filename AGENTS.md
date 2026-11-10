@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **src** (1128 symbols, 2448 relationships, 94 execution flows).
+This project is indexed by GitNexus as **MyBot_Python** (1457 symbols, 3393 relationships, 122 execution flows).
 
 > Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
@@ -25,10 +25,10 @@ This project is indexed by GitNexus as **src** (1128 symbols, 2448 relationships
 
 | Resource | Use for |
 | --- | --- |
-| `gitnexus://repo/src/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/src/clusters` | All functional areas |
-| `gitnexus://repo/src/processes` | All execution flows |
-| `gitnexus://repo/src/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/MyBot_Python/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/MyBot_Python/clusters` | All functional areas |
+| `gitnexus://repo/MyBot_Python/processes` | All execution flows |
+| `gitnexus://repo/MyBot_Python/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 
