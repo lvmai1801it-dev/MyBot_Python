@@ -75,16 +75,20 @@ class StatsTab(QWidget):
         scroll.setWidget(root)
 
         vroot = QVBoxLayout(root)
-        vroot.setContentsMargins(0, 15, 15, 0)
-        vroot.setSpacing(15)
+        vroot.setContentsMargins(0, 8, 0, 8)
+        vroot.setSpacing(10)
 
-        enable_container = QWidget()
+        enable_container = QFrame()
+        enable_container.setObjectName("card")
+        enable_container.setStyleSheet(
+            "QFrame#card { background:#FFFFFF; border:1px solid #DCE5E1;"
+            " border-radius:6px; }")
         enable_layout = QHBoxLayout(enable_container)
-        enable_layout.setContentsMargins(0, 0, 0, 0)
+        enable_layout.setContentsMargins(12, 10, 12, 10)
         enable_layout.setSpacing(6)
 
         self.enable_stats_chk = QCheckBox('Enable Statistics', self)
-        self.enable_stats_chk.setFont(QFont('Segoe UI', 13, QFont.Bold))
+        self.enable_stats_chk.setFont(QFont('Segoe UI', 12, QFont.Bold))
         self.enable_stats_chk.setStyleSheet('color: #193431;')
         self.enable_stats_chk.setChecked(self.cfg.get('enable_stats', False))
         enable_layout.addWidget(self.enable_stats_chk)
@@ -92,7 +96,7 @@ class StatsTab(QWidget):
         shield_lbl = QLabel()
         shield_path = os.path.join(self.templates_dir, 'icon_shield.png')
         if os.path.exists(shield_path):
-            pix_shield = QPixmap(shield_path).scaledToWidth(36, Qt.SmoothTransformation)
+            pix_shield = QPixmap(shield_path).scaledToWidth(28, Qt.SmoothTransformation)
             shield_lbl.setPixmap(pix_shield)
         enable_layout.addWidget(shield_lbl)
         enable_layout.addStretch()
@@ -107,10 +111,11 @@ class StatsTab(QWidget):
         gb_overall.setStyleSheet(
             '''
             QGroupBox {
-                background: transparent;
+                background: #FFFFFF;
                 border: 1px solid #DCE5E1;
-                border-radius: 4px;
-                margin-top: 6px;
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px 8px 8px 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -207,10 +212,11 @@ class StatsTab(QWidget):
         gb_attres.setStyleSheet(
             '''
             QGroupBox {
-                background: transparent;
+                background: #FFFFFF;
                 border: 1px solid #DCE5E1;
-                border-radius: 4px;
-                margin-top: 6px;
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 10px 8px 8px 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;

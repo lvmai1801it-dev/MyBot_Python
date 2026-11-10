@@ -15,7 +15,6 @@ ACCOUNTS_PER_PAGE = 8
 def default_config() -> dict:
     return {
         "enabled": False,
-        "switch_while_waiting": False,
         "mode": "supercell",
         "consecutive_attacks": 2,
         "use_attack_limit": True,

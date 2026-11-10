@@ -78,7 +78,6 @@ from PyQt5.QtGui import (
     QFont,
     QIcon,
     QPixmap,
-    QTextCursor,
 )
 from PyQt5.QtWidgets import (
     QAbstractItemView,
@@ -87,7 +86,6 @@ from PyQt5.QtWidgets import (
     QDialog,
     QFileDialog,
     QFrame,
-    QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -106,7 +104,6 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
-    QTextEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -251,11 +248,11 @@ class TimestampStream(QObject):
         return
 
 
-LOG_LEVEL_COLORS = {
-    "INFO": "#536D80",
-    "SUCCESS": "#13775F",
-    "WARNING": "#9A6B00",
-    "ERROR": "#A82921",
+LOG_LEVEL_STYLES = {
+    "INFO": ("#EEF2F6", "#536D80"),
+    "SUCCESS": ("#E8F4EC", "#13775F"),
+    "WARNING": ("#FFF6E5", "#9A6B00"),
+    "ERROR": ("#FFF3F1", "#A82921"),
 }
 
 
@@ -612,11 +609,19 @@ class MainWindow(QMainWindow):
     def _build_accounts_tab(self):
         w = QWidget()
         root = QVBoxLayout(w)
-        root.setContentsMargins(10, 10, 10, 10)
-        root.setSpacing(8)
+        root.setContentsMargins(0, 10, 0, 10)
+        root.setSpacing(10)
 
-        top = QVBoxLayout()
-        top.setSpacing(6)
+        profile_card = QFrame()
+        profile_card.setObjectName("card")
+        top = QVBoxLayout(profile_card)
+        top.setContentsMargins(14, 12, 14, 12)
+        top.setSpacing(8)
+        profile_title = QLabel("Shared_prefs profile")
+        profile_title.setStyleSheet(
+            "font-size:13px; font-weight:600; color:#193431;")
+        top.addWidget(profile_title)
+
         prof_row = QHBoxLayout()
         lbl = QLabel("Profile:")
         lbl.setStyleSheet("color:#193431; font-weight:600;")
@@ -650,7 +655,6 @@ class MainWindow(QMainWindow):
             btn_row.addWidget(b)
         btn_row.addStretch()
         top.addLayout(btn_row)
-        root.addLayout(top)
 
         status = QHBoxLayout()
         self.acc_current_lbl = QLabel("Current: (chưa đặt)")
@@ -660,18 +664,16 @@ class MainWindow(QMainWindow):
         self.acc_root_lbl = QLabel("Root: kiểm tra khi dùng")
         self.acc_root_lbl.setStyleSheet("color:#657877; font-size:9px;")
         status.addWidget(self.acc_root_lbl)
-        root.addLayout(status)
+        top.addLayout(status)
+        root.addWidget(profile_card)
 
-        grp = QGroupBox("Switch Accounts")
+        grp = QGroupBox("Auto switch")
         g = QGridLayout(grp)
         g.setHorizontalSpacing(8)
         g.setVerticalSpacing(6)
 
         self.switch_enable_chk = QCheckBox("Enable Switch Accounts")
-        self.switch_wait_cc_chk = QCheckBox("Switch While Waiting")
-        g.addWidget(self.switch_enable_chk, 0, 0, 1, 2)
-        self.switch_wait_cc_chk.setToolTip("Chưa hỗ trợ tự động; chỉ lưu cấu hình.")
-        g.addWidget(self.switch_wait_cc_chk, 0, 2, 1, 2)
+        g.addWidget(self.switch_enable_chk, 0, 0, 1, 4)
 
         g.addWidget(QLabel("Accounts:"), 1, 0)
         self.switch_total_spin = QSpinBox()
@@ -786,15 +788,10 @@ class MainWindow(QMainWindow):
         rows_box.addStretch(1)
         body.addLayout(rows_box)
 
-        self.switch_log = QTextEdit()
-        self.switch_log.setReadOnly(True)
-        self.switch_log.setFont(QFont("Consolas", 8))
-        self.switch_log.setStyleSheet(
-            "background:#FFFFFF; color:#193431; border:1px solid #DCE5E1;"
-            " border-radius:5px; padding:4px;")
-        self.switch_log.setMinimumHeight(80)
-        self.switch_log.setMaximumHeight(120)
-        body.addWidget(self.switch_log)
+        self.acc_status_lbl = QLabel("Chưa có thao tác account.")
+        self.acc_status_lbl.setWordWrap(True)
+        self.acc_status_lbl.setStyleSheet("color:#657877; font-size:9px;")
+        body.addWidget(self.acc_status_lbl)
         g.addLayout(body, 5, 0, 1, 4)
         root.addWidget(grp, 1)
 
@@ -819,7 +816,6 @@ class MainWindow(QMainWindow):
         self.switch_interval_spin.valueChanged.connect(self._save_switch_ui)
         self.switch_full_wait_spin.valueChanged.connect(self._save_switch_ui)
         self.switch_enable_chk.toggled.connect(self._save_switch_ui)
-        self.switch_wait_cc_chk.toggled.connect(self._save_switch_ui)
         self.switch_shared_radio.toggled.connect(self._save_switch_ui)
         self.switch_scid_radio.toggled.connect(self._save_switch_ui)
         for row in self.switch_rows:
@@ -830,9 +826,9 @@ class MainWindow(QMainWindow):
         return w
 
     def _account_log(self, text):
-        if hasattr(self, "switch_log"):
-            import time
-            self.switch_log.append(f"[{time.strftime('%H:%M:%S')}] {text}")
+        if hasattr(self, "acc_status_lbl"):
+            self.acc_status_lbl.setText(
+                f"{time.strftime('%H:%M:%S')} · {text}")
 
     def _current_profile_text(self):
         return str(self._switch_cfg.get("current_profile", "")).strip()
@@ -881,9 +877,14 @@ class MainWindow(QMainWindow):
                 combo.blockSignals(False)
 
             if getattr(main, "host", None):
-                self.acc_root_lbl.setText(mgr.root_label())
+                root_text = mgr.root_label()
+                short_root = (
+                    "root: adbd OK" if "adbd root" in root_text else root_text)
+                self.acc_root_lbl.setText(short_root)
+                self.acc_root_lbl.setToolTip(root_text)
             else:
                 self.acc_root_lbl.setText("Root: chưa chọn emulator")
+                self.acc_root_lbl.setToolTip("")
             self.acc_root_lbl.setStyleSheet("color:#657877; font-size:9px;")
 
             # First-run convenience: assign available profiles to account rows.
@@ -912,7 +913,7 @@ class MainWindow(QMainWindow):
 
     def _load_switch_ui(self):
         cfg = self._switch_cfg
-        widgets = (self.switch_enable_chk, self.switch_wait_cc_chk,
+        widgets = (self.switch_enable_chk,
                    self.switch_total_spin, self.switch_max_spin,
                    self.switch_by_attacks_chk, self.switch_by_time_chk,
                    self.switch_by_full_chk, self.switch_full_wait_spin,
@@ -920,7 +921,6 @@ class MainWindow(QMainWindow):
         for w in widgets:
             w.blockSignals(True)
         self.switch_enable_chk.setChecked(bool(cfg.get("enabled")))
-        self.switch_wait_cc_chk.setChecked(bool(cfg.get("switch_while_waiting")))
         self.switch_total_spin.setValue(int(cfg.get("total_accounts", 2)))
         self.switch_max_spin.setValue(int(cfg.get("consecutive_attacks", 2)))
         self.switch_by_attacks_chk.setChecked(
@@ -989,7 +989,6 @@ class MainWindow(QMainWindow):
             return
         cfg = self._switch_cfg
         cfg["enabled"] = self.switch_enable_chk.isChecked()
-        cfg["switch_while_waiting"] = self.switch_wait_cc_chk.isChecked()
         cfg["total_accounts"] = int(self.switch_total_spin.value())
         cfg["consecutive_attacks"] = int(self.switch_max_spin.value())
         was_time = bool(cfg.get("use_time_schedule", False))
@@ -1290,7 +1289,7 @@ class MainWindow(QMainWindow):
                 app_icon.setPixmap(
                     pix.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         header_layout.addWidget(app_icon)
-        header_layout.addSpacing(2)
+        header_layout.addSpacing(4)
 
         title_lbl = QLabel("MyBot")
         title_lbl.setObjectName("appTitle")
@@ -1371,12 +1370,26 @@ class MainWindow(QMainWindow):
         bot_head.addWidget(export_btn)
         bot_card_v.addLayout(bot_head)
 
-        self.log = QTextEdit()
-        self.log.setObjectName("logView")
-        self.log.setReadOnly(True)
-        self.log.setFont(QFont("Consolas", 9))
-        self.log.setMinimumHeight(240)
-        bot_card_v.addWidget(self.log, 1)
+        self.log_table = QTableWidget(0, 3)
+        self.log_table.setHorizontalHeaderLabels(["TIME", "LEVEL", "EVENT"])
+        self.log_table.verticalHeader().setVisible(False)
+        self.log_table.setShowGrid(False)
+        self.log_table.setAlternatingRowColors(True)
+        self.log_table.setWordWrap(False)
+        self.log_table.setTextElideMode(Qt.ElideRight)
+        self.log_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.log_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.log_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Fixed)
+        self.log_table.setColumnWidth(0, 66)
+        self.log_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Fixed)
+        self.log_table.setColumnWidth(1, 64)
+        self.log_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Stretch)
+        self.log_table.verticalHeader().setDefaultSectionSize(24)
+        self.log_table.setMinimumHeight(240)
+        bot_card_v.addWidget(self.log_table, 1)
 
         bot_foot = QHBoxLayout()
         bot_foot.setSpacing(6)
@@ -1417,6 +1430,9 @@ class MainWindow(QMainWindow):
             ["TIME", "MODE", "GOLD", "ELIXIR", "DARK", "TROPHIES", "BONUS"])
         self.attack_table.verticalHeader().setVisible(False)
         self.attack_table.setShowGrid(False)
+        self.attack_table.setAlternatingRowColors(True)
+        self.attack_table.setWordWrap(False)
+        self.attack_table.setTextElideMode(Qt.ElideRight)
         self.attack_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.attack_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.attack_table.horizontalHeader().setSectionResizeMode(
@@ -1429,227 +1445,127 @@ class MainWindow(QMainWindow):
 
         # ===== TAB 1: General tab =====
         gen_tab = QWidget()
-        grid = QGridLayout(gen_tab)
-        grid.setContentsMargins(8, 8, 8, 8)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(6)
+        gen_root = QVBoxLayout(gen_tab)
+        gen_root.setContentsMargins(0, 8, 0, 8)
+        gen_root.setSpacing(8)
 
-        def line():
-            l = QFrame()
-            l.setFrameShape(QFrame.HLine)
-            l.setStyleSheet("color:#666;")
-            return l
+        def _card(title, subtitle=""):
+            card = QFrame()
+            card.setObjectName("card")
+            box = QVBoxLayout(card)
+            box.setContentsMargins(12, 10, 12, 10)
+            box.setSpacing(6)
+            t = QLabel(title)
+            t.setStyleSheet("font-size:12px; font-weight:600; color:#193431;")
+            box.addWidget(t)
+            if subtitle:
+                s = QLabel(subtitle)
+                s.setStyleSheet("font-size:9px; color:#657877;")
+                s.setWordWrap(True)
+                box.addWidget(s)
+            return card, box
 
-        row = 0
+        def _form_grid():
+            grid = QGridLayout()
+            grid.setHorizontalSpacing(10)
+            grid.setVerticalSpacing(6)
+            grid.setColumnStretch(2, 1)
+            return grid
+
+        def _add_field(grid, row, icon_file, text, widget, width=130):
+            label_box = QHBoxLayout()
+            label_box.setSpacing(6)
+            icon = QLabel()
+            path = os.path.join(TEMPLATES_DIR, icon_file)
+            if os.path.exists(path):
+                pix = QPixmap(path)
+                if not pix.isNull():
+                    icon.setPixmap(
+                        pix.scaledToHeight(16, Qt.SmoothTransformation))
+            label_box.addWidget(icon)
+            lbl = QLabel(text)
+            lbl.setStyleSheet("font-size:11px; color:#193431;")
+            label_box.addWidget(lbl)
+            label_box.addStretch()
+            grid.addLayout(label_box, row, 0)
+            widget.setFixedWidth(width)
+            widget.setFixedHeight(26)
+            grid.addWidget(widget, row, 1)
+
+        # Card 1: Loot filter
+        loot_card, loot_box = _card(
+            "Loot filter", "Bỏ qua base có loot thấp hơn ngưỡng.")
+        loot_grid = _form_grid()
         self.gold_entry = QLineEdit(str(self.settings.get("gold_threshold", 65000)))
         self.elixir_entry = QLineEdit(
-            str(self.settings.get("elixir_threshold", 65000))
-        )
+            str(self.settings.get("elixir_threshold", 65000)))
         self.dark_entry = QLineEdit(
-            str(self.settings.get("dark_elixir_threshold", 5))
-        )
-        for e in [self.gold_entry, self.elixir_entry, self.dark_entry]:
+            str(self.settings.get("dark_elixir_threshold", 5)))
+        for e in (self.gold_entry, self.elixir_entry, self.dark_entry):
             e.setFont(labF)
-            e.setFixedWidth(120)
+        _add_field(loot_grid, 0, "icon_gold.png", "Gold", self.gold_entry)
+        _add_field(loot_grid, 1, "icon_elixir.png", "Elixir", self.elixir_entry)
+        _add_field(loot_grid, 2, "icon_de.png", "Dark Elixir", self.dark_entry)
+        loot_box.addLayout(loot_grid)
+        gen_root.addWidget(loot_card)
 
-        icon_gold_lbl = QLabel()
-        pix = QPixmap(os.path.join(TEMPLATES_DIR, "icon_gold.png")).scaledToWidth(
-            24, Qt.SmoothTransformation
-        )
-        icon_gold_lbl.setPixmap(pix)
-        gold_container = QWidget()
-        gold_hlay = QHBoxLayout(gold_container)
-        gold_hlay.setContentsMargins(0, 0, 0, 0)
-        gold_hlay.setSpacing(6)
-        gold_hlay.addWidget(icon_gold_lbl)
-        lbl_gold = QLabel("Gold:")
-        lbl_gold.setFont(labF)
-        lbl_gold.setStyleSheet("color:#193431;")
-        gold_hlay.addWidget(lbl_gold)
-        gold_hlay.addStretch()
-        grid.addWidget(gold_container, row, 0)
-        grid.addWidget(self.gold_entry, row, 1)
-        row += 1
-
-        icon_elixir_lbl = QLabel()
-        pix2 = QPixmap(os.path.join(TEMPLATES_DIR, "icon_elixir.png")).scaledToWidth(
-            24, Qt.SmoothTransformation
-        )
-        icon_elixir_lbl.setPixmap(pix2)
-        elixir_container = QWidget()
-        elixir_hlay = QHBoxLayout(elixir_container)
-        elixir_hlay.setContentsMargins(0, 0, 0, 0)
-        elixir_hlay.setSpacing(6)
-        elixir_hlay.addWidget(icon_elixir_lbl)
-        lbl_elixir = QLabel("Elixir:")
-        lbl_elixir.setFont(labF)
-        lbl_elixir.setStyleSheet("color:#193431;")
-        elixir_hlay.addWidget(lbl_elixir)
-        elixir_hlay.addStretch()
-        grid.addWidget(elixir_container, row, 0)
-        grid.addWidget(self.elixir_entry, row, 1)
-        row += 1
-
-        icon_de_lbl = QLabel()
-        pix3 = QPixmap(os.path.join(TEMPLATES_DIR, "icon_de.png")).scaledToWidth(
-            24, Qt.SmoothTransformation
-        )
-        icon_de_lbl.setPixmap(pix3)
-        de_container = QWidget()
-        de_hlay = QHBoxLayout(de_container)
-        de_hlay.setContentsMargins(0, 0, 0, 0)
-        de_hlay.setSpacing(6)
-        de_hlay.addWidget(icon_de_lbl)
-        lbl_de = QLabel("Dark Elixir:")
-        lbl_de.setFont(labF)
-        lbl_de.setStyleSheet("color:#193431;")
-        de_hlay.addWidget(lbl_de)
-        de_hlay.addStretch()
-        grid.addWidget(de_container, row, 0)
-        grid.addWidget(self.dark_entry, row, 1)
-        row += 1
-
-        grid.addWidget(line(), row, 0, 1, 2)
-        row += 1
-
-        up_container = QWidget()
-        up_layout = QHBoxLayout(up_container)
-        up_layout.setContentsMargins(0, 0, 0, 0)
-        up_layout.setSpacing(6)
+        # Card 2: Wall upgrade
+        wall_card, wall_box = _card(
+            "Wall upgrade", "Tự động nâng tường khi đủ tài nguyên.")
         self.upgrade_chk = QCheckBox("Enable Upgrade Wall")
         self.upgrade_chk.setFont(hdrF)
-        self.upgrade_chk.setStyleSheet("color:#193431;")
         self.upgrade_chk.setChecked(self.settings.get("upgrade_wall", False))
-        up_layout.addWidget(self.upgrade_chk)
-        icon_up_lbl = QLabel()
-        pix_up = QPixmap(os.path.join(TEMPLATES_DIR, "icon_up.png")).scaledToWidth(
-            16, Qt.SmoothTransformation
-        )
-        icon_up_lbl.setPixmap(pix_up)
-        up_layout.addWidget(icon_up_lbl)
-        up_layout.addStretch()
-        grid.addWidget(up_container, row, 0, 1, 2)
-        row += 1
+        wall_box.addWidget(self.upgrade_chk)
 
+        wall_grid = _form_grid()
         self.wall_gold_entry = QLineEdit(
-            str(self.settings.get("wall_gold_threshold", 5000000))
-        )
+            str(self.settings.get("wall_gold_threshold", 5000000)))
         self.wall_elixir_entry = QLineEdit(
-            str(self.settings.get("wall_elixir_threshold", 5000000))
-        )
+            str(self.settings.get("wall_elixir_threshold", 5000000)))
         self.wall_level_spin = QSpinBox()
         self.wall_level_spin.setRange(8, 18)
         self.wall_level_spin.setValue(self.settings.get("wall_level", 8))
-        for w in [self.wall_gold_entry, self.wall_elixir_entry, self.wall_level_spin]:
+        for w in (self.wall_gold_entry, self.wall_elixir_entry,
+                  self.wall_level_spin):
             w.setFont(labF)
-            w.setFixedWidth(120)
+        _add_field(wall_grid, 0, "icon_gold.png", "Gold threshold",
+                   self.wall_gold_entry)
+        _add_field(wall_grid, 1, "icon_elixir.png", "Elixir threshold",
+                   self.wall_elixir_entry)
+        _add_field(wall_grid, 2, "icon_wall.png", "Target wall level",
+                   self.wall_level_spin)
+        wall_box.addLayout(wall_grid)
+        gen_root.addWidget(wall_card)
 
-        icon_wall_gold = QLabel()
-        pix_wg = QPixmap(os.path.join(TEMPLATES_DIR, "icon_gold.png")).scaledToWidth(
-            24, Qt.SmoothTransformation
-        )
-        icon_wall_gold.setPixmap(pix_wg)
-        wg_gold_container = QWidget()
-        wg_gold_hlay = QHBoxLayout(wg_gold_container)
-        wg_gold_hlay.setContentsMargins(0, 0, 0, 0)
-        wg_gold_hlay.setSpacing(6)
-        wg_gold_hlay.addWidget(icon_wall_gold)
-        lbl_wg_gold = QLabel("Gold Threshold:")
-        lbl_wg_gold.setFont(labF)
-        lbl_wg_gold.setStyleSheet("color:#193431;")
-        wg_gold_hlay.addWidget(lbl_wg_gold)
-        wg_gold_hlay.addStretch()
-        grid.addWidget(wg_gold_container, row, 0)
-        grid.addWidget(self.wall_gold_entry, row, 1)
-        row += 1
-
-        icon_wall_elixir = QLabel()
-        pix_we = QPixmap(os.path.join(TEMPLATES_DIR, "icon_elixir.png")).scaledToWidth(
-            24, Qt.SmoothTransformation
-        )
-        icon_wall_elixir.setPixmap(pix_we)
-        wg_elixir_container = QWidget()
-        wg_elixir_hlay = QHBoxLayout(wg_elixir_container)
-        wg_elixir_hlay.setContentsMargins(0, 0, 0, 0)
-        wg_elixir_hlay.setSpacing(6)
-        wg_elixir_hlay.addWidget(icon_wall_elixir)
-        lbl_wg_elixir = QLabel("Elixir Threshold:")
-        lbl_wg_elixir.setFont(labF)
-        lbl_wg_elixir.setStyleSheet("color:#193431;")
-        wg_elixir_hlay.addWidget(lbl_wg_elixir)
-        wg_elixir_hlay.addStretch()
-        grid.addWidget(wg_elixir_container, row, 0)
-        grid.addWidget(self.wall_elixir_entry, row, 1)
-        row += 1
-
-        icon_wall_level = QLabel()
-        pix_wl = QPixmap(os.path.join(TEMPLATES_DIR, "icon_wall.png")).scaledToWidth(
-            24, Qt.SmoothTransformation
-        )
-        icon_wall_level.setPixmap(pix_wl)
-        wl_container = QWidget()
-        wl_hlay = QHBoxLayout(wl_container)
-        wl_hlay.setContentsMargins(0, 0, 0, 0)
-        wl_hlay.setSpacing(6)
-        wl_hlay.addWidget(icon_wall_level)
-        lbl_wl = QLabel("Target Wall Level:")
-        lbl_wl.setFont(labF)
-        lbl_wl.setStyleSheet("color:#193431;")
-        wl_hlay.addWidget(lbl_wl)
-        wl_hlay.addStretch()
-        grid.addWidget(wl_container, row, 0)
-        grid.addWidget(self.wall_level_spin, row, 1)
-        row += 1
-
-        grid.addWidget(line(), row, 0, 1, 2)
-        row += 1
-
-        req_container = QWidget()
-        req_layout = QHBoxLayout(req_container)
-        req_layout.setContentsMargins(0, 0, 0, 0)
-        req_layout.setSpacing(6)
+        # Card 3: Clan
+        clan_card, clan_box = _card(
+            "Clan", "Xin quân từ Clan Castle qua Clan Chat.")
         self.req_chk = QCheckBox("Enable Request Troops")
         self.req_chk.setFont(hdrF)
-        self.req_chk.setStyleSheet("color:#193431;")
         self.req_chk.setChecked(self.settings.get("request_troops", False))
-        req_layout.addWidget(self.req_chk)
-        icon_cc = QLabel()
-        pix_cc = QPixmap(
-            os.path.join(TEMPLATES_DIR, "icon_clan_castle.png")
-        ).scaledToWidth(28, Qt.SmoothTransformation)
-        icon_cc.setPixmap(pix_cc)
-        req_layout.addWidget(icon_cc)
-        req_layout.addStretch()
-        grid.addWidget(req_container, row, 0, 1, 2)
-        row += 1
-
-        grid.addWidget(line(), row, 0, 1, 2)
-        row += 1
-
-        def set_opacity(wlist, on):
-            for w in wlist:
-                w.setWindowOpacity(1.0 if on else 0.35)
+        clan_box.addWidget(self.req_chk)
+        req_note = QLabel(
+            "Bot mở Clan Chat và gửi yêu cầu quân khi bắt đầu chu kỳ.")
+        req_note.setWordWrap(True)
+        req_note.setStyleSheet("font-size:10px; color:#657877;")
+        clan_box.addWidget(req_note)
+        gen_root.addWidget(clan_card)
+        gen_root.addStretch()
 
         wall_widgets = [
             self.wall_gold_entry,
             self.wall_elixir_entry,
             self.wall_level_spin,
         ]
-        req_widgets = []
 
         def apply_state(enabled: bool, widgets):
             for w in widgets:
                 w.setEnabled(enabled)
-                w.setWindowOpacity(1.0 if enabled else 0.35)
+                w.setWindowOpacity(1.0 if enabled else 0.55)
 
         apply_state(self.upgrade_chk.isChecked(), wall_widgets)
-        apply_state(self.req_chk.isChecked(), req_widgets)
-        self.upgrade_chk.toggled.connect(lambda on: apply_state(on, wall_widgets))
-        self.req_chk.toggled.connect(lambda on: apply_state(on, req_widgets))
-        set_opacity(wall_widgets, self.upgrade_chk.isChecked())
-        set_opacity(req_widgets, self.req_chk.isChecked())
-        self.upgrade_chk.toggled.connect(lambda on: set_opacity(wall_widgets, on))
-        self.req_chk.toggled.connect(lambda on: set_opacity(req_widgets, on))
+        self.upgrade_chk.toggled.connect(
+            lambda on: apply_state(on, wall_widgets))
 
         # ===== TAB 2: Army tab =====
         self.army_tab = ArmyRecipeTab()
@@ -1663,112 +1579,121 @@ class MainWindow(QMainWindow):
 
         # ===== TAB 4: Clan Games tab =====
         clan_tab = QWidget()
-        cg_layout = QVBoxLayout(clan_tab)
-        cg_layout.setContentsMargins(12, 12, 12, 12)
-        cg_layout.setSpacing(10)
-        enable_container = QWidget()
-        enable_layout = QHBoxLayout(enable_container)
-        enable_layout.setContentsMargins(0, 0, 0, 0)
-        enable_layout.setSpacing(6)
+        cg_page = QVBoxLayout(clan_tab)
+        cg_page.setContentsMargins(0, 10, 0, 10)
+        cg_page.setSpacing(10)
+
+        cg_card = QFrame()
+        cg_card.setObjectName("card")
+        cg_box = QVBoxLayout(cg_card)
+        cg_box.setContentsMargins(14, 12, 14, 12)
+        cg_box.setSpacing(8)
+        cg_head = QHBoxLayout()
+        cg_head.setSpacing(8)
+        cg_title = QLabel("Clan Games")
+        cg_title.setStyleSheet("font-size:13px; font-weight:600; color:#193431;")
+        cg_head.addWidget(cg_title)
+        cg_head.addStretch()
+        cg_icon = QLabel()
+        cg_icon_path = os.path.join(TEMPLATES_DIR, "icon_games.png")
+        if os.path.exists(cg_icon_path):
+            pix_cg_icon = QPixmap(cg_icon_path)
+            if not pix_cg_icon.isNull():
+                cg_icon.setPixmap(pix_cg_icon.scaled(
+                    36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        cg_head.addWidget(cg_icon)
+        cg_box.addLayout(cg_head)
+
         self.clan_games_toggle = QCheckBox("Enable Clan Games")
-        self.clan_games_toggle.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        self.clan_games_toggle.setStyleSheet("color: #193431;")
-        self.clan_games_toggle.setChecked(self.settings.get("enable_clan_games", False))
-        enable_layout.addWidget(self.clan_games_toggle)
-        games_icon_lbl = QLabel()
-        pix_games = QPixmap(
-            os.path.join(TEMPLATES_DIR, "icon_games.png")
-        ).scaledToWidth(50, Qt.SmoothTransformation)
-        games_icon_lbl.setPixmap(pix_games)
-        enable_layout.addWidget(games_icon_lbl)
-        enable_layout.addStretch()
-        cg_layout.addWidget(enable_container)
-        self.cg_grid_container = QWidget()
-        cg_grid_layout = QGridLayout(self.cg_grid_container)
-        cg_grid_layout.setContentsMargins(0, 0, 0, 0)
-        cg_grid_layout.setHorizontalSpacing(8)
-        cg_grid_layout.setVerticalSpacing(8)
-        cg_layout.addWidget(self.cg_grid_container)
-        cg_layout.addSpacing(6)
-        self.cg_full_img_lbl = QLabel()
-        pix_cg = QPixmap(os.path.join(TEMPLATES_DIR, "Clan Games.png"))
-        pix_cg = pix_cg.scaledToWidth(240, Qt.SmoothTransformation)
-        self.cg_full_img_lbl.setPixmap(pix_cg)
-        self.cg_full_img_lbl.setAlignment(Qt.AlignCenter)
-        cg_layout.addWidget(self.cg_full_img_lbl)
+        self.clan_games_toggle.setChecked(
+            self.settings.get("enable_clan_games", False))
+        cg_box.addWidget(self.clan_games_toggle)
 
-        def _on_clan_toggle(on: bool):
-            opacity = 1.0 if on else 0.6
-            eff = QGraphicsOpacityEffect()
-            eff.setOpacity(opacity)
-            self.cg_full_img_lbl.setGraphicsEffect(eff)
+        cg_desc = QLabel(
+            "Tự động mở Events, nhận thưởng và làm nhiệm vụ Clan Games. "
+            "Bật trước khi mùa Clan Games bắt đầu để bot chạy đúng lịch.")
+        cg_desc.setWordWrap(True)
+        cg_desc.setStyleSheet("font-size:10px; color:#657877;")
+        cg_box.addWidget(cg_desc)
+        cg_page.addWidget(cg_card)
 
-        self.clan_games_toggle.toggled.connect(_on_clan_toggle)
-        _on_clan_toggle(False)
-        cg_layout.addStretch()
+        cg_tips = QFrame()
+        cg_tips.setObjectName("card")
+        tips_box = QVBoxLayout(cg_tips)
+        tips_box.setContentsMargins(14, 12, 14, 12)
+        tips_box.setSpacing(6)
+        tips_title = QLabel("Cách hoạt động")
+        tips_title.setStyleSheet(
+            "font-size:12px; font-weight:600; color:#193431;")
+        tips_box.addWidget(tips_title)
+        for line in (
+            "Mở tab Events và nhận thưởng khi có sẵn.",
+            "Tự làm nhiệm vụ Clan Games trong lúc farm.",
+            "Nên bật trước khi mùa mới bắt đầu.",
+        ):
+            bullet = QLabel(f"•  {line}")
+            bullet.setWordWrap(True)
+            bullet.setStyleSheet("font-size:10px; color:#657877;")
+            tips_box.addWidget(bullet)
+        cg_page.addWidget(cg_tips)
+        cg_page.addStretch()
 
         # ===== TAB 5: Clan Capital tab =====
         cc_tab = QWidget()
-        cc_layout = QVBoxLayout(cc_tab)
-        cc_layout.setContentsMargins(12, 12, 12, 12)
-        cc_layout.setSpacing(10)
-        cc_en_row = QWidget()
-        cc_en_h = QHBoxLayout(cc_en_row)
-        cc_en_h.setContentsMargins(0, 0, 0, 0)
-        cc_en_h.setSpacing(4)
+        cc_page = QVBoxLayout(cc_tab)
+        cc_page.setContentsMargins(0, 10, 0, 10)
+        cc_page.setSpacing(10)
+
+        cc_card = QFrame()
+        cc_card.setObjectName("card")
+        cc_box = QVBoxLayout(cc_card)
+        cc_box.setContentsMargins(14, 12, 14, 12)
+        cc_box.setSpacing(8)
+        cc_head = QHBoxLayout()
+        cc_head.setSpacing(8)
+        cc_title = QLabel("Clan Capital")
+        cc_title.setStyleSheet("font-size:13px; font-weight:600; color:#193431;")
+        cc_head.addWidget(cc_title)
+        cc_head.addStretch()
+        cc_icon = QLabel()
+        cc_icon_path = os.path.join(TEMPLATES_DIR, "clan_capital_logo.png")
+        if os.path.exists(cc_icon_path):
+            pix_cc_icon = QPixmap(cc_icon_path)
+            if not pix_cc_icon.isNull():
+                cc_icon.setPixmap(pix_cc_icon.scaled(
+                    36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        cc_head.addWidget(cc_icon)
+        cc_box.addLayout(cc_head)
+
         self.clan_capital_toggle = QCheckBox("Enable Clan Capital")
-        self.clan_capital_toggle.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        self.clan_capital_toggle.setStyleSheet("color:#193431;")
         self.clan_capital_toggle.setChecked(
-            self.settings.get("enable_clan_capital", False)
-        )
-        cc_en_h.addWidget(self.clan_capital_toggle, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        logo_path = os.path.join(TEMPLATES_DIR, "clan_capital_logo.png")
-        logo_lbl = QLabel()
-        if os.path.exists(logo_path):
-            pix_cc_logo = QPixmap(logo_path)
-            if not pix_cc_logo.isNull():
-                logo_lbl.setPixmap(
-                    pix_cc_logo.scaled(
-                        44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation
-                    )
-                )
-        logo_lbl.setContentsMargins(6, 0, 0, 0)
-        cc_en_h.addWidget(logo_lbl, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        cc_en_h.addStretch(1)
-        cc_layout.addWidget(cc_en_row)
+            self.settings.get("enable_clan_capital", False))
+        cc_box.addWidget(self.clan_capital_toggle)
 
         note_lbl = QLabel(
-            "Note: If you enable Clan Capital, please use the default scenery "
-            "so the bot can detect the Clan Capital boat more reliably."
-        )
+            "Dùng scenery mặc định để bot nhận diện thuyền Clan Capital "
+            "ổn định hơn.")
         note_lbl.setWordWrap(True)
-        note_lbl.setStyleSheet(
-            "\n            color: #193431;\n            font-size: 13px;\n"
-            "            font-weight: 600;\n            margin-top: 4px;\n        "
-        )
-        cc_layout.addWidget(note_lbl)
+        note_lbl.setStyleSheet("font-size:10px; color:#657877;")
+        cc_box.addWidget(note_lbl)
 
-        cc_lvl_row = QWidget()
-        cc_lvl_h = QHBoxLayout(cc_lvl_row)
-        cc_lvl_h.setContentsMargins(0, 0, 0, 0)
-        cc_lvl_h.setSpacing(8)
-        lvl_label = QLabel("Capital Hall level:")
-        lvl_label.setStyleSheet("color:#193431; font-size:15px; font-weight:600;")
-        cc_lvl_h.addWidget(lvl_label, 0, Qt.AlignLeft | Qt.AlignVCenter)
+        cc_lvl_row = QHBoxLayout()
+        cc_lvl_row.setSpacing(8)
+        lvl_label = QLabel("Capital Hall level")
+        lvl_label.setStyleSheet("font-size:11px; color:#193431;")
+        cc_lvl_row.addWidget(lvl_label)
         self.cc_level = QSpinBox()
         self.cc_level.setRange(1, 10)
         self.cc_level.setSingleStep(1)
         self.cc_level.setValue(int(self.settings.get("capital_hall_level", 9)))
-        self.cc_level.setToolTip("Select your Clan Capital Hall level (1–10).")
-        self.cc_level.setFixedSize(90, 34)
-        self.cc_level.setFont(QFont("Segoe UI", 13, QFont.DemiBold))
-        cc_lvl_h.addWidget(self.cc_level, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        cc_lvl_h.addStretch(1)
-        cc_layout.addWidget(cc_lvl_row)
-        cc_layout.addStretch()
-        self.cc_level.setEnabled(self.clan_capital_toggle.isChecked())
-        self.clan_capital_toggle.toggled.connect(self.cc_level.setEnabled)
+        self.cc_level.setToolTip("Select your Clan Capital Hall level (1-10).")
+        self.cc_level.setFixedSize(90, 28)
+        self.cc_level.setFont(QFont("Segoe UI", 11))
+        cc_lvl_row.addWidget(self.cc_level)
+        cc_lvl_row.addStretch()
+        cc_box.addLayout(cc_lvl_row)
+        cc_page.addWidget(cc_card)
+        cc_page.addStretch()
 
         def _cc_toggle_update(on: bool):
             note_lbl.setEnabled(on)
@@ -1950,14 +1875,48 @@ class MainWindow(QMainWindow):
             w.setEnabled(enabled)
             w.setFocusPolicy(policy)
 
-    def _log_line_html(self, level: str, text: str) -> str:
-        colour = LOG_LEVEL_COLORS.get(level, LOG_LEVEL_COLORS["INFO"])
-        safe = (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-        )
-        return f'<span style="color:{colour};">{safe}</span><br>'
+    def _append_log_row(self, level: str, text: str):
+        if not hasattr(self, "log_table"):
+            return
+        row = self.log_table.rowCount()
+        self.log_table.insertRow(row)
+        if "•" in text:
+            time_part, message = text.split("•", 1)
+            time_str = time_part.strip()
+            message = message.strip()
+        else:
+            time_str = time.strftime("%H:%M:%S")
+            message = text
+        # Avoid repeating the level token inside the EVENT column.
+        for token in (level, f"[{level}]"):
+            if message.upper().startswith(token.upper() + " "):
+                message = message[len(token):].strip()
+                break
+        time_item = QTableWidgetItem(time_str)
+        time_item.setForeground(QBrush(QColor("#657877")))
+        time_item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+
+        bg, fg = LOG_LEVEL_STYLES.get(level, LOG_LEVEL_STYLES["INFO"])
+        badge = QLabel(level)
+        badge.setAlignment(Qt.AlignCenter)
+        badge.setStyleSheet(
+            f"background:{bg}; color:{fg}; border-radius:3px;"
+            " padding:1px 5px; font-size:8px; font-weight:600;")
+        badge_wrap = QWidget()
+        badge_layout = QHBoxLayout(badge_wrap)
+        badge_layout.setContentsMargins(4, 2, 4, 2)
+        badge_layout.setSpacing(0)
+        badge_layout.addWidget(badge, 0, Qt.AlignCenter)
+
+        msg_item = QTableWidgetItem(message)
+        msg_item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+        msg_item.setForeground(QBrush(QColor("#193431")))
+
+        self.log_table.setItem(row, 0, time_item)
+        self.log_table.setCellWidget(row, 1, badge_wrap)
+        self.log_table.setItem(row, 2, msg_item)
+        if self.auto_scroll_chk.isChecked():
+            self.log_table.scrollToBottom()
 
     def _append_log(self, line: str):
         if not line:
@@ -1972,10 +1931,7 @@ class MainWindow(QMainWindow):
         self._add_attack_row(text)
 
         if self._log_filter == "All events" or self._log_filter == level:
-            self.log.moveCursor(QTextCursor.End)
-            self.log.insertHtml(self._log_line_html(level, text))
-            if self.auto_scroll_chk.isChecked():
-                self.log.moveCursor(QTextCursor.End)
+            self._append_log_row(level, text)
 
         if hasattr(self, "log_count_lbl"):
             self.log_count_lbl.setText(
@@ -1983,11 +1939,10 @@ class MainWindow(QMainWindow):
 
     def _on_log_filter_changed(self, value: str):
         self._log_filter = value or "All events"
-        self.log.clear()
+        self.log_table.setRowCount(0)
         for level, text in self._log_lines:
             if self._log_filter == "All events" or self._log_filter == level:
-                self.log.insertHtml(self._log_line_html(level, text))
-        self.log.moveCursor(QTextCursor.End)
+                self._append_log_row(level, text)
 
     def _export_log(self):
         default = os.path.join(

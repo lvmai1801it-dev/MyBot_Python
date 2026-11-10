@@ -186,8 +186,8 @@ class ArmyRecipeTab(QWidget):
 
     def _build_ui(self):
         vbox = QVBoxLayout(self)
-        vbox.setContentsMargins(6, 6, 6, 6)
-        vbox.setSpacing(6)
+        vbox.setContentsMargins(0, 10, 0, 10)
+        vbox.setSpacing(10)
 
         # ── Thanh Công Cụ (Preset & Hướng) ──
         preset_row = QHBoxLayout()
@@ -213,7 +213,6 @@ class ArmyRecipeTab(QWidget):
         self.del_btn = QPushButton("Delete")
         self.del_btn.clicked.connect(self._on_delete_preset)
         preset_row.addWidget(self.del_btn)
-        vbox.addLayout(preset_row)
 
         side_row = QHBoxLayout()
         side_row.setSpacing(6)
@@ -234,7 +233,15 @@ class ArmyRecipeTab(QWidget):
         )
         side_row.addWidget(self.check_troops_chk)
         side_row.addStretch()
-        vbox.addLayout(side_row)
+
+        toolbar_card = QFrame()
+        toolbar_card.setObjectName("card")
+        toolbar_box = QVBoxLayout(toolbar_card)
+        toolbar_box.setContentsMargins(12, 10, 12, 10)
+        toolbar_box.setSpacing(8)
+        toolbar_box.addLayout(preset_row)
+        toolbar_box.addLayout(side_row)
+        vbox.addWidget(toolbar_card)
 
         # ── Sub-tabs: 4 Tabs (Elixir, Dark, Spells, Siege) ──
         self.sub_tabs = QTabWidget()
@@ -282,18 +289,24 @@ class ArmyRecipeTab(QWidget):
         siege_v.addWidget(self.siege_grid)
         self.sub_tabs.addTab(siege_widget, "Siege")
 
-        vbox.addWidget(self.sub_tabs, 1)
+        troops_card = QFrame()
+        troops_card.setObjectName("card")
+        troops_box = QVBoxLayout(troops_card)
+        troops_box.setContentsMargins(10, 10, 10, 10)
+        troops_box.setSpacing(6)
+        troops_box.addWidget(self.sub_tabs, 1)
+        vbox.addWidget(troops_card)
+        vbox.addStretch(1)
 
         # ── Footer: space calculator ──
         footer = QFrame()
-        footer.setStyleSheet(
-            "QFrame { background: #FFFFFF; border-top: 1px solid #DCE5E1; }"
-        )
+        footer.setObjectName("card")
         footer_h = QHBoxLayout(footer)
+        footer_h.setContentsMargins(12, 8, 12, 8)
 
         self.space_lbl = QLabel("Army Space: 0 / 260   |   Spell Space: 0 / 11")
         self.space_lbl.setStyleSheet(
-            "color:#193431; font-weight:600; padding:6px;"
+            "color:#193431; font-weight:600; padding:2px;"
         )
         footer_h.addWidget(self.space_lbl)
         footer_h.addStretch()
