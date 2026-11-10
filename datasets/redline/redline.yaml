@@ -1,0 +1,23 @@
+# YOLO segmentation dataset for CoC redline.
+#
+# Label one class: `base_area`
+#   = the area INSIDE the red line (buildings, walls, core).
+#   The red line itself is the boundary of this mask.
+#
+# The mask/contour is converted into the redline polygon at runtime.
+#
+# Expected layout:
+#   datasets/redline/images/train/*.png
+#   datasets/redline/images/val/*.png
+#   datasets/redline/labels/train/*.txt
+#   datasets/redline/labels/val/*.txt
+#
+# YOLO segmentation label line:
+#   class x1 y1 x2 y2 x3 y3 ...  (normalized 0..1, class 0)
+
+path: datasets/redline
+train: images/train
+val: images/val
+
+names:
+  0: base_area

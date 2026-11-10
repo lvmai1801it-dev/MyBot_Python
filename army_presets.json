@@ -43,7 +43,16 @@
       "spells": {},
       "siege": {},
       "side": "Ngẫu nhiên"
+    },
+    "rongdien": {
+      "troops": {
+        "electro_dragon": 6,
+        "minion": 10
+      },
+      "spells": {},
+      "siege": {},
+      "side": "Ngẫu nhiên"
     }
   },
-  "active": "combonew"
+  "active": "rongdien"
 }

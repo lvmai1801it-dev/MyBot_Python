@@ -1,3 +1,3 @@
 # COCbot package root
-import COCbot.core.paths  # noqa: F401
-from COCbot.core.version import __version__  # noqa: F401
+import COCbot.app.paths  # noqa: F401
+from COCbot.app.version import __version__  # noqa: F401

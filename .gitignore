@@ -1,5 +1,5 @@
 # ==========================================
-# MÔI TRƯỜNG PYTHON
+# PYTHON
 # ==========================================
 .venv/
 venv/
@@ -10,7 +10,7 @@ __pycache__/
 *.so
 
 # ==========================================
-# CÔNG CỤ IDE / EDITOR
+# IDE / EDITOR
 # ==========================================
 .vscode/
 .idea/
@@ -18,16 +18,39 @@ __pycache__/
 *.sublime-workspace
 
 # ==========================================
-# FILE RÁC TỪ TEST OCR (Rất quan trọng)
+# RUNTIME ARTIFACTS
 # ==========================================
+artifacts/
 local_test/
 my_screenshot.png
 debug_*.png
 test_*.png
 screenshots/
+screen.png
+battle.png
+conn.png
+home.png
+home_page.png
+scout.png
+is_next_button.png
+temp_cv.png
+smart_train_close_verify
+ui_state.png
+resources_gained.png
+validate.png
+popup.png
+wall_search.png
+clan_capital*.png
+cc_phase*.png
+cc_village*.png
+collectors_resources.png
+Collectors_resources.png
+_tmp_grab
+treasure_event
+*.html
 
 # ==========================================
-# LOG VÀ DATABASE CỤC BỘ
+# LOGS AND DATABASES
 # ==========================================
 *.log
 settings.json
@@ -35,7 +58,24 @@ profiles/
 *.sqlite3
 
 # ==========================================
-# HỆ ĐIỀU HÀNH
+# DATASETS (large binaries)
+# ==========================================
+datasets/redline/images/
+datasets/redline/labels/
+datasets/redline/runs/
+datasets/redline/redline.local.yaml
+models/*.pt
+models/*.onnx
+runs/
+
+# ==========================================
+# LEGACY / BACKUP
+# ==========================================
+_backup_refactor_*/
+legacy/mybot/MyBot.run.dll
+
+# ==========================================
+# OS FILES
 # ==========================================
 .DS_Store
 Thumbs.db

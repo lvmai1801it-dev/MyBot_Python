@@ -21,3 +21,10 @@ uiautomator2==3.2.3
 requests==2.32.3
 packaging==24.1
 certifi==2024.8.30
+
+# === YOLO Segmentation (redline dataset) ===
+ultralytics==8.4.208
+
+# === OCR (PaddleOCR reads CoC digits best) ===
+paddleocr==3.7.0
+paddlepaddle==3.3.0

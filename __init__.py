@@ -1,1 +1,1 @@
-import core.paths
+import COCbot.app.paths

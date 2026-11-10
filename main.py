@@ -2,9 +2,9 @@
 import sys
 from types import ModuleType
 
-import COCbot.core.main as _mod
-from COCbot.core import state
-from COCbot.core.main import *
+import COCbot.app.bootstrap as _mod
+from COCbot.app import state
+from COCbot.app.bootstrap import *
 
 stop_event = state.stop_event
 pause_event = state.pause_event
