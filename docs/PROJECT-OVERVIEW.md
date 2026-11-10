@@ -40,11 +40,11 @@ run.py
 | `COCbot/platform` | 6 | 8 | 0 | 226 |
 | `COCbot/vision` | 14 | 43 | 13 | 1.327 |
 | **Tổng COCbot** | **82** | **298** | **160** | **15.033** |
-| `tools/` | 11 | 57 | 44 | 2.124 |
-| **Tổng toàn dự án** | **93** | **355** | **204** | **17.157** |
+| `tools/` | 10 | 30 | 19 | 1.580 |
+| **Tổng toàn dự án** | **92** | **328** | **179** | **16.613** |
 
 - **COCbot: 458 hàm/method** (298 hàm top-level + 160 method).
-- **Toàn dự án: 559 hàm/method** (355 + 204).
+- **Toàn dự án: 507 hàm/method** (328 + 179).
 - Có **20 class** trong COCbot (chưa kể class trong `tools/`).
 - Con số AST **không tính các hàm lồng bên trong hàm** (ví dụ helper trong
   `__init__` của GUI), nên thực tế nhiều hơn.
@@ -407,7 +407,6 @@ Redline OpenCV dùng các hằng trong `app/coords.py` và `vision/redline/geome
 | `compress_dataset.py` | Nén ảnh dataset sang JPG/WebP. |
 | `redline_common.py` | Path/helper dùng chung. |
 | `crop_tool.py` | Công cụ cắt template/toạ độ. |
-| `ocr_probe.py` | Thử OCR trên ảnh. |
 
 ---
 
@@ -480,7 +479,6 @@ File cấu hình:
 ## Phụ lục A — Danh sách đầy đủ hàm/method
 
 > Sinh tự động từ AST. Định dạng: `Tên (dòng)`; method ghi `Class.method`.
-> Các hàm không có docstring vẫn được liệt kê để tra cứu nhanh.
 
 ### COCbot
 
@@ -584,8 +582,8 @@ File cấu hình:
 
 **COCbot/attack/planner.py** — 2 hàm/method
 
-- legacy_edge_selection (23)
-- build_attack_plan (38)
+- legacy_edge_selection (22)
+- build_attack_plan (37)
 
 **COCbot/emulator/bluestacks.py** — 14 hàm/method
 
@@ -1081,25 +1079,25 @@ File cấu hình:
 
 **COCbot/vision/redline/detector.py** — 4 hàm/method
 
-- hex_to_bgr (27)
-- get_redline_edges_cv (35)
-- get_redline_edges_ex (104)
-- get_redline_edges (124)
+- hex_to_bgr (22)
+- get_redline_edges_cv (30)
+- get_redline_edges_ex (99)
+- get_redline_edges (119)
 
 **COCbot/vision/redline/geometry.py** — 12 hàm/method
 
-- parse_points (62)
-- point_in_poly (78)
-- clamp_point (95)
-- nearest_on_segment (102)
-- nearest_on_polygon (115)
-- filter_edge (130)
-- offset_edge_to_outer (149)
-- offset_edges_to_outer (176)
-- side_for_point (191)
-- choose_edges (213)
-- edge_midpoint (233)
-- ensure_four_edges (239)
+- parse_points (56)
+- point_in_poly (72)
+- clamp_point (89)
+- nearest_on_segment (96)
+- nearest_on_polygon (109)
+- filter_edge (124)
+- offset_edge_to_outer (143)
+- offset_edges_to_outer (170)
+- side_for_point (185)
+- choose_edges (207)
+- edge_midpoint (227)
+- ensure_four_edges (233)
 
 **COCbot/vision/redline/yolo.py** — 6 hàm/method
 
@@ -1159,61 +1157,6 @@ File cấu hình:
 - evaluate (77)
 - main (157)
 
-**tools/ocr_probe.py** — 52 hàm/method
-
-- _find_dll_path (50)
-- _get_memu_pid (62)
-- _init_dll (83)
-- _to_bgr (148)
-- _create_dib32_from_bgr (169)
-- _post_process (205)
-- OcrEngine.__init__ (225)
-- OcrEngine._ensure_dll (228)
-- OcrEngine.available (233)
-- OcrEngine.ocr (236)
-- OcrEngine.gold_village (272)
-- OcrEngine.elixir_village (275)
-- OcrEngine.dark_elixir_village (278)
-- OcrEngine.trophy_village (281)
-- OcrEngine.trophy_main_screen (284)
-- OcrEngine.resources_main_screen (295)
-- OcrEngine.resources_loot (298)
-- OcrEngine.resources_loot_de (301)
-- OcrEngine.resources_loot_trophy (304)
-- OcrEngine.resources_bonus (307)
-- OcrEngine.yellow_level (310)
-- OcrEngine.building_name (313)
-- OcrEngine.builders (325)
-- OcrEngine.overall_damage (331)
-- OcrEngine.guard_shield (334)
-- OcrEngine.remain_hero (337)
-- OcrEngine.upgrade_cost (340)
-- OcrEngine.upgrade_cost_red (343)
-- OcrEngine.bldg_upgrade_time (346)
-- OcrEngine.chat_string (350)
-- OcrEngine.language_check (353)
-- get_engine (361)
-- get_gold_village_search (369)
-- get_elixir_village_search (370)
-- get_dark_elixir_village_search (371)
-- get_trophy_village_search (372)
-- get_trophy_main_screen (373)
-- get_resources_main_screen (374)
-- get_resources_loot (375)
-- get_yellow_level (376)
-- get_building_name (377)
-- get_builders (378)
-- get_overall_damage (379)
-- get_remain_hero (380)
-- get_upgrade_cost (381)
-- get_upgrade_cost_red (382)
-- get_bldg_upgrade_time (383)
-- _parse_opts (389)
-- _cli_stdin_batch (401)
-- _setup_adb (456)
-- _capture_adb (473)
-- _cli_test (482)
-
 **tools/png_to_ico.py** — 1 hàm/method
 
 - png_to_ico (11)
@@ -1248,3 +1191,4 @@ File cấu hình:
 - _copy_to_models (61)
 - _check_dataset (69)
 - main (84)
+

@@ -105,7 +105,7 @@ run.py
   - Không có / lỗi → OpenCV fallback.
   - Trả `(edges, source)` qua `get_redline_edges_ex()`.
 - `attack/cycle.py` tự lưu ảnh vào dataset khi bật `auto_capture_dataset`.
-- `MyBot.run.dll` / `getRedArea` **không** dùng trong runtime (license check có thể kill emulator).
+- Không dùng DLL ngoài; toàn bộ redline chạy Python/OpenCV/YOLO.
 
 ### Công cụ YOLO
 

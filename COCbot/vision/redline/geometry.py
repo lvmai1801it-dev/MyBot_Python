@@ -1,26 +1,20 @@
 """
-redline_geometry.py - Pure-Python geometry helpers for the MyBot redline.
+redline_geometry.py - Pure-Python geometry helpers for the redline.
 
-Why this module exists:
-- MyBot.run.dll `getRedArea` works in this Python host and returns 4 sides:
-  TL#BL#BR#TR, each side "x-y|x-y|...".
-- `GetOffSetRedline`, `GetDeployableNextTo`, `GetPolygons` do NOT work here:
-  they need an ImgLoc session (`SearchRedLines`) which is blocked/errors in a
-  non-MyBot host.
-- `getDiamondString` and `GetAreaForPoint` DO work. Their results are static
-  for the 860x732 canvas, so they are embedded here as constants and pure
-  Python functions. This avoids a 32-bit subprocess call for every point.
+The 860x732 canvas constants and quadrant rules are embedded here as pure
+Python functions. They replace the old external-DLL helpers and avoid a 32-bit
+subprocess call per point.
 
-Verified against MyBot.run.dll on a 860x732 screenshot:
-  getDiamondString("DCD") -> 420,65|800,345|425,630|40,350
-  getDiamondString("ECD") -> 425,15|860,345|425,675|0,355|0,335
-  getDiamondString("FV")  -> 0,0|860,0|860,780|0,780
+Reference values on a 860x732 screenshot:
+  DCD -> 420,65 | 800,345 | 425,630 | 40,350
+  ECD -> 425,15 | 860,345 | 425,675 | 0,355 | 0,335
+  FV  -> 0,0 | 860,0 | 860,780 | 0,780
 
-  GetAreaForPoint("430,366") -> BR
-  GetAreaForPoint("300,300") -> TL
-  GetAreaForPoint("500,300") -> TR
-  GetAreaForPoint("300,450") -> BL
-  GetAreaForPoint("100,200") -> ""   (outside ECD)
+  side_for_point(430,366) -> BR
+  side_for_point(300,300) -> TL
+  side_for_point(500,300) -> TR
+  side_for_point(300,450) -> BL
+  side_for_point(100,200) -> ""   (outside ECD)
 """
 
 from __future__ import annotations
@@ -30,11 +24,11 @@ from typing import Iterable, List, Sequence, Tuple
 
 Point = Tuple[int, int]
 
-# Game canvas used by MyBot.run.dll.
+# Game canvas (860x732).
 SCREEN_W = 860
 SCREEN_H = 732
 
-# Quadrant center used by GetAreaForPoint (matches MyBot's ExternalArea center).
+# Quadrant center used by side_for_point().
 CENTER: Point = (425, 345)
 
 # UI / troop bar starts around y=615; never tap below this.
@@ -190,7 +184,7 @@ def offset_edges_to_outer(
 
 def side_for_point(x: float, y: float, outer: Sequence[Point] = ECD) -> str:
     """
-    Pure-Python replacement for MyBot.run.dll GetAreaForPoint.
+    Pure-Python replacement for the old external-DLL point classifier.
 
     Returns "TL" / "TR" / "BL" / "BR", or "" when the point is outside ECD.
     """

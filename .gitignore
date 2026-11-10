@@ -72,7 +72,6 @@ runs/
 # LEGACY / BACKUP
 # ==========================================
 _backup_refactor_*/
-legacy/mybot/MyBot.run.dll
 
 # ==========================================
 # OS FILES

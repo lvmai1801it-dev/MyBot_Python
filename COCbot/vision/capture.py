@@ -18,8 +18,8 @@ PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
 class ScreenshotArray(np.ndarray):
     """Numpy ndarray wrapper cho phep danh gia bool(img) va tuong thich path-like.
 
-    png_bytes giu nguyen PNG goc tu ADB. MyBot.run.dll getRedArea hoat dong
-    on dinh voi PNG goc; anh bi re-encode (cv2/PIL) co the lam DLL loi.
+    png_bytes giu nguyen PNG goc tu ADB de cac consumer can anh lossless
+    van dung duoc; anh bi re-encode (cv2/PIL) co the mat chi tiet.
     """
     path: str = 'screen.png'
     png_bytes: bytes = b''

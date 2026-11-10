@@ -1,11 +1,10 @@
 """Attack planner: turn raw redline edges into safe, target-aware drop edges.
 
-MyBot logic used here:
-- `getRedArea` gives the red line.
+Redline source:
+- The red line comes from `get_redline_edges_ex` (YOLO-seg or OpenCV).
 - The deployable band is between the red line and the outer (yellow) diamond.
-  The OpenCV fallback uses ~35-40% of that band; we use the same ratio.
-- `GetAreaForPoint` is replaced by pure Python `side_for_point()` because the
-  DLL function is static for 860x732 and the Python version is faster.
+  The fallback uses ~35-40% of that band; we use the same ratio.
+- `side_for_point()` is pure Python and static for the 860x732 canvas.
 """
 
 import random

@@ -1,10 +1,5 @@
 """Redline detection: YOLO segmentation first, OpenCV isometric fallback.
 
-The old MyBot.run.dll `getRedArea` path is intentionally removed:
-- it triggers DetectRedArea.checkLicence() -> Process.Kill() and is flaky in a
-  non-MyBot host;
-- it can close the emulator when the process is elevated.
-
 YOLO-seg (`base_area` mask) is the primary path when a model is configured.
 The pure OpenCV fallback is always available.
 """
