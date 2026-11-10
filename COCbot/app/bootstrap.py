@@ -92,26 +92,14 @@ def sync_state():
 
 
 def _account_key_and_quota(conf, fallback_need):
-    """Return (key, quota) for the account currently active.
+    """Return (key, quota) for the currently active shared_prefs profile.
 
     Quota is the per-account `attacks` value; 0 means "use the shared
     consecutive_attacks setting".
     """
-    mode = conf.get("mode", "supercell")
-    accounts = conf.get("accounts", [])
-    if mode == "supercell":
-        slots = [
-            i + 1 for i, a in enumerate(accounts) if a.get("enabled")
-        ][:5]
-        current = int(conf.get("current_slot", slots[0] if slots else 1) or 1)
-        idx = current - 1
-        entry = accounts[idx] if 0 <= idx < len(accounts) else {}
-        quota = int(entry.get("attacks", 0) or 0) or fallback_need
-        return f"slot:{current}", quota
-
     current = str(conf.get("current_profile", "")).strip()
     entry = next(
-        (a for a in accounts
+        (a for a in conf.get("accounts", [])
          if a.get("enabled") and a.get("profile") == current),
         {},
     )
@@ -126,45 +114,8 @@ def _reset_attack_count(key):
 
 
 def _switch_to_next_account(conf, attacks_due=False, time_due=False):
-    """Switch to the next enabled account. Returns True on success."""
-    mode = conf.get("mode", "supercell")
+    """Switch to the next enabled shared_prefs profile."""
     now = time.time()
-
-    if mode == "supercell":
-        accounts = conf.get("accounts", [])
-        slots = [
-            i + 1 for i, a in enumerate(accounts) if a.get("enabled")
-        ][:5]
-        if len(slots) < 2:
-            return False
-
-        current = int(conf.get("current_slot", slots[0]) or slots[0])
-        try:
-            idx = slots.index(current)
-        except ValueError:
-            idx = -1
-        target = slots[(idx + 1) % len(slots)]
-        old_key = f"slot:{current}"
-
-        print(f"[SWITCH] Supercell ID slot {current} -> {target} "
-              f"(attacks={attacks_due}, time={time_due})")
-        try:
-            return_home()
-            time.sleep(2)
-            ensure_home_base(max_wait=25)
-            from COCbot.game.account.ready_villages import switch_to_village
-            switch_to_village(target)
-        except Exception as e:
-            print(f"[SWITCH] Supercell ID failed: {e}")
-            return False
-
-        conf["current_slot"] = target
-        conf["last_switch_ts"] = now
-        save_switch_config(conf)
-        _reset_attack_count(old_key)
-        return True
-
-    # shared_prefs mode
     current = str(conf.get("current_profile", "")).strip()
     names = enabled_profiles(conf)
     if not current or len(names) < 2:
@@ -591,6 +542,22 @@ def bot_loop(cfg):
             return
     except Exception as e:
         print(f'[VILLAGE] entry check skipped: {e}')
+
+    # First session: keep using the account already loaded in the game.
+    # Reset the time schedule so a stale last_switch_ts cannot switch
+    # immediately on startup. Attacks/time/storage conditions still apply
+    # later once the bot is running.
+    try:
+        switch_conf = load_switch_config()
+        if switch_conf.get("use_time_schedule"):
+            switch_conf["last_switch_ts"] = time.time()
+            save_switch_config(switch_conf)
+        state._switch_attack_counts = {}
+        current = str(switch_conf.get("current_profile", "") or "").strip()
+        print(f"[SWITCH] Bắt đầu với account hiện tại"
+              f"{': ' + current if current else ''} — không tự chuyển.")
+    except Exception as e:
+        print(f'[SWITCH] reset startup session skipped: {e}')
 
     state._cycle_count = 0
     while not state.stop_event.is_set():

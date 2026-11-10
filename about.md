@@ -18,7 +18,7 @@ Yêu cầu: Python 3.13, ADB (đi kèm trong `adb/`), emulator MEmu/LDPlayer/Blu
 - Train quân: Smart Train / Quick Train, quản lý preset.
 - Xin quân qua Clan Chat (không cần root).
 - Clan Games và Clan Capital.
-- Chuyển account: Supercell ID hoặc Shared_prefs (adbd root).
+- Chuyển account: Shared_prefs (adbd root).
   - Mỗi account có số trận riêng.
   - Tự chuyển khi đầy 3 kho (template matching).
   - Hẹn giờ chuyển theo số phút.

@@ -188,14 +188,17 @@ tools/eval_redline_yolo.py     # IoU, drop safety, coverage, latency
 
 ## 4.5. Chuyển account
 
-- **Supercell ID** (mặc định, không cần root): dùng `switch_to_village(slot)`
-  trong `game/account/ready_villages.py`.
-- **Shared_prefs** (dùng adbd root sẵn có): `game/account/shared_prefs.py`, lưu folder như MyBot.
+- Chỉ dùng **Shared_prefs** (adbd root sẵn có): `game/account/shared_prefs.py`,
+  lưu folder như MyBot. Không còn Supercell ID.
 - Cấu hình: `game/account/switch_config.py` → `profiles/switch_accounts.json`.
-- GUI: tab **Accounts** (Pull/Push/Switch, account rows, switch log).
-- Auto-switch: theo **số trận riêng từng account** và/hoặc **thời gian** (mỗi X phút), cho cả 2 mode.
-- **Đầy 3 kho** (gold/elixir/DE): template matching trong `game/village/storage_full.py`; nếu không còn account khác thì treo online và kiểm tra lại sau X phút.
-- Đây là cơ chế chuyển account duy nhất; không còn Multi-Village/multi-account riêng.
+- GUI: tab **Accounts** (Pull/Push/Switch, account rows, trạng thái thao tác).
+- Khi mới Start: dùng account đang mở sẵn, **không tự chuyển**; bộ đếm trận và
+  mốc thời gian được reset cho phiên mới.
+- Auto-switch chỉ khi thỏa điều kiện: **số trận riêng từng account**, **thời
+  gian (mỗi X phút)**, hoặc **đầy 3 kho** (gold/elixir/DE).
+- Đầy kho: `game/village/storage_full.py`; nếu không còn account khác thì treo
+  online và kiểm tra lại sau X phút.
+- Đây là cơ chế chuyển account duy nhất; không còn Multi-Village/multi-account.
 - Chi tiết: `docs/ACCOUNT-SWITCH.md`.
 
 ---

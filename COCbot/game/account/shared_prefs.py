@@ -215,7 +215,7 @@ class SharedPrefsManager:
             return "quyền: adbd root sẵn có (không cần root thủ công)"
         if mode == "su":
             return "quyền: su"
-        return "quyền: không đủ (dùng Supercell ID)"
+        return "quyền: không đủ (cần adbd root)"
 
     def _root_shell(self, cmd, timeout=90):
         mode = self.root_mode()
@@ -224,7 +224,7 @@ class SharedPrefsManager:
         if mode == "su":
             return self._shell(f'su -c "{cmd}"', timeout=timeout)
         raise SharedPrefsError(
-            "Shared_prefs cần adbd root (MEmu/LDPlayer thường có sẵn). Nếu không có, dùng Supercell ID."
+            "Shared_prefs cần adbd root (MEmu/LDPlayer thường có sẵn). Hãy bật adb root."
         )
 
     def _require_ok(self, proc, what: str):
@@ -324,7 +324,7 @@ class SharedPrefsManager:
         """Save the game's current shared_prefs into profile `name`."""
         if self.root_mode() is None:
             raise SharedPrefsError(
-                "Emulator không có adbd root. Dùng Supercell ID hoặc bật adb root."
+                "Emulator không có adbd root. Hãy bật adb root."
             )
 
         pdir = self.profile_dir(name)
@@ -384,7 +384,7 @@ class SharedPrefsManager:
         """
         if self.root_mode() is None:
             raise SharedPrefsError(
-                "Emulator không có adbd root. Dùng Supercell ID hoặc bật adb root."
+                "Emulator không có adbd root. Hãy bật adb root."
             )
         if not self.has_profile(name):
             raise SharedPrefsError(f"Profile '{name}' không có shared_prefs.")

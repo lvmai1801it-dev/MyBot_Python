@@ -1,4 +1,4 @@
-"""Configuration for account switching (Supercell ID / shared_prefs)."""
+"""Configuration for account switching (shared_prefs only)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ ACCOUNTS_PER_PAGE = 8
 def default_config() -> dict:
     return {
         "enabled": False,
-        "mode": "supercell",
         "consecutive_attacks": 2,
         "use_attack_limit": True,
         "use_time_schedule": False,
@@ -27,7 +26,6 @@ def default_config() -> dict:
         "last_switch_ts": 0,
         "total_accounts": 2,
         "current_profile": "",
-        "current_slot": 1,
         "accounts": [
             {"enabled": i < 2, "profile": "", "attacks": 0}
             for i in range(MAX_ACCOUNTS)

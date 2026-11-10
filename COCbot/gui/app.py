@@ -639,11 +639,6 @@ class MainWindow(QMainWindow):
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
-        btn_row.addWidget(QLabel("Slot:"))
-        self.acc_slot_spin = QSpinBox()
-        self.acc_slot_spin.setRange(1, 5)
-        self.acc_slot_spin.setFixedWidth(46)
-        btn_row.addWidget(self.acc_slot_spin)
         self.acc_pull_btn = QPushButton("Pull")
         self.acc_pull_btn.setToolTip("Pull shared_prefs của account hiện tại")
         self.acc_push_btn = QPushButton("Push")
@@ -684,30 +679,13 @@ class MainWindow(QMainWindow):
         self.switch_total_spin = QSpinBox()
         self.switch_total_spin.setRange(2, MAX_ACCOUNTS)
         g.addWidget(self.switch_total_spin, 1, 1)
-        mode_row = QHBoxLayout()
-        mode_row.setSpacing(6)
-        mode_row.addWidget(QLabel("Mode:"))
-        self.switch_shared_radio = QRadioButton("Shared_prefs")
-        self.switch_scid_radio = QRadioButton("Supercell ID")
-        self.switch_shared_radio.setToolTip(
-            "Tự động switch bằng shared_prefs (khuyến nghị).")
-        self.switch_scid_radio.setToolTip(
-            "Supercell ID: không cần root, dùng màn hình Switch Account trong game.")
-        self.switch_mode_group = QButtonGroup(self)
-        self.switch_mode_group.addButton(self.switch_shared_radio)
-        self.switch_mode_group.addButton(self.switch_scid_radio)
-        mode_row.addWidget(self.switch_shared_radio)
-        mode_row.addWidget(self.switch_scid_radio)
-        mode_row.addStretch()
-        g.addLayout(mode_row, 1, 2, 1, 2)
-
-        g.addWidget(QLabel("Attacks / acc:"), 2, 0)
+        g.addWidget(QLabel("Attacks / acc:"), 1, 2)
         self.switch_max_spin = QSpinBox()
         self.switch_max_spin.setRange(1, 100)
         self.switch_max_spin.setToolTip(
             "Số trận mặc định cho mỗi account. Account nào có ô 'Trận' riêng "
             "(khác 0) sẽ dùng số đó.")
-        g.addWidget(self.switch_max_spin, 2, 1)
+        g.addWidget(self.switch_max_spin, 1, 3)
 
         trig_row = QHBoxLayout()
         trig_row.setSpacing(6)
@@ -722,7 +700,7 @@ class MainWindow(QMainWindow):
         trig_row.addWidget(self.switch_by_time_chk)
         trig_row.addWidget(self.switch_interval_spin)
         trig_row.addStretch()
-        g.addLayout(trig_row, 3, 0, 1, 4)
+        g.addLayout(trig_row, 2, 0, 1, 4)
 
         full_row = QHBoxLayout()
         full_row.setSpacing(6)
@@ -741,7 +719,7 @@ class MainWindow(QMainWindow):
             "lại sau số phút này.")
         full_row.addWidget(self.switch_full_wait_spin)
         full_row.addStretch()
-        g.addLayout(full_row, 4, 0, 1, 4)
+        g.addLayout(full_row, 3, 0, 1, 4)
 
         body = QVBoxLayout()
         body.setSpacing(6)
@@ -797,11 +775,12 @@ class MainWindow(QMainWindow):
         self.acc_status_lbl.setWordWrap(True)
         self.acc_status_lbl.setStyleSheet("color:#657877; font-size:9px;")
         body.addWidget(self.acc_status_lbl)
-        g.addLayout(body, 5, 0, 1, 4)
+        g.addLayout(body, 4, 0, 1, 4)
         root.addWidget(grp, 1)
 
         self.acc_mode_note = QLabel(
-            "Supercell ID: KHÔNG cần root. Shared_prefs: cần root/adb root."
+            "Shared_prefs: dùng adbd root sẵn có (MEmu/LDPlayer), "
+            "không cần root thủ công."
         )
         self.acc_mode_note.setWordWrap(True)
         self.acc_mode_note.setStyleSheet("color:#657877; font-size:9px;")
@@ -821,8 +800,6 @@ class MainWindow(QMainWindow):
         self.switch_interval_spin.valueChanged.connect(self._save_switch_ui)
         self.switch_full_wait_spin.valueChanged.connect(self._save_switch_ui)
         self.switch_enable_chk.toggled.connect(self._save_switch_ui)
-        self.switch_shared_radio.toggled.connect(self._save_switch_ui)
-        self.switch_scid_radio.toggled.connect(self._save_switch_ui)
         for row in self.switch_rows:
             row["cb"].toggled.connect(self._save_switch_ui)
             row["atk"].valueChanged.connect(self._save_switch_ui)
@@ -938,10 +915,6 @@ class MainWindow(QMainWindow):
             int(cfg.get("storage_full_wait_minutes", 10)))
         self.switch_interval_spin.setValue(
             int(cfg.get("schedule_minutes", 60)))
-        if cfg.get("mode") == "supercell":
-            self.switch_scid_radio.setChecked(True)
-        else:
-            self.switch_shared_radio.setChecked(True)
 
         accounts = cfg.get("accounts", [])
         for i, row in enumerate(self.switch_rows):
@@ -967,27 +940,6 @@ class MainWindow(QMainWindow):
             self.acc_current_lbl.setText(
                 f"Current: {self._current_profile_text() or '(chưa đặt)'}")
         self._update_switch_rows()
-        self._apply_mode_ui()
-
-    def _apply_mode_ui(self):
-        if not hasattr(self, "switch_shared_radio"):
-            return
-        is_shared = self.switch_shared_radio.isChecked()
-        self.acc_profile_combo.setEnabled(is_shared)
-        self.acc_pull_btn.setEnabled(is_shared)
-        self.acc_push_btn.setEnabled(is_shared)
-        self.acc_slot_spin.setEnabled(not is_shared)
-        for row in self.switch_rows:
-            row["combo"].setEnabled(is_shared)
-        if is_shared:
-            self.acc_mode_note.setText(
-                "Shared_prefs: dùng adbd root sẵn có (MEmu/LDPlayer), "
-                "không cần root thủ công. Nếu emulator không có adbd root, "
-                "hãy dùng Supercell ID.")
-        else:
-            self.acc_mode_note.setText(
-                "Supercell ID: KHÔNG cần root. Chọn Slot 1-5 rồi bấm Switch now. "
-                "Slot tương ứng thứ tự account trong màn hình Switch Account của game.")
 
     def _save_switch_ui(self, *args):
         if getattr(self, "_loading_switch_ui", False):
@@ -1005,7 +957,6 @@ class MainWindow(QMainWindow):
         cfg["schedule_minutes"] = int(self.switch_interval_spin.value())
         if cfg["use_time_schedule"] and not was_time:
             cfg["last_switch_ts"] = time.time()
-        cfg["mode"] = "supercell" if self.switch_scid_radio.isChecked() else "shared_prefs"
         for i, row in enumerate(self.switch_rows):
             cfg["accounts"][i] = {
                 "enabled": row["cb"].isChecked(),
@@ -1014,7 +965,6 @@ class MainWindow(QMainWindow):
             }
         save_switch_config(cfg)
         self._update_switch_rows()
-        self._apply_mode_ui()
 
     def _update_switch_rows(self):
         if not hasattr(self, "switch_total_spin"):
@@ -1047,13 +997,6 @@ class MainWindow(QMainWindow):
     def _acc_pull(self):
         if self._account_busy():
             return
-        if self.switch_scid_radio.isChecked():
-            QMessageBox.information(
-                self, "Supercell ID",
-                "Chế độ Supercell ID không dùng Pull/Push.\n"
-                "Dùng Switch now (Slot 1-5)."
-            )
-            return
         name = self._selected_profile()
         if not name:
             QMessageBox.warning(self, "Profile", "Chọn hoặc nhập tên profile trước.")
@@ -1072,13 +1015,6 @@ class MainWindow(QMainWindow):
 
     def _acc_push(self):
         if self._account_busy():
-            return
-        if self.switch_scid_radio.isChecked():
-            QMessageBox.information(
-                self, "Supercell ID",
-                "Chế độ Supercell ID không dùng Pull/Push.\n"
-                "Dùng Switch now (Slot 1-5)."
-            )
             return
         name = self._selected_profile()
         if not name:
@@ -1106,30 +1042,6 @@ class MainWindow(QMainWindow):
 
     def _acc_switch(self):
         if self._account_busy():
-            return
-
-        if self.switch_scid_radio.isChecked():
-            slot = int(self.acc_slot_spin.value())
-            ans = QMessageBox.question(
-                self, "Switch Supercell ID",
-                f"Chuyển sang account slot {slot}?\n"
-                "Dùng màn hình Switch Account trong game (không cần root).",
-                QMessageBox.Yes | QMessageBox.No,
-            )
-            if ans != QMessageBox.Yes:
-                return
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            try:
-                from COCbot.game.account.ready_villages import switch_to_village
-                switch_to_village(slot)
-                self._switch_cfg["current_slot"] = slot
-                save_switch_config(self._switch_cfg)
-                self._account_log(f"Switch SCID OK: slot {slot}")
-            except Exception as e:
-                QMessageBox.critical(self, "Switch Supercell ID", str(e))
-                self._account_log(f"Switch SCID FAIL: {e}")
-            finally:
-                QApplication.restoreOverrideCursor()
             return
 
         target = self._selected_profile()
