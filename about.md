@@ -47,8 +47,9 @@ docs/                      # ARCHITECTURE, ACCOUNT-SWITCH, LABELING-GUIDE...
 6 tab: **Log**, **Village** (General / Upgrade / Accounts), **Attack plan**,
 **Bot settings** (Clan Games / Clan Capital / Debug), **Statistics**, **About**.
 
-Village → Upgrade có 4 tab con: Wall upgrade, Hero upgrade, Defense, Resource.
-Hiện chỉ Wall upgrade có logic tự động; 3 tab còn lại lưu cấu hình cho sau này.
+Village → Upgrade có 6 tab con: Wall upgrade, Hero upgrade, Defense, Army,
+Resource, Other. Hiện chỉ Wall upgrade có logic tự động; các tab còn lại lưu
+cấu hình cho sau này.
 
 ## Tài liệu
 

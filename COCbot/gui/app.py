@@ -282,8 +282,12 @@ def load_settings():
         "hero_priorities": [],
         "upgrade_defense": False,
         "defense_priorities": [],
+        "upgrade_army": False,
+        "army_priorities": [],
         "upgrade_resource": False,
         "resource_priorities": [],
+        "upgrade_other": False,
+        "other_buildings": [],
         "enable_clan_games": False,
         "request_troops": True,
         "attack": "Dragon_Attack",
@@ -1650,8 +1654,10 @@ class MainWindow(QMainWindow):
         defense_box.addWidget(self.upgrade_defense_chk)
 
         defense_names = (
-            "Air Defense", "Inferno Tower", "X-Bow", "Eagle Artillery",
-            "Scattershot", "Monolith",
+            "Air Sweeper", "Air Defense", "Eagle Artillery", "Archer Tower",
+            "Bomb Tower", "X-Bow", "Cannon", "Inferno Tower", "Firespitter",
+            "Multi-Archer Tower", "Ricochet Cannon", "Monolith", "Mortar",
+            "Scattershot", "Spell Tower", "Hidden Tesla", "Wizard Tower",
         )
         saved_defense = set(self.settings.get("defense_priorities", []) or [])
         defense_grid = QGridLayout()
@@ -1675,6 +1681,45 @@ class MainWindow(QMainWindow):
         defense_root.addStretch()
         up_tabs.addTab(defense_page, "Defense")
 
+        # --- Army buildings ---
+        army_page = QWidget()
+        army_root = QVBoxLayout(army_page)
+        army_root.setContentsMargins(0, 8, 0, 8)
+        army_root.setSpacing(8)
+        army_card, army_box = _card(
+            "Army buildings", "Ưu tiên nâng công trình quân đội.")
+        self.upgrade_army_chk = QCheckBox("Enable Army Building Upgrade")
+        self.upgrade_army_chk.setChecked(
+            self.settings.get("upgrade_army", False))
+        army_box.addWidget(self.upgrade_army_chk)
+
+        army_names = (
+            "Clan Castle", "Barracks", "Dark Barracks", "Hero Hall",
+            "Laboratory", "Dark Spell Factory", "Pet House", "Workshop",
+            "Blacksmith", "Spell Factory", "Army Camp",
+        )
+        saved_army = set(self.settings.get("army_priorities", []) or [])
+        army_grid = QGridLayout()
+        army_grid.setHorizontalSpacing(10)
+        army_grid.setVerticalSpacing(4)
+        self.army_checks = {}
+        for i, name in enumerate(army_names):
+            cb = QCheckBox(name)
+            cb.setChecked(name in saved_army)
+            army_grid.addWidget(cb, i // 2, i % 2)
+            self.army_checks[name] = cb
+        army_box.addLayout(army_grid)
+
+        army_note = QLabel(
+            "Chưa hỗ trợ tự động. Tick các công trình muốn ưu tiên; "
+            "cấu hình được lưu lại.")
+        army_note.setWordWrap(True)
+        army_note.setStyleSheet("font-size:10px; color:#9A6B00;")
+        army_box.addWidget(army_note)
+        army_root.addWidget(army_card)
+        army_root.addStretch()
+        up_tabs.addTab(army_page, "Army")
+
         # --- Resource upgrade ---
         resource_page = QWidget()
         resource_root = QVBoxLayout(resource_page)
@@ -1688,8 +1733,8 @@ class MainWindow(QMainWindow):
         resource_box.addWidget(self.upgrade_resource_chk)
 
         resource_names = (
-            "Gold Mine", "Elixir Collector", "Dark Elixir Drill",
-            "Gold Storage", "Elixir Storage", "Dark Elixir Storage",
+            "Dark Elixir Drill", "Dark Elixir Storage", "Elixir Collector",
+            "Elixir Storage", "Gold Mine", "Gold Storage", "Helper Hut",
         )
         saved_resource = set(self.settings.get("resource_priorities", []) or [])
         resource_grid = QGridLayout()
@@ -1712,6 +1757,38 @@ class MainWindow(QMainWindow):
         resource_root.addWidget(resource_card)
         resource_root.addStretch()
         up_tabs.addTab(resource_page, "Resource")
+
+        # --- Other upgrades ---
+        other_page = QWidget()
+        other_root = QVBoxLayout(other_page)
+        other_root.setContentsMargins(0, 8, 0, 8)
+        other_root.setSpacing(8)
+        other_card, other_box = _card(
+            "Other upgrade", "Nâng cấp công trình bất kỳ (tên tự nhập).")
+        self.upgrade_other_chk = QCheckBox("Enable Other Upgrade")
+        self.upgrade_other_chk.setChecked(
+            self.settings.get("upgrade_other", False))
+        other_box.addWidget(self.upgrade_other_chk)
+
+        self.other_buildings_entry = QLineEdit()
+        self.other_buildings_entry.setPlaceholderText(
+            "Town Hall, Builder's Hut, ...")
+        saved_other = self.settings.get("other_buildings", []) or []
+        if isinstance(saved_other, (list, tuple)):
+            self.other_buildings_entry.setText(", ".join(saved_other))
+        else:
+            self.other_buildings_entry.setText(str(saved_other))
+        other_box.addWidget(self.other_buildings_entry)
+
+        other_note = QLabel(
+            "Nhập tên công trình, phân tách bằng dấu phẩy. "
+            "Chưa hỗ trợ tự động; cấu hình được lưu lại.")
+        other_note.setWordWrap(True)
+        other_note.setStyleSheet("font-size:10px; color:#9A6B00;")
+        other_box.addWidget(other_note)
+        other_root.addWidget(other_card)
+        other_root.addStretch()
+        up_tabs.addTab(other_page, "Other")
 
         up_page.addWidget(up_tabs)
 
@@ -2350,10 +2427,21 @@ class MainWindow(QMainWindow):
                 name for name, cb in self.defense_checks.items()
                 if cb.isChecked()
             ],
+            "upgrade_army": self.upgrade_army_chk.isChecked(),
+            "army_priorities": [
+                name for name, cb in self.army_checks.items()
+                if cb.isChecked()
+            ],
             "upgrade_resource": self.upgrade_resource_chk.isChecked(),
             "resource_priorities": [
                 name for name, cb in self.resource_checks.items()
                 if cb.isChecked()
+            ],
+            "upgrade_other": self.upgrade_other_chk.isChecked(),
+            "other_buildings": [
+                item.strip()
+                for item in self.other_buildings_entry.text().split(",")
+                if item.strip()
             ],
             "request_troops": self.req_chk.isChecked(),
             "attack": attack_type,

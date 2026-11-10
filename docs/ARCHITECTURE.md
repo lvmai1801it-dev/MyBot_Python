@@ -157,9 +157,10 @@ tools/eval_redline_yolo.py     # IoU, drop safety, coverage, latency
 - Cửa sổ 480×670, frameless title bar kéo được, nút minimize / maximize / close.
 - 6 tab: **Log**, **Village** (General + Upgrade + Accounts), **Attack plan**,
   **Bot settings** (Clan Games / Clan Capital / Debug), **Statistics**, **About**.
-- **Village → Upgrade** có 4 tab con: **Wall upgrade**, **Hero upgrade**,
-  **Defense**, **Resource**. Hiện chỉ Wall upgrade có logic tự động; 3 tab còn
-  lại lưu cấu hình cho các phiên bản sau (có ghi chú rõ trong UI).
+- **Village → Upgrade** có 6 tab con: **Wall upgrade**, **Hero upgrade**,
+  **Defense**, **Army**, **Resource**, **Other**. Hiện chỉ Wall upgrade có logic
+  tự động; các tab còn lại lưu cấu hình cho các phiên bản sau (có ghi chú rõ
+  trong UI).
 - Log tab: Bot log (filter INFO/SUCCESS/WARNING/ERROR, Export) + Attack log
   (TIME/MODE/GOLD/ELIXIR/DARK/TROPHIES/BONUS) + Start/Pause/Stop/Search mode.
 - `Templates/coc_icon.ico` / `coc_icon.png`: icon cửa sổ.
