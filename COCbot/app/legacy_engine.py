@@ -174,6 +174,8 @@ class LegacyEngine:
             )
             return
         builders: int | None = None
+        gold: int | None = None
+        elixir: int | None = None
         if self._resource_reader is not None:
             try:
                 snapshot = self._resource_reader.read()
@@ -184,6 +186,8 @@ class LegacyEngine:
                 )
                 return
             builders = snapshot.builders_available
+            gold = snapshot.gold
+            elixir = snapshot.elixir
         if builders is None:
             self._emit(LogLevel.WARNING, "Could not read the builder count")
             return
@@ -207,7 +211,11 @@ class LegacyEngine:
 
         left = result.builders_left if result.builders_left is not None else builders
         if upgrades.wall.enabled and left > 0 and self._upgrader is not None:
-            wall_result = self._upgrader.upgrade_walls_via_panel(execute=True)
+            wall_result = self._upgrader.upgrade_walls_via_panel(
+                execute=True,
+                gold=gold,
+                elixir=elixir,
+            )
             self._emit(
                 LogLevel.INFO if wall_result.ok else LogLevel.WARNING,
                 wall_result.message,

@@ -302,6 +302,10 @@ class WallPanelFlowTests(unittest.TestCase):
         upgrader.dialog_open = lambda frame: True  # type: ignore[assignment]
         upgrader._text_reader = lambda frame, region: "upgrade wall to level 19?"  # type: ignore[assignment]
         upgrader.find = lambda frame, name, region=None, threshold=None: Point(612, 548)  # type: ignore[assignment]
+        upgrader._wall_upgrade_buttons = lambda frame: [  # type: ignore[assignment]
+            (196, 655, 500_000),
+            (290, 655, 500_000),
+        ]
         return upgrader, adb
 
     def test_dry_run_reports_without_tapping(self) -> None:
@@ -313,11 +317,31 @@ class WallPanelFlowTests(unittest.TestCase):
 
     def test_execute_confirms_a_wall_upgrade(self) -> None:
         upgrader, adb = self._stub(True)
-        result = upgrader.upgrade_walls_via_panel(execute=True)
+        result = upgrader.upgrade_walls_via_panel(
+            execute=True,
+            gold=7_000_000,
+            elixir=8_000_000,
+        )
         self.assertTrue(result.ok, result.message)
         self.assertTrue(result.executed)
         self.assertIn((612, 548), adb.taps)
-        self.assertTrue(adb.swipes)
+        self.assertIn((196, 655), adb.taps)
+
+    def test_wall_cost_above_resources_needs_loot(self) -> None:
+        upgrader, adb = self._stub(True)
+        upgrader._wall_upgrade_buttons = lambda frame: [  # type: ignore[assignment]
+            (196, 655, 900_000),
+            (290, 655, 900_000),
+        ]
+        result = upgrader.upgrade_walls_via_panel(
+            execute=True,
+            gold=100_000,
+            elixir=100_000,
+        )
+        self.assertTrue(result.needs_loot)
+        self.assertFalse(result.executed)
+        self.assertNotIn((196, 655), adb.taps)
+        self.assertNotIn((290, 655), adb.taps)
 
 
 if __name__ == "__main__":

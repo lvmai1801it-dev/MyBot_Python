@@ -58,14 +58,6 @@ PANEL_SCROLL_FROM = Point(700, 560)
 PANEL_SCROLL_TO = Point(700, 200)
 PANEL_SCROLL_MS = 450
 MAX_SCAN_PAGES = 7
-# Drag lines used in the wall-upgrade mode opened from the panel "Wall" row.
-WALL_DRAGS: tuple[tuple[int, int, int, int], ...] = (
-    (620, 470, 760, 470),
-    (640, 520, 760, 520),
-    (250, 470, 460, 470),
-    (300, 320, 460, 320),
-    (180, 520, 450, 520),
-)
 
 PANEL_TITLE_KEYWORDS = ("buildings", "heroes", "army", "equipment", "pets")
 # Bottom tab buttons of the Build panel (860x732).
@@ -604,9 +596,12 @@ class HeroDefenseUpgrader:
     def upgrade_walls_via_panel(
         self,
         execute: bool = False,
-        drags: tuple[tuple[int, int, int, int], ...] = WALL_DRAGS,
+        gold: int | None = None,
+        elixir: int | None = None,
     ) -> UpgradeResult:
-        """Open the panel Wall row, drag over walls, and confirm one upgrade."""
+        """Tap a Wall row, pick an affordable currency, and confirm the upgrade."""
+        from COCbot.features.village.resources import ocr_number
+
         if not self.open_panel(execute=execute):
             return UpgradeResult(False, "Wall", message="Build panel did not open")
         if not self.open_tab("buildings", execute=execute):
@@ -625,42 +620,95 @@ class HeroDefenseUpgrader:
                 True,
                 "Wall",
                 executed=False,
-                message="Dry run: would enter wall mode and upgrade",
+                message="Dry run: would open the wall upgrade controls",
             )
 
-        self._clock.sleep(1.0)
-        for x1, y1, x2, y2 in drags:
-            self._adb.swipe(x1, y1, x2, y2, duration_ms=900)
-            self._clock.sleep(1.2)
+        self._clock.sleep(1.2)
+        buttons: list[tuple[int, int, int | None]] = []
+        for _attempt in range(4):
             frame = self._capture.capture()
-            if frame is None:
-                continue
-            if not self.dialog_open(frame):
-                continue
-            title = self._text_reader(frame, DIALOG_TITLE_REGION).lower()
-            if "wall" not in title:
-                self.dismiss(execute=True)
-                continue
-            confirm = self.find(frame, self._buttons["confirm"], DIALOG_REGION)
-            if confirm is None:
-                self.dismiss(execute=True)
-                return UpgradeResult(
-                    False, "Wall", message="Confirm button template not found"
-                )
-            self._adb.tap(confirm.x, confirm.y)
-            self._clock.sleep(1.2)
+            if frame is not None:
+                buttons = self._wall_upgrade_buttons(frame)
+                if len(buttons) >= 2:
+                    break
+            self._clock.sleep(0.8)
+        if not frame:
+            self.dismiss(execute=True)
+            return UpgradeResult(False, "Wall", message="Capture failed")
+
+        if len(buttons) < 2:
+            self.dismiss(execute=True)
+            return UpgradeResult(
+                False,
+                "Wall",
+                message=f"Wall upgrade buttons not found ({len(buttons)} seen)",
+            )
+        gold_button = buttons[0]
+        elixir_button = buttons[1]
+
+        can_gold = (
+            gold_button[2] is not None
+            and gold is not None
+            and gold_button[2] > 0
+            and gold_button[2] < gold
+        )
+        can_elixir = (
+            elixir_button[2] is not None
+            and elixir is not None
+            and elixir_button[2] > 0
+            and elixir_button[2] < elixir
+        )
+        if not can_gold and not can_elixir:
+            self.dismiss(execute=True)
             return UpgradeResult(
                 True,
                 "Wall",
-                executed=True,
-                taps=2,
-                message="Upgraded a wall",
+                executed=False,
+                needs_loot=True,
+                message=(
+                    "Wall cost exceeds the stored resources "
+                    f"(gold={gold_button[2]}, elixir={elixir_button[2]}, "
+                    f"have gold={gold}, elixir={elixir})"
+                ),
             )
-        self.dismiss(execute=True)
+
+        if can_gold:
+            point = (gold_button[0], gold_button[1])
+            cost = gold_button[2]
+            currency = "gold"
+        else:
+            point = (elixir_button[0], elixir_button[1])
+            cost = elixir_button[2]
+            currency = "elixir"
+
+        self._adb.tap(point[0], point[1])
+        self._clock.sleep(1.5)
+        frame = self._capture.capture()
+        if frame is None:
+            self.dismiss(execute=True)
+            return UpgradeResult(False, "Wall", message="Capture failed")
+        title = self._text_reader(frame, DIALOG_TITLE_REGION)
+        if "wall" not in title.lower():
+            self.dismiss(execute=True)
+            return UpgradeResult(
+                False,
+                "Wall",
+                message=f"Unexpected wall dialog: {title.strip()!r}",
+            )
+        confirm = self.find(frame, self._buttons["confirm"], DIALOG_REGION)
+        if confirm is None:
+            self.dismiss(execute=True)
+            return UpgradeResult(
+                False, "Wall", message="Confirm button template not found"
+            )
+        self._adb.tap(confirm.x, confirm.y)
+        self._clock.sleep(1.2)
         return UpgradeResult(
-            False,
+            True,
             "Wall",
-            message="Wall selection did not open an upgrade dialog",
+            executed=True,
+            taps=2,
+            message=f"Upgraded a wall using {currency} ({cost:,})",
         )
 
     def _tap_wall_row(self, execute: bool) -> UpgradeRow | None:
@@ -687,6 +735,16 @@ class HeroDefenseUpgrader:
 
         scrolls = 0
         self._clock.sleep(0.6)
+        # Normalise the panel to the top so the Wall rows have a fixed page.
+        for _ in range(5):
+            self._adb.swipe(
+                PANEL_SCROLL_TO.x,
+                PANEL_SCROLL_TO.y,
+                PANEL_SCROLL_FROM.x,
+                PANEL_SCROLL_FROM.y,
+                duration_ms=PANEL_SCROLL_MS,
+            )
+            self._clock.sleep(0.25)
         for _page in range(MAX_SCAN_PAGES):
             frame = self._capture.capture()
             if frame is None:
@@ -706,14 +764,14 @@ class HeroDefenseUpgrader:
                     candidates.append(row)
             for row in candidates:
                 self._adb.tap(row.point.x, row.point.y)
-                self._clock.sleep(1.5)
+                self._clock.sleep(1.6)
                 next_frame = self._capture.capture()
                 if next_frame is None:
                     continue
                 if self.dialog_open(next_frame):
                     self.dismiss(execute=True)
                     continue
-                if not self.panel_open(next_frame):
+                if self._wall_controls_visible(next_frame):
                     return row
             self._adb.swipe(
                 PANEL_SCROLL_FROM.x,
@@ -734,6 +792,57 @@ class HeroDefenseUpgrader:
             )
             self._clock.sleep(0.25)
         return None
+
+    def _wall_controls_visible(self, frame: Frame) -> bool:
+        """Return ``True`` when a wall is selected and its upgrade panel shows."""
+        text = self._text_reader(frame, Rect(130, 470, 300, 70)).lower()
+        return "wall" in text and "level" in text
+
+    def _wall_upgrade_buttons(self, frame: Frame) -> list[tuple[int, int, int | None]]:
+        """Find the wall Upgrade buttons using the button template.
+
+        The wall control panel moves with the camera, so the two hammer
+        buttons are matched by image and then sorted left (gold) to right
+        (elixir). The price above each button is OCR'd for the affordability
+        check.
+        """
+        from COCbot.features.village.resources import ocr_number
+
+        image = frame_image(frame)
+        template = self._load("wall_upgrade_button.png")
+        if image is None or template is None:
+            return []
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        tpl = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        if tpl.shape[0] >= gray.shape[0] or tpl.shape[1] >= gray.shape[1]:
+            return []
+        result = cv2.matchTemplate(gray, tpl, cv2.TM_CCOEFF_NORMED)
+        dilated = cv2.dilate(result, np.ones((5, 5), np.uint8))
+        ys, xs = np.where((result == dilated) & (result >= 0.85))
+        buttons: list[tuple[int, int, int | None]] = []
+        height, width = tpl.shape[:2]
+        for y, x in zip(ys, xs):
+            center_x = int(x) + width // 2
+            center_y = int(y) + height // 2
+            cost = None
+            for offset, height_px in ((-14, 22), (-18, 26), (-22, 28)):
+                price_region = Rect(
+                    max(0, int(x) + 2),
+                    max(0, int(y) + offset),
+                    width,
+                    height_px,
+                )
+                price_crop = image[
+                    price_region.y : price_region.bottom,
+                    price_region.x : price_region.right,
+                ]
+                value = ocr_number(price_crop)
+                if value is not None and value >= 10_000:
+                    cost = value
+                    break
+            buttons.append((center_x, center_y, cost))
+        buttons.sort(key=lambda item: item[0])
+        return buttons
 
     def upgrade_listed(
         self,
