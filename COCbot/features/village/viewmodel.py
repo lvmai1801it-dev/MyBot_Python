@@ -170,7 +170,10 @@ class VillageViewModel(BaseViewModel):
         suffix = ""
         if builders is not None:
             suffix = f" · {builders} builder(s) free"
-        self._status(f"{total} upgrade rows detected{suffix}", "success")
+        self._status(
+            f"{total} upgrade rows detected{suffix} — tick targets, then Save",
+            "success",
+        )
 
     def _on_scan_failed(self, message: str) -> None:
         """Report a failed scan."""

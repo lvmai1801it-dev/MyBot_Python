@@ -13,6 +13,7 @@ from typing import Callable
 from COCbot.core.config.store import ConfigStore
 from COCbot.core.ports import EventSinkPort, LoggerPort
 from COCbot.features.village.resources import ResourceReader, VillageResources
+from COCbot.features.village.runner import UpgradeRunResult, UpgradeRunner
 from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import BotPhase, LogLevel
 
@@ -26,6 +27,8 @@ class LegacyEngine:
         logger: LoggerPort | None = None,
         resource_reader: ResourceReader | None = None,
         on_resources: Callable[[VillageResources], None] | None = None,
+        upgrader: object | None = None,
+        on_upgrades: Callable[[UpgradeRunResult], None] | None = None,
     ) -> None:
         """Snapshot the config and prepare the legacy state bridge."""
         self._store = store
@@ -34,6 +37,11 @@ class LegacyEngine:
         self._sink: EventSinkPort | None = None
         self._resource_reader = resource_reader
         self._on_resources = on_resources
+        self._upgrader = upgrader
+        self._runner = (
+            UpgradeRunner(upgrader, logger=logger) if upgrader is not None else None
+        )
+        self._on_upgrades = on_upgrades
 
     @property
     def is_running(self) -> bool:
@@ -67,6 +75,7 @@ class LegacyEngine:
         from COCbot.app import state
 
         state.resource_hook = self._publish_resources
+        state.upgrade_hook = self._run_upgrades
         try:
             from COCbot.app.bootstrap import bot_loop
 
@@ -80,6 +89,7 @@ class LegacyEngine:
             )
         finally:
             state.resource_hook = None
+            state.upgrade_hook = None
             self._running = False
             self._emit(LogLevel.INFO, "Legacy farm engine stopped")
 
@@ -144,6 +154,56 @@ class LegacyEngine:
                     LogLevel.WARNING,
                     f"Resource readout publish failed: {type(exc).__name__}: {exc}",
                 )
+
+    def _run_upgrades(self) -> None:
+        """Run the ticked upgrades when a builder is free (cycle hook)."""
+        if self._runner is None:
+            return
+        config = self._store.get()
+        upgrades = config.upgrades
+        groups = (
+            upgrades.buildings,
+            upgrades.army,
+            upgrades.equipment,
+            upgrades.pets,
+        )
+        if not any(group.enabled or group.priorities for group in groups):
+            self._emit(
+                LogLevel.INFO,
+                "No upgrade targets selected — tick targets in Village and Save",
+            )
+            return
+        builders: int | None = None
+        if self._resource_reader is not None:
+            try:
+                snapshot = self._resource_reader.read()
+            except Exception as exc:
+                self._emit(
+                    LogLevel.WARNING,
+                    f"Builder check failed: {type(exc).__name__}: {exc}",
+                )
+                return
+            builders = snapshot.builders_available
+        if builders is None:
+            self._emit(LogLevel.WARNING, "Could not read the builder count")
+            return
+        if builders <= 0:
+            self._emit(LogLevel.INFO, "No free builder — skipping upgrades")
+            return
+        self._emit(LogLevel.INFO, f"{builders} builder(s) free — upgrading")
+        result = self._runner.run(upgrades, builders, execute=True)
+        if result.needs_loot:
+            self._emit(
+                LogLevel.WARNING,
+                "Not enough loot for the next upgrade — attacking to earn more",
+            )
+        else:
+            self._emit(LogLevel.INFO, result.message)
+        if self._on_upgrades is not None:
+            try:
+                self._on_upgrades(result)
+            except Exception:
+                pass
 
     def request_pause(self) -> None:
         """Clear the legacy pause event."""

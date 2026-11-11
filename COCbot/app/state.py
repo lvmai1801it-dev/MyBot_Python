@@ -23,3 +23,5 @@ current_resources = {}
 # Optional callable(dict) invoked after the home village is zoomed out, so the
 # shell can refresh its resource readout from the same screen.
 resource_hook = None
+# Optional callable() that runs the ticked upgrades at the start of a cycle.
+upgrade_hook = None

@@ -88,12 +88,12 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(plan.single_slot, ("L.A.S.S.I",))
         self.assertEqual(plan.skipped, ("Frosty",))
 
-    def test_disabled_tabs_are_ignored(self) -> None:
+    def test_ticked_targets_run_even_without_the_enable_flag(self) -> None:
         cfg = config(
             buildings=PriorityUpgradeConfig(enabled=False, priorities=["Cannon"]),
             equipment=PriorityUpgradeConfig(enabled=True, priorities=["Giant Gauntlet"]),
         )
-        self.assertEqual(ordered_targets(cfg), ("Giant Gauntlet",))
+        self.assertEqual(ordered_targets(cfg), ("Cannon", "Giant Gauntlet"))
 
     def test_wall_reserves_one_builder(self) -> None:
         cfg = config(

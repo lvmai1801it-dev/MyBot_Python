@@ -55,6 +55,11 @@ def _group(config: UpgradeConfig, tab: str) -> PriorityUpgradeConfig:
     return getattr(config, _FIELD_BY_TAB[tab])
 
 
+def _active(group: PriorityUpgradeConfig) -> bool:
+    """A tab runs when it is enabled or has ticked targets."""
+    return bool(group.enabled or group.priorities)
+
+
 def _building_items(config: UpgradeConfig) -> list[tuple[int, str, str]]:
     """Return ``(index, name, kind)`` for every Buildings & Heroes target."""
     items: list[tuple[int, str, str]] = []
@@ -90,7 +95,7 @@ def ordered_targets(config: UpgradeConfig) -> tuple[str, ...]:
     names: list[str] = []
     for tab in TAB_ORDER:
         group = _group(config, tab)
-        if not group.enabled:
+        if not _active(group):
             continue
         if tab == "buildings":
             names.extend(_building_names(config))
@@ -119,7 +124,7 @@ def plan_upgrades(config: UpgradeConfig, builders_available: int) -> UpgradePlan
     single_slot: list[str] = []
     for tab in TAB_ORDER:
         group = _group(config, tab)
-        if not group.enabled:
+        if not _active(group):
             continue
         if tab == "buildings":
             tab_names = _building_names(config)

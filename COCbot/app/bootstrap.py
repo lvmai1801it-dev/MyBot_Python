@@ -245,6 +245,17 @@ def _notify_resources(resources=None):
         print(f'[RES] resource readout skipped: {e}')
 
 
+def _notify_upgrades():
+    """Call the optional upgrade hook installed by the shell."""
+    hook = getattr(state, 'upgrade_hook', None)
+    if hook is None:
+        return
+    try:
+        hook()
+    except Exception as e:
+        print(f'[UPGRADE] skipped: {e}')
+
+
 def one_cycle(cfg):
     sync_state()
     try:
@@ -356,6 +367,11 @@ def one_cycle(cfg):
         print('[WARN] Connection lost → recovering')
         boot_recovery()
         return
+
+    # Buildings/army/pets upgrades run before walls so loot goes into permanent
+    # upgrades first; walls only use the builder this step leaves free.
+    if not _check_stop():
+        _notify_upgrades()
 
     if cfg['upgrade_wall'] and not _check_stop():
         print(f"[INFO] Upgrading walls to level {cfg['wall_level']} if thresholds met…")

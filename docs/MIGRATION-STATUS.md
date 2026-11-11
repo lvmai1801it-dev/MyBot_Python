@@ -523,6 +523,19 @@ one target each (one upgrade at a time).
    signal) the run stops with `needs_loot=True` and asks the operator to start
    the bot so it can attack and earn resources before upgrading again.
 
+The same runner is wired into the farm loop: `LegacyEngine` installs
+`state.upgrade_hook` for the duration of the run, and `one_cycle` calls it
+right after the home check/zoom-out, **before** the wall step. Each cycle it:
+
+```text
+read builders -> 0 free: "No free builder — skipping upgrades"
+              -> >0: run the ticked targets (buildings first, walls keep one)
+```
+
+A tab runs when it is enabled **or** has ticked targets, so ticking rows and
+pressing Save is enough for Start to upgrade them. With no ticks at all the
+cycle logs `No upgrade targets selected — tick targets in Village and Save`.
+
 `UpgradeRunner.run()` stays a dry-run when `execute=False`; the button passes
 `execute=True` only after the confirmation dialog, and both Scan and Upgrade
 are disabled while the farm bot is running.

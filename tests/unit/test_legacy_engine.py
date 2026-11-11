@@ -7,7 +7,19 @@ from unittest.mock import patch
 
 from COCbot.app.legacy_engine import LegacyEngine
 from COCbot.core.config import AppConfig, ConfigStore
+from COCbot.features.village.resources import VillageResources
+from COCbot.features.village.upgrades import UpgradeResult
 from COCbot.models.bot_state import BotEvent
+
+
+class _Reader:
+    """Report a fixed number of free builders."""
+
+    def __init__(self, builders: int) -> None:
+        self.builders = builders
+
+    def read(self) -> VillageResources:
+        return VillageResources(builders_available=self.builders, builders_total=6)
 
 
 class FakeSink:
@@ -135,6 +147,103 @@ class LegacyEngineTests(unittest.TestCase):
         engine = LegacyEngine(ConfigStore(AppConfig()), on_resources=published.append)
         engine._publish_resources({})
         self.assertEqual(published, [])
+
+    def test_upgrade_hook_is_installed_and_cleared(self) -> None:
+        from COCbot.app import state
+
+        engine = LegacyEngine(ConfigStore(AppConfig()))
+        seen = {}
+
+        def fake_bot_loop(cfg) -> None:
+            seen["hook"] = state.upgrade_hook
+
+        with patch("COCbot.app.bootstrap.bot_loop", fake_bot_loop):
+            engine.run_forever(FakeSink())
+
+        self.assertIsNotNone(seen["hook"])
+        self.assertIsNone(state.upgrade_hook)
+
+    def test_upgrades_skip_when_no_group_is_enabled(self) -> None:
+        class FakeUpgrader:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def upgrade_listed(self, name, execute=True):
+                self.calls += 1
+                raise AssertionError("should not upgrade")
+
+        engine = LegacyEngine(
+            ConfigStore(AppConfig()),
+            upgrader=FakeUpgrader(),
+            resource_reader=_Reader(3),  # type: ignore[arg-type]
+        )
+        engine._run_upgrades()
+
+    def test_upgrades_skip_without_a_free_builder(self) -> None:
+        from dataclasses import replace
+
+        from COCbot.core.config.schema import PriorityUpgradeConfig
+
+        class FakeUpgrader:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def upgrade_listed(self, name, execute=True):
+                self.calls += 1
+                return UpgradeResult(True, name, executed=True)
+
+            def dismiss(self, execute=True):
+                return True
+
+        upgrader = FakeUpgrader()
+        base = AppConfig()
+        config = replace(
+            base,
+            upgrades=replace(
+                base.upgrades,
+                buildings=PriorityUpgradeConfig(enabled=True, priorities=["Cannon"]),
+            ),
+        )
+        engine = LegacyEngine(
+            ConfigStore(config),
+            upgrader=upgrader,
+            resource_reader=_Reader(0),  # type: ignore[arg-type]
+        )
+        engine._run_upgrades()
+        self.assertEqual(upgrader.calls, 0)
+
+    def test_upgrades_run_when_builders_are_free(self) -> None:
+        from dataclasses import replace
+
+        from COCbot.core.config.schema import PriorityUpgradeConfig
+
+        class FakeUpgrader:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def upgrade_listed(self, name, execute=True):
+                self.calls.append(name)
+                return UpgradeResult(True, name, executed=True)
+
+            def dismiss(self, execute=True):
+                return True
+
+        upgrader = FakeUpgrader()
+        base = AppConfig()
+        config = replace(
+            base,
+            upgrades=replace(
+                base.upgrades,
+                buildings=PriorityUpgradeConfig(enabled=True, priorities=["Cannon"]),
+            ),
+        )
+        engine = LegacyEngine(
+            ConfigStore(config),
+            upgrader=upgrader,
+            resource_reader=_Reader(2),  # type: ignore[arg-type]
+        )
+        engine._run_upgrades()
+        self.assertEqual(upgrader.calls, ["Cannon", "Cannon"])
 
 
 if __name__ == "__main__":

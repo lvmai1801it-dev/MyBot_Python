@@ -173,6 +173,7 @@ def main() -> int:
         logger=logger,
         resource_reader=ResourceReader(capture, logger=logger),
         on_resources=resource_viewmodel.publish,
+        upgrader=HeroDefenseUpgrader(adb, capture, logger=logger),
     )
     main_viewmodel = MainViewModel(engine)
     main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
