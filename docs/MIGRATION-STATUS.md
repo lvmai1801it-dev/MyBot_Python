@@ -340,6 +340,33 @@ Hero/defense upgrade execution is **not** implemented: the legacy project only
 ever implemented wall upgrades; hero/defense have no reference flow or
 validation templates. They remain config-only until a device flow is designed.
 
+### Live input switches (MVVM shell)
+
+The shell is dry-run by default. Enable real input explicitly:
+
+```powershell
+$env:MYBOT_LIVE_VILLAGE=1   # tap home + collectors
+$env:MYBOT_LIVE_ATTACK=1    # full search/scout/attack (calibration required)
+$env:MYBOT_LIVE_WALL=1      # wall upgrade execution (guarded by validation)
+python run.py --mvvm
+```
+
+Live MEmu check with `MYBOT_LIVE_VILLAGE=1`:
+
+```text
+VillageActions.run(): ok=True, found=9, tapped=9, 6.73 s
+```
+
+A dry orchestrator cycle also produced real `BotEvent`s:
+
+```text
+INFO    7 collectors found (dry run); storages={'de': 1}
+WARNING No attack target detected
+ERROR   No attack target detected
+```
+
+This confirms the MVVM chain is live; the bot logic is simply gated.
+
 ## Verification commands
 
 ```powershell

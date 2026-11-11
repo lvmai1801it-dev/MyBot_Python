@@ -96,6 +96,9 @@ def main() -> int:
 
     config = load_config()
     config_store = ConfigStore(config)
+    live_village = os.environ.get("MYBOT_LIVE_VILLAGE") == "1"
+    live_attack = os.environ.get("MYBOT_LIVE_ATTACK") == "1"
+    live_wall = os.environ.get("MYBOT_LIVE_WALL") == "1"
     paths = get_project_paths()
     paths.ensure_runtime_dirs()
     logger = build_logger("mybot", config.logging)
@@ -126,6 +129,16 @@ def main() -> int:
         )
     )
     logs_view = LogsView(logs_viewmodel)
+    if live_village or live_attack or live_wall:
+        logs_viewmodel.append_event(
+            BotEvent(
+                level=LogLevel.WARNING,
+                message=(
+                    f"LIVE input: village={live_village} "
+                    f"attack={live_attack} wall={live_wall}"
+                ),
+            )
+        )
 
     capture = ScreenCapture(adb, logger=logger)
     detector = YoloDetector(logger=logger)
@@ -155,14 +168,14 @@ def main() -> int:
         matcher,
         ocr=ocr,
         logger=logger,
-        execute=False,
+        execute=live_attack,
     )
-    attack_executor = AttackExecutor(adb, logger=logger, execute=False)
+    attack_executor = AttackExecutor(adb, logger=logger, execute=live_attack)
     wall_upgrader = WallUpgrader(
         adb,
         capture,
         logger=logger,
-        execute=False,
+        execute=live_wall,
         threshold=0.65,
     )
     attack_viewmodel = AttackViewModel(attack_model)
@@ -199,7 +212,7 @@ def main() -> int:
                     logger=logger,
                     multitouch=multitouch,
                     wall_upgrader=wall_upgrader,
-                    execute=False,
+                    execute=live_village,
                 )
             ),
             FullAttackStep(
@@ -207,7 +220,7 @@ def main() -> int:
                 battle,
                 army_scanner,
                 attack_executor,
-                execute=False,
+                execute=live_attack,
             ),
         ],
         config=config,
