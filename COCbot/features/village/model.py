@@ -30,6 +30,7 @@ from COCbot.core.ports import (
     SettingsPort,
 )
 from COCbot.core.vision.templates import TemplateMatcher
+from COCbot.features.village.wall import WallUpgrader, WallUpgradePlan
 from COCbot.models.enums import BotPhase, UpgradeCategory
 from COCbot.models.geometry import Point
 from COCbot.models.resources import ResourceSnapshot
@@ -159,6 +160,7 @@ class VillageActions:
         clock: ClockPort | None = None,
         logger: LoggerPort | None = None,
         multitouch: MultiTouchPort | None = None,
+        wall_upgrader: WallUpgrader | None = None,
         read_resources: bool = False,
         execute: bool = False,
     ) -> None:
@@ -172,6 +174,7 @@ class VillageActions:
         self._clock = clock or SystemClock()
         self._logger = logger
         self._multitouch = multitouch
+        self._wall_upgrader = wall_upgrader
         self._read_resources_flag = read_resources
         self._execute = execute
 
@@ -309,6 +312,32 @@ class VillageActions:
                 if all(center.distance_to(existing) > 10 for existing in points):
                     points.append(center)
         return tuple(points)
+
+    def upgrade_wall(
+        self,
+        level: int,
+        resource: str,
+        wall: Point | None = None,
+    ) -> WallUpgradePlan:
+        """Scan and upgrade one wall through the guarded wall upgrader."""
+        if self._wall_upgrader is None:
+            return WallUpgradePlan(
+                resource,
+                wall or Point(0, 0),
+                message="No wall upgrader configured",
+            )
+        frame = self._capture.capture()
+        if frame is None:
+            return WallUpgradePlan(resource, wall or Point(0, 0), message="Capture failed")
+        scan = self._wall_upgrader.scan(frame, level)
+        target = wall or (scan.points[0] if scan.points else None)
+        if target is None:
+            return WallUpgradePlan(
+                resource,
+                Point(0, 0),
+                message=f"No walls matched level {level} (best={scan.best_score:.2f})",
+            )
+        return self._wall_upgrader.execute(target, resource, level)
 
     def run(self, cancel_event: Event | None = None) -> VillageActionResult:
         """Return home, collect, and inspect storages/resources."""

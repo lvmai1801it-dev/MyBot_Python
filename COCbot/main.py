@@ -52,6 +52,7 @@ from COCbot.features.statistics.viewmodel import StatisticsViewModel
 from COCbot.features.village.model import VillageActions, VillageModel, VillageStep
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
+from COCbot.features.village.wall import WallUpgrader
 from COCbot.game.account.shared_prefs import SharedPrefsManager
 from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import LogLevel
@@ -157,6 +158,13 @@ def main() -> int:
         execute=False,
     )
     attack_executor = AttackExecutor(adb, logger=logger, execute=False)
+    wall_upgrader = WallUpgrader(
+        adb,
+        capture,
+        logger=logger,
+        execute=False,
+        threshold=0.65,
+    )
     attack_viewmodel = AttackViewModel(attack_model)
     attack_view = AttackView(attack_viewmodel)
 
@@ -190,6 +198,7 @@ def main() -> int:
                     ocr=ocr,
                     logger=logger,
                     multitouch=multitouch,
+                    wall_upgrader=wall_upgrader,
                     execute=False,
                 )
             ),

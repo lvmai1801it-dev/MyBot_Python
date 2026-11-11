@@ -27,8 +27,8 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
-                                  attack execution, main view-model tests
-                                  (161 total)
+                                  attack execution, wall calibration,
+                                  main view-model tests (163 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -316,6 +316,30 @@ wall scan: 0 matches on the current wall level (templates need level calibration
 Resource OCR is deliberately off by default: PaddleOCR initialisation costs
 ~19 s on first use, which would break the sub-second scan loop.
 
+### Module 14 — Clean runtime port, stage 3b (wall calibration + upgrade)
+
+```text
+COCbot/features/village/wall.py              WallUpgrader + WallUpgradePlan
+tools/calibrate_wall_templates.py            score report for wall templates
+```
+
+`WallUpgrader` scans `walls/<level>/*.png` with a configurable threshold
+(default 0.65 instead of the legacy 0.90), deduplicates points, validates a
+tapped wall against `walls/<level>/Validate_Upgrade/verify_wall_level.png`, then
+taps the gold/elixir upgrade button, confirm, and close. Real input is still
+disabled in the shell (`execute=False`).
+
+Live MEmu calibration on the zoomed home screenshot:
+
+```text
+level 8 : 5 wall points, best 0.686, 1.03 s
+level 17: 2 wall points, best 0.727, 0.98 s
+```
+
+Hero/defense upgrade execution is **not** implemented: the legacy project only
+ever implemented wall upgrades; hero/defense have no reference flow or
+validation templates. They remain config-only until a device flow is designed.
+
 ## Verification commands
 
 ```powershell
@@ -326,7 +350,7 @@ Resource OCR is deliberately off by default: PaddleOCR initialisation costs
 
 ## Remaining work
 
-1. Stage 3b: wall/hero/defense upgrade execution and wall-template calibration.
+1. Stage 3c: hero/defense upgrade flow design + templates (legacy has no reference).
 2. Stage 4: Clan Games / Clan Capital / Donate execution.
-3. Calibrate attack/village stages on MEmu, then enable `execute=True`.
+3. Calibrate wall/village/attack on MEmu, then enable `execute=True`.
 4. Purge batch 2 and switch the default launcher only after parity tests pass.
