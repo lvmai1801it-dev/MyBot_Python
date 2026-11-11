@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from threading import Event
 
+import cv2
+
 from COCbot.app.orchestrator import CycleContext, StepResult
 from COCbot.core.clock import SystemClock
 from COCbot.core.config.coordinates import (
@@ -21,6 +23,7 @@ from COCbot.core.config.coordinates import (
 )
 from COCbot.core.errors import OperationCancelled
 from COCbot.core.ports import AdbPort, CapturePort, ClockPort, LoggerPort, OcrPort
+from COCbot.core.vision.image import frame_image
 from COCbot.core.vision.templates import TemplateMatcher
 from COCbot.features.attack.army_bar import ArmyBarScanner
 from COCbot.features.attack.executor import AttackExecutionResult, AttackExecutor
@@ -30,6 +33,17 @@ from COCbot.models.enums import BotPhase
 from COCbot.models.frame import Frame
 from COCbot.models.geometry import Point
 from COCbot.models.resources import ResourceSnapshot
+
+BATTLE_KEYWORDS = (
+    "victory",
+    "victor",
+    "vici",
+    "defeat",
+    "defea",
+    "you got",
+    "troops expended",
+    "return home",
+)
 
 
 class BattleService:
@@ -62,6 +76,10 @@ class BattleService:
         """Emit a log line when a logger was supplied."""
         if self._logger is not None:
             getattr(self._logger, level)(message)
+
+    def warn(self, message: str) -> None:
+        """Publish a warning from an orchestrating step."""
+        self._log("warning", message)
 
     def _tap(self, point: Point) -> bool:
         """Tap only when real input is enabled."""
@@ -132,15 +150,42 @@ class BattleService:
             if cancel_event is not None and cancel_event.is_set():
                 raise OperationCancelled("Battle wait cancelled")
             frame = self._capture.capture()
-            if frame is not None and self._matcher.match(
-                frame,
-                "end_battle.png",
-                region=BATTLE_REGION,
-                threshold=0.65,
-            ):
-                return True
+            if frame is not None:
+                if self._matcher.match(
+                    frame,
+                    "end_battle.png",
+                    region=BATTLE_REGION,
+                    threshold=0.65,
+                ):
+                    return True
+                if self._battle_ended_by_text(frame):
+                    return True
             self._clock.sleep(1.0)
         return False
+
+    @staticmethod
+    def _battle_ended_by_text(frame: Frame) -> bool:
+        """Fallback detection using the result-screen keywords."""
+        try:
+            import pytesseract
+        except Exception:
+            return False
+        image = frame_image(frame)
+        if image is None:
+            return False
+        crop = image[
+            BATTLE_REGION.y : BATTLE_REGION.bottom,
+            BATTLE_REGION.x : BATTLE_REGION.right,
+        ]
+        if crop.size == 0:
+            return False
+        try:
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+            gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+            text = pytesseract.image_to_string(gray, config="--psm 6").lower()
+        except Exception:
+            return False
+        return any(keyword in text for keyword in BATTLE_KEYWORDS)
 
     def read_stars(self) -> int:
         """Read the star count from the battle-result screen."""
@@ -226,12 +271,14 @@ class FullAttackStep:
                 return StepResult(False, "Scout screen not detected")
 
         scan: AttackScan = self._attack.scan(cancel_event=cancel)
-        if scan.plan.target is None:
+        if scan.plan.target is None and not scan.redline.is_valid():
             return StepResult(
                 False,
-                "No attack target detected",
+                "No attack target or valid redline detected",
                 phase=BotPhase.SEARCHING,
             )
+        if scan.plan.target is None:
+            self._battle.warn("No YOLO target; using redline default edge")
         slots = self._scanner.scan(scan.frame)
         result: AttackExecutionResult = self._executor.deploy(
             scan.plan,

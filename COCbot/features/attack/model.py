@@ -142,7 +142,14 @@ class AttackModel:
     ) -> AttackPlan:
         """Choose the highest-value target and troops from the active recipe."""
         if not detections:
-            return AttackPlan(side=AttackSide.RANDOM.value)
+            config = self._store.get() if self._store is not None else self._config
+            recipe = config.attack.recipe
+            return AttackPlan(
+                side=AttackSide.RANDOM.value,
+                troops=dict(recipe.troops),
+                spells=dict(recipe.spells),
+                siege=dict(recipe.siege),
+            )
         ranked = sorted(
             detections,
             key=lambda item: self._target_score(item),
