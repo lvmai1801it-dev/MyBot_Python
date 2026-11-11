@@ -28,7 +28,8 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
                                   attack execution, wall calibration,
-                                  main view-model tests (163 total)
+                                  hero/defense framework, main view-model tests
+                                  (165 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -367,6 +368,43 @@ ERROR   No attack target detected
 
 This confirms the MVVM chain is live; the bot logic is simply gated.
 
+### Module 15 — Clean runtime port, stage 3c (hero/defense framework)
+
+```text
+COCbot/features/village/upgrades.py          HeroDefenseUpgrader
+tools/calibrate_upgrade_templates.py         template score / missing report
+```
+
+The legacy project has no hero/defense upgrade flow or validation assets, so
+this stage is intentionally **template-driven and safe**:
+
+- `Templates/Upgrades/hero_king.png`, `hero_queen.png`, `hero_warden.png`,
+  `hero_champion.png`, `hero_prince.png`
+- `Templates/Upgrades/upgrade_button.png`
+- `Templates/Upgrades/confirm_button.png`
+- `Templates/Upgrades/close_button.png`
+
+`HeroDefenseUpgrader` finds a target portrait, then requires the upgrade,
+confirm, and close templates before tapping. Missing templates → safe failure,
+never a blind tap. Dry-run is the default.
+
+Calibration currently reports every required file as missing:
+
+```text
+MISSING hero_king.png
+MISSING hero_queen.png
+MISSING upgrade_button.png
+MISSING confirm_button.png
+MISSING close_button.png
+```
+
+Create the crops from a real screenshot (the existing crop tool works), place
+them in `Templates/Upgrades/`, then rerun:
+
+```powershell
+python tools\calibrate_upgrade_templates.py --image artifacts\coc_home.png
+```
+
 ## Verification commands
 
 ```powershell
@@ -377,7 +415,8 @@ This confirms the MVVM chain is live; the bot logic is simply gated.
 
 ## Remaining work
 
-1. Stage 3c: hero/defense upgrade flow design + templates (legacy has no reference).
+1. Stage 3c assets: capture hero/defense + upgrade-button templates into
+   `Templates/Upgrades/`, then calibrate on MEmu.
 2. Stage 4: Clan Games / Clan Capital / Donate execution.
 3. Calibrate wall/village/attack on MEmu, then enable `execute=True`.
 4. Purge batch 2 and switch the default launcher only after parity tests pass.
