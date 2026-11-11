@@ -30,6 +30,7 @@ from COCbot.core.ports import (
     SettingsPort,
 )
 from COCbot.core.vision.templates import TemplateMatcher
+from COCbot.features.village.planner import UpgradePlan, plan_upgrades
 from COCbot.features.village.upgrades import (
     HeroDefenseUpgrader,
     UpgradeResult,
@@ -84,6 +85,10 @@ class VillageModel:
         rows = self._scanner.scan_rows(execute=True)
         return tuple(row.name for row in rows)
 
+    def upgrade_plan(self, builders_available: int) -> UpgradePlan:
+        """Return the persisted upgrade queue for the current builder count."""
+        return plan_upgrades(self._store.get().upgrades, builders_available)
+
     @staticmethod
     def set_wall(
         upgrades: UpgradeConfig,
@@ -107,6 +112,7 @@ class VillageModel:
         category: UpgradeCategory,
         enabled: bool,
         priorities: list[str],
+        priority: bool | None = None,
     ) -> UpgradeConfig:
         """Return an upgrade config with one priority group replaced."""
         field_name = {
@@ -118,9 +124,11 @@ class VillageModel:
         }.get(category)
         if field_name is None:
             return upgrades
+        existing = getattr(upgrades, field_name)
         group = PriorityUpgradeConfig(
             enabled=bool(enabled),
             priorities=[item.strip() for item in priorities if item.strip()],
+            priority=existing.priority if priority is None else bool(priority),
         )
         return replace(upgrades, **{field_name: group})
 

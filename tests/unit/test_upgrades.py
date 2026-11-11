@@ -191,6 +191,47 @@ class HeroDefenseUpgraderTests(unittest.TestCase):
         self.assertEqual(result.taps, 1)
         self.assertEqual(len(adb.taps), 1)
 
+    def test_label_template_overrides_ocr_name(self) -> None:
+        labels = Path(self._temp.name) / "buildings"
+        labels.mkdir()
+        rng = np.random.default_rng(33)
+        label = rng.integers(0, 255, size=(16, 90, 3), dtype=np.uint8)
+        cv2.imwrite(str(labels / "grandwarden.png"), label)
+        image = np.zeros((732, 860, 3), dtype=np.uint8)
+        image[200 : 200 + label.shape[0], 600 : 600 + label.shape[1]] = label
+        frame = Frame(image=image, width=860, height=732)
+        upgrader = HeroDefenseUpgrader(
+            FakeAdb(),  # type: ignore[arg-type]
+            SequenceCapture([frame, frame]),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            template_dir=self.dir,
+            label_dir=labels,
+            execute=False,
+            rows_provider=lambda _frame: [UpgradeRow("Brand Warden", Point(620, 200))],
+            text_reader=FakeText({PANEL_TITLE_REGION: "buildings & heroes"}),
+        )
+        names = [row.name for row in upgrader.rows(frame)]
+        self.assertIn("Grand Warden", names)
+
+    def test_label_title_marks_panel_open(self) -> None:
+        labels = Path(self._temp.name) / "buildings"
+        labels.mkdir()
+        rng = np.random.default_rng(44)
+        title = rng.integers(0, 255, size=(18, 160, 3), dtype=np.uint8)
+        cv2.imwrite(str(labels / "Buildings&Heroes.png"), title)
+        image = np.zeros((732, 860, 3), dtype=np.uint8)
+        image[60 : 60 + title.shape[0], 560 : 560 + title.shape[1]] = title
+        frame = Frame(image=image, width=860, height=732)
+        upgrader = HeroDefenseUpgrader(
+            FakeAdb(),  # type: ignore[arg-type]
+            SequenceCapture([frame]),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            template_dir=self.dir,
+            label_dir=labels,
+            text_reader=FakeText({}),
+        )
+        self.assertTrue(upgrader.panel_open(frame))
+
 
 if __name__ == "__main__":
     unittest.main()

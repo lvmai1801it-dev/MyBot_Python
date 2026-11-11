@@ -20,12 +20,14 @@ LEGACY_SAMPLE = {
     "wall_elixir_threshold": 3000000,
     "upgrade_hero": True,
     "hero_priorities": ["Queen", "King"],
+    "hero_priority": True,
     "upgrade_defense": False,
     "defense_priorities": [],
     "upgrade_army": True,
     "army_priorities": ["Lab"],
     "upgrade_resource": False,
     "resource_priorities": [],
+    "resource_priority": False,
     "upgrade_other": True,
     "other_buildings": ["Clan Castle"],
     "request_troops": False,
@@ -71,6 +73,8 @@ class ConfigSchemaTests(unittest.TestCase):
         self.assertTrue(config.upgrades.wall.enabled)
         self.assertEqual(config.upgrades.wall.level, 11)
         self.assertEqual(config.upgrades.hero.priorities, ["Queen", "King"])
+        self.assertTrue(config.upgrades.hero.priority)
+        self.assertFalse(config.upgrades.resource.priority)
         self.assertEqual(config.upgrades.other.priorities, ["Clan Castle"])
         self.assertEqual(config.attack.name, "ElectroDragon_Attack")
         self.assertEqual(config.attack.side, "Trên Trái (TL)")

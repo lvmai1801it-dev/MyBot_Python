@@ -7,6 +7,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from COCbot.core.config.schema import PriorityUpgradeConfig, UpgradeConfig
 from COCbot.core.errors import StorageError
 from COCbot.features.village.model import VillageModel, VillageSnapshot
+from COCbot.features.village.planner import UpgradePlan, plan_upgrades
 from COCbot.models.enums import UpgradeCategory
 from COCbot.viewmodels.base_viewmodel import BaseViewModel
 
@@ -181,10 +182,13 @@ class VillageViewModel(BaseViewModel):
         category: UpgradeCategory,
         enabled: bool,
         priorities: list[str],
+        priority: bool | None = None,
     ) -> None:
         """Update one priority group."""
         self._set_draft(
-            self._model.set_priority(self._draft, category, enabled, priorities)
+            self._model.set_priority(
+                self._draft, category, enabled, priorities, priority
+            )
         )
 
     def priority_group(self, category: UpgradeCategory) -> PriorityUpgradeConfig:
@@ -197,6 +201,10 @@ class VillageViewModel(BaseViewModel):
             UpgradeCategory.OTHER: self._draft.other,
         }
         return mapping.get(category, PriorityUpgradeConfig())
+
+    def upgrade_plan(self, builders_available: int) -> UpgradePlan:
+        """Return the draft upgrade queue, walls reserving one builder."""
+        return plan_upgrades(self._draft, builders_available)
 
     def shutdown(self, wait_ms: int = 3000) -> None:
         """Stop the panel scan thread on exit."""

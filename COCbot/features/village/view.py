@@ -62,6 +62,7 @@ class VillageView(QWidget):
         self.priority_checks: dict[UpgradeCategory, QCheckBox] = {}
         self.priority_edits: dict[UpgradeCategory, QLineEdit] = {}
         self.priority_lists: dict[UpgradeCategory, QListWidget] = {}
+        self.priority_flags: dict[UpgradeCategory, QCheckBox] = {}
         for category in PRIORITY_CATEGORIES:
             self.tabs.addTab(self._build_priority_tab(category), _CATEGORY_LABELS[category])
         layout.addWidget(self.tabs, 1)
@@ -95,6 +96,10 @@ class VillageView(QWidget):
         self.wall_gold = self._spin(0, 100_000_000, 100_000, 160)
         self.wall_elixir = self._spin(0, 100_000_000, 100_000, 160)
         card.add(self.wall_enabled)
+        note = QLabel("When enabled, one builder is kept free for walls.")
+        note.setObjectName("muted")
+        note.setWordWrap(True)
+        card.add(note)
         card.add_row("Target level", self.wall_level)
         card.add_row("Gold threshold", self.wall_gold)
         card.add_row("Elixir threshold", self.wall_elixir)
@@ -119,6 +124,10 @@ class VillageView(QWidget):
         edit = QLineEdit()
         edit.setPlaceholderText("Extra names, comma separated")
         card.add(check)
+        if category in (UpgradeCategory.HERO, UpgradeCategory.RESOURCE):
+            flag = QCheckBox("Priority — upgrade these before other buildings")
+            card.add(flag)
+            self.priority_flags[category] = flag
         card.add(targets)
         card.add_row("Extra", edit)
         self.priority_checks[category] = check
@@ -170,6 +179,8 @@ class VillageView(QWidget):
         self.wall_enabled.toggled.connect(self._apply)
         for check in self.priority_checks.values():
             check.toggled.connect(self._apply)
+        for flag in self.priority_flags.values():
+            flag.toggled.connect(self._apply)
         for edit in self.priority_edits.values():
             edit.textChanged.connect(self._apply)
         for targets in self.priority_lists.values():
@@ -253,7 +264,13 @@ class VillageView(QWidget):
                 if name and name.lower() not in known:
                     priorities.append(name)
                     known.add(name.lower())
-            self._viewmodel.set_priority(category, check.isChecked(), priorities)
+            flag = self.priority_flags.get(category)
+            self._viewmodel.set_priority(
+                category,
+                check.isChecked(),
+                priorities,
+                None if flag is None else flag.isChecked(),
+            )
 
     def _on_loaded(self, upgrades: object) -> None:
         """Render a loaded upgrade configuration."""
@@ -270,6 +287,9 @@ class VillageView(QWidget):
                 check.setChecked(group.enabled)
                 self._fill_list(category, list(group.priorities))
                 self.priority_edits[category].clear()
+                flag = self.priority_flags.get(category)
+                if flag is not None:
+                    flag.setChecked(group.priority)
         finally:
             self._loading = False
         self.save_btn.setEnabled(self._viewmodel.is_dirty)

@@ -102,6 +102,7 @@ class PriorityUpgradeConfig:
 
     enabled: bool = False
     priorities: list[str] = field(default_factory=list)
+    priority: bool = False
 
 
 @dataclass(frozen=True)
@@ -237,14 +238,19 @@ _KNOWN_KEYS = frozenset(
         "wall_elixir_threshold",
         "upgrade_hero",
         "hero_priorities",
+        "hero_priority",
         "upgrade_defense",
         "defense_priorities",
+        "defense_priority",
         "upgrade_army",
         "army_priorities",
+        "army_priority",
         "upgrade_resource",
         "resource_priorities",
+        "resource_priority",
         "upgrade_other",
         "other_buildings",
+        "other_priority",
         "request_troops",
         "attack",
         "recipe_name",
@@ -323,22 +329,27 @@ class AppConfig:
             hero=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_hero"), False),
                 priorities=_as_str_list(raw.get("hero_priorities")),
+                priority=_as_bool(raw.get("hero_priority"), False),
             ),
             defense=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_defense"), False),
                 priorities=_as_str_list(raw.get("defense_priorities")),
+                priority=_as_bool(raw.get("defense_priority"), False),
             ),
             army=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_army"), False),
                 priorities=_as_str_list(raw.get("army_priorities")),
+                priority=_as_bool(raw.get("army_priority"), False),
             ),
             resource=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_resource"), False),
                 priorities=_as_str_list(raw.get("resource_priorities")),
+                priority=_as_bool(raw.get("resource_priority"), False),
             ),
             other=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_other"), False),
                 priorities=_as_str_list(raw.get("other_buildings")),
+                priority=_as_bool(raw.get("other_priority"), False),
             ),
         )
 
@@ -444,14 +455,19 @@ class AppConfig:
             "wall_elixir_threshold": wall.elixir_threshold,
             "upgrade_hero": self.upgrades.hero.enabled,
             "hero_priorities": list(self.upgrades.hero.priorities),
+            "hero_priority": self.upgrades.hero.priority,
             "upgrade_defense": self.upgrades.defense.enabled,
             "defense_priorities": list(self.upgrades.defense.priorities),
+            "defense_priority": self.upgrades.defense.priority,
             "upgrade_army": self.upgrades.army.enabled,
             "army_priorities": list(self.upgrades.army.priorities),
+            "army_priority": self.upgrades.army.priority,
             "upgrade_resource": self.upgrades.resource.enabled,
             "resource_priorities": list(self.upgrades.resource.priorities),
+            "resource_priority": self.upgrades.resource.priority,
             "upgrade_other": self.upgrades.other.enabled,
             "other_buildings": list(self.upgrades.other.priorities),
+            "other_priority": self.upgrades.other.priority,
             "request_troops": self.clan.request_troops,
             "attack": self.attack.name,
             "recipe_name": self.attack.recipe.name,

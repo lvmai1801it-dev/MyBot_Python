@@ -111,6 +111,28 @@ class VillageScanViewTests(unittest.TestCase):
         self.view.set_bot_running(False)
         self.assertTrue(self.view.scan_btn.isEnabled())
 
+    def test_priority_checkbox_only_for_hero_and_resource(self) -> None:
+        self.assertIn(UpgradeCategory.HERO, self.view.priority_flags)
+        self.assertIn(UpgradeCategory.RESOURCE, self.view.priority_flags)
+        self.assertNotIn(UpgradeCategory.DEFENSE, self.view.priority_flags)
+
+    def test_priority_flag_is_saved(self) -> None:
+        self.view.priority_checks[UpgradeCategory.HERO].setChecked(True)
+        self.view.priority_flags[UpgradeCategory.HERO].setChecked(True)
+        widget = self.view.priority_lists[UpgradeCategory.HERO]
+        widget.addItem(self.view._make_item("Archer Queen", True))
+        self.view.wall_enabled.setChecked(True)
+        _APP.processEvents()
+        self.view.save_btn.click()
+        _APP.processEvents()
+        saved = self.vm.config
+        self.assertTrue(saved.hero.priority)
+        self.assertTrue(saved.wall.enabled)
+        plan = self.vm.upgrade_plan(3)
+        self.assertTrue(plan.wall_reserved)
+        self.assertEqual(plan.budget, 2)
+        self.assertIn("Archer Queen", plan.order)
+
 
 if __name__ == "__main__":
     unittest.main()

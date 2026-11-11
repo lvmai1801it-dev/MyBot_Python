@@ -260,6 +260,7 @@ class HeroDefenseUpgrader:
         execute: bool = False,
         rows_provider: Callable[[Frame], Sequence[UpgradeRow]] | None = None,
         text_reader: Callable[[Frame, Rect], str] | None = None,
+        label_dir: Path | str | None = None,
     ) -> None:
         """Create the upgrader; missing templates simply disable buttons."""
         from COCbot.core.clock import SystemClock
@@ -272,6 +273,10 @@ class HeroDefenseUpgrader:
             Path(template_dir)
             if template_dir is not None
             else get_project_paths().templates_dir / "upgrade"
+        )
+        paths = get_project_paths()
+        self._label_dir = (
+            Path(label_dir) if label_dir is not None else paths.templates_dir / "buildings"
         )
         self._targets = tuple(targets)
         self._buttons = dict(buttons)
@@ -328,8 +333,57 @@ class HeroDefenseUpgrader:
         return Point(point.x + region.x, point.y + region.y)
 
     def rows(self, frame: Frame) -> list[UpgradeRow]:
-        """Return the upgrade rows visible in *frame*."""
-        return list(self._rows_provider(frame))
+        """Return the upgrade rows visible in *frame*.
+
+        OCR rows are merged with template labels from ``Templates/buildings``
+        (``grandwarden.png``, ``minionprince.png``, ``wall.png`` …), which are
+        pixel-exact and rescue rows the OCR pass mangles.
+        """
+        rows = list(self._rows_provider(frame))
+        for name, point in self._label_rows(frame):
+            match = None
+            for row in rows:
+                if abs(row.point.y - point.y) <= 14:
+                    match = row
+                    break
+            if match is None:
+                rows.append(UpgradeRow(name, point))
+            elif _normalize(match.name) != _normalize(name):
+                index = rows.index(match)
+                rows[index] = UpgradeRow(name, point)
+        rows.sort(key=lambda row: row.point.y)
+        return rows
+
+    def _label_rows(self, frame: Frame) -> list[tuple[str, Point]]:
+        """Return ``(name, point)`` for every label template found in the panel."""
+        from COCbot.features.village.targets import canonical_name
+
+        image = frame_image(frame)
+        if image is None or not self._label_dir.is_dir():
+            return []
+        region = PANEL_NAME_REGION
+        crop = image[region.y : region.bottom, region.x : region.right]
+        if crop.size == 0:
+            return []
+        found: list[tuple[str, Point]] = []
+        for path in sorted(self._label_dir.glob("*.png")):
+            stem = path.stem
+            if stem.lower() == "buildings&heroes":
+                continue
+            template = imread(path)
+            if template is None:
+                continue
+            point = self._match(crop, template, max(0.80, self._threshold))
+            if point is None:
+                continue
+            name = canonical_name(stem) or stem.replace("_", " ").title()
+            found.append(
+                (
+                    name,
+                    Point(PANEL_TAP_X, point.y + region.y),
+                )
+            )
+        return found
 
     def scan_rows(self, execute: bool = True) -> list[UpgradeRow]:
         """Open the panel, read every row, then close it again."""
@@ -365,6 +419,14 @@ class HeroDefenseUpgrader:
 
     def panel_open(self, frame: Frame) -> bool:
         """Return ``True`` when the Buildings & Heroes panel is visible."""
+        title_path = self._label_dir / "Buildings&Heroes.png"
+        if title_path.is_file():
+            image = frame_image(frame)
+            template = imread(title_path)
+            if image is not None and template is not None:
+                point = self._match(image, template, max(0.80, self._threshold))
+                if point is not None:
+                    return True
         title = self._text_reader(frame, PANEL_TITLE_REGION)
         return any(keyword in title for keyword in PANEL_TITLE_KEYWORDS)
 

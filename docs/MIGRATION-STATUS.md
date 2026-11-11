@@ -30,7 +30,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
                                   engine, resource bar, main view-model tests
-                                  (196 total)
+                                  (207 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -460,6 +460,38 @@ other    ['Crafting Station']
 Scanning is disabled while the bot is running so it never interrupts a farm
 cycle. Ticked rows are saved into `hero_priorities` / `defense_priorities` / …
 like before, so the executor can consume them once auto-upgrade is wired in.
+
+### Building label templates and upgrade planning
+
+```text
+Templates/buildings/Buildings&Heroes.png   panel title
+Templates/buildings/grandwarden.png        "Grand Warden" row label
+Templates/buildings/minionprince.png       "Minion Prince" row label
+Templates/buildings/wall.png               "Wall" label
+COCbot/features/village/planner.py         ordering + wall builder reserve
+```
+
+Panel labels are matched as images, not text: any `Templates/buildings/*.png`
+whose name maps to a known target is matched inside the panel name column and
+merged with the OCR rows, replacing mangled names at the same y. The
+`Buildings&Heroes.png` title is also used as a pixel-exact "panel is open"
+check, so a tab that reads *Army Upgrades* is never mistaken for it. Item
+names are shared with the scan, so `grandwarden.png` yields `Grand Warden`.
+
+The Village tab adds a **Priority** checkbox to the Hero and Resource tabs:
+those groups are attempted before defense/army/other. When wall upgrading is
+enabled, one builder is reserved, so with `builders = 3` the building queue
+gets `budget = 2` and any extra target is reported as skipped:
+
+```text
+plan_upgrades(config, builders_available=3)
+  wall_reserved=True  reserved_for_walls=1  budget=2
+  order=("Archer Queen", "Grand Warden")  skipped=("Monolith",)
+```
+
+Without wall upgrading the budget equals the builders available. Zero builders
+plans nothing. The plan is exposed through `VillageViewModel.upgrade_plan()`
+and stays a dry-run until execution is wired into the cycle.
 
 
 ### Module 16 — Training quick-train (farm prerequisite)
