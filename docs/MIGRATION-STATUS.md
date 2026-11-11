@@ -25,7 +25,7 @@ COCbot/core/logging/              BotFormatter, rotating logger, SUCCESS level
 COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
 tests/unit/                       Model, config, ADB, vision, emulator, session,
-                                  orchestrator, worker tests (75 total)
+                                  orchestrator, worker, settings tests (90 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -94,6 +94,28 @@ QCoreApplication + BotWorker + BotOrchestrator + ScreenCapture
 This proves the capture path runs off the GUI thread and events return through
 `pyqtSignal`.
 
+### Module 4 — Settings vertical slice (MVVM)
+
+```text
+COCbot/ui_components/
+├── theme.py       palette + compact QSS + apply_theme()
+├── cards.py       Card container
+├── inputs.py      LabeledSpinBox/LineEdit/ComboBox/ToggleRow
+├── buttons.py     Primary/Secondary/Danger buttons
+└── status.py      inline StatusLabel
+
+COCbot/viewmodels/base_viewmodel.py  QObject base, busy/error signals
+COCbot/features/settings/
+├── model.py       SettingsModel (pure Python, no Qt)
+├── viewmodel.py   SettingsViewModel (QObject + signals only)
+└── view.py        SettingsView (layout + signal binding only)
+```
+
+The view never touches the model or game logic. Every edit calls a
+view-model command; `dirty_changed` enables Save; `loaded`/`saved`/`error_occurred`
+flow back through signals. Verified with an offscreen GUI test and a rendered
+screenshot (`artifacts/settings_view.png`).
+
 ## Verification commands
 
 ```powershell
@@ -104,7 +126,6 @@ This proves the capture path runs off the GUI thread and events return through
 
 ## Next modules
 
-1. `features/settings/` — reference vertical slice (model + viewmodel + view).
-2. `features/attack/` — reference complex feature (YOLO + worker + live UI).
-3. `COCbot/main.py` — composition root.
-4. Purge batch 2: archive the legacy packages once parity tests pass.
+1. `features/attack/` — reference complex feature (YOLO + worker + live UI).
+2. `COCbot/main.py` — composition root.
+3. Purge batch 2: archive the legacy packages once parity tests pass.

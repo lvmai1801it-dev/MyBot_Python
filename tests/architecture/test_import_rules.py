@@ -165,5 +165,41 @@ class NewLayerTests(unittest.TestCase):
                                 )
 
 
+class FeatureContractTests(unittest.TestCase):
+    """Contracts for feature colocation and MVVM boundaries."""
+
+    FEATURE = COCbot / "features" / "settings"
+
+    def test_model_is_qt_free(self) -> None:
+        tree = ast.parse((self.FEATURE / "model.py").read_text(encoding="utf-8"))
+        for module in _imported_modules(tree):
+            self.assertFalse(
+                module.startswith("PyQt5"),
+                f"features/settings/model.py imports {module}",
+            )
+
+    def test_viewmodel_uses_qt_signals(self) -> None:
+        tree = ast.parse((self.FEATURE / "viewmodel.py").read_text(encoding="utf-8"))
+        modules = _imported_modules(tree)
+        self.assertTrue(any(module.startswith("PyQt5") for module in modules))
+
+    def test_feature_files_have_docstrings(self) -> None:
+        for name in ("model.py", "viewmodel.py", "view.py"):
+            path = self.FEATURE / name
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            self.assertIsNotNone(
+                ast.get_docstring(tree),
+                f"features/settings/{name} is missing a module docstring",
+            )
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    if node.name.startswith("_"):
+                        continue
+                    self.assertIsNotNone(
+                        ast.get_docstring(node),
+                        f"features/settings/{name}::{node.name} is missing a docstring",
+                    )
+
+
 if __name__ == "__main__":
     unittest.main()
