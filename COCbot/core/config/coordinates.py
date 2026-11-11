@@ -91,6 +91,12 @@ GAIN_GOLD_RIGHT = Rect(544, 361, 88, 38)
 GAIN_ELIXIR_RIGHT = Rect(546, 401, 86, 36)
 GAIN_DARK_RIGHT = Rect(557, 440, 75, 35)
 
+# Home-village resource readouts and wall search ROI.
+HR_GOLD_REGION = Rect(660, 12, 168, 34)
+HR_ELIXIR_REGION = Rect(660, 45, 168, 35)
+HR_DARK_REGION = Rect(660, 79, 168, 35)
+HR_WALL_ROI = Rect(145, 81, 575, 557)
+
 # Attack bar (860x732): 11 cards, 72 px apart, card 70x88.
 ARMY_BAR_Y = 638
 ARMY_CARD_WIDTH = 70

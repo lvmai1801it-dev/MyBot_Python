@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import QApplication
 
 from COCbot.app.orchestrator import BotOrchestrator
 from COCbot.app import state as legacy_state
-from COCbot.core.adb import AdbClient
+from COCbot.core.adb import AdbClient, Uiautomator2MultiTouch
 from COCbot.core.config import ConfigStore, load_config
 from COCbot.core.config.paths import get_project_paths
 from COCbot.core.logging import build_logger
@@ -129,6 +129,7 @@ def main() -> int:
     capture = ScreenCapture(adb, logger=logger)
     detector = YoloDetector(logger=logger)
     matcher = TemplateMatcher(logger=logger)
+    multitouch = Uiautomator2MultiTouch(config.emulator.host, logger=logger)
     redline = RedlineDetector(
         model_path=config.vision.redline_model,
         confidence=config.vision.confidence,
@@ -186,7 +187,9 @@ def main() -> int:
                     adb,
                     capture,
                     matcher,
+                    ocr=ocr,
                     logger=logger,
+                    multitouch=multitouch,
                     execute=False,
                 )
             ),

@@ -144,6 +144,17 @@ class FakeAdb:
         return True
 
 
+class FakeMultiTouch:
+    """Record pinch gestures."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def pinch_in(self, percent: int = 100, steps: int = 20) -> bool:
+        self.calls += 1
+        return True
+
+
 class VillageActionsTests(unittest.TestCase):
     """Verify dry-run and real collector tapping."""
 
@@ -186,6 +197,30 @@ class VillageActionsTests(unittest.TestCase):
         result = VillageStep(actions).run(SimpleNamespace(session=BotSession()))
         self.assertTrue(result.success)
         self.assertIn("collectors", result.message)
+
+    def test_zoom_out_dry_run_and_execute(self) -> None:
+        multitouch = FakeMultiTouch()
+        dry = VillageActions(
+            FakeAdb(),  # type: ignore[arg-type]
+            FakeCapture(),  # type: ignore[arg-type]
+            FakeMatcher(),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            multitouch=multitouch,  # type: ignore[arg-type]
+            execute=False,
+        )
+        self.assertFalse(dry.zoom_out(3))
+        self.assertEqual(multitouch.calls, 0)
+
+        live = VillageActions(
+            FakeAdb(),  # type: ignore[arg-type]
+            FakeCapture(),  # type: ignore[arg-type]
+            FakeMatcher(),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            multitouch=multitouch,  # type: ignore[arg-type]
+            execute=True,
+        )
+        self.assertTrue(live.zoom_out(3))
+        self.assertEqual(multitouch.calls, 3)
 
 
 if __name__ == "__main__":

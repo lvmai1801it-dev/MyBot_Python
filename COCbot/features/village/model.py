@@ -4,8 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from threading import Event
+from typing import Mapping
 
 from COCbot.app.orchestrator import CycleContext, StepResult
+from COCbot.core.config.coordinates import (
+    HR_DARK_REGION,
+    HR_ELIXIR_REGION,
+    HR_GOLD_REGION,
+    HR_WALL_ROI,
+)
 from COCbot.core.config.schema import (
     AppConfig,
     PriorityUpgradeConfig,
@@ -13,9 +20,19 @@ from COCbot.core.config.schema import (
     WallUpgradeConfig,
 )
 from COCbot.core.config.store import ConfigStore
-from COCbot.core.ports import AdbPort, CapturePort, ClockPort, LoggerPort, SettingsPort
+from COCbot.core.ports import (
+    AdbPort,
+    CapturePort,
+    ClockPort,
+    LoggerPort,
+    MultiTouchPort,
+    OcrPort,
+    SettingsPort,
+)
 from COCbot.core.vision.templates import TemplateMatcher
 from COCbot.models.enums import BotPhase, UpgradeCategory
+from COCbot.models.geometry import Point
+from COCbot.models.resources import ResourceSnapshot
 
 
 @dataclass(frozen=True)
@@ -104,18 +121,45 @@ class VillageActionResult:
     found: int = 0
     tapped: int = 0
     message: str = ""
+    full_storages: Mapping[str, int] = None  # type: ignore[assignment]
+    resources: ResourceSnapshot = ResourceSnapshot()
+    wall_points: int = 0
+
+    def __post_init__(self) -> None:
+        """Normalize the optional storage mapping."""
+        if self.full_storages is None:
+            object.__setattr__(self, "full_storages", {})
 
 
 class VillageActions:
-    """Clean-port home routine: return home and collect resources."""
+    """Clean-port home routine: resources, collectors, storages, walls."""
+
+    FULL_STORAGE_TEMPLATES = {
+        "gold": "gold_collector_full.png",
+        "elixir": "elixir_collector_full.png",
+        "de": "DE_collector_full.png",
+    }
+    WALL_TEMPLATES = ("wall.png", "wall_2.png", "wall_3.png", "wall_4.png")
+    CLOSE_TEMPLATES = (
+        "btn_close.png",
+        "continue.png",
+        "close_button_layout.png",
+        "close_button_profile.png",
+        "close_button_setting.png",
+        "close_button_shield.png",
+        "close_button_shop.png",
+    )
 
     def __init__(
         self,
         adb: AdbPort,
         capture: CapturePort,
         matcher: TemplateMatcher,
+        ocr: OcrPort | None = None,
         clock: ClockPort | None = None,
         logger: LoggerPort | None = None,
+        multitouch: MultiTouchPort | None = None,
+        read_resources: bool = False,
         execute: bool = False,
     ) -> None:
         """Create the routine; input is dry-run unless *execute* is explicit."""
@@ -124,8 +168,11 @@ class VillageActions:
         self._adb = adb
         self._capture = capture
         self._matcher = matcher
+        self._ocr = ocr
         self._clock = clock or SystemClock()
         self._logger = logger
+        self._multitouch = multitouch
+        self._read_resources_flag = read_resources
         self._execute = execute
 
     def _log(self, level: str, message: str) -> None:
@@ -149,11 +196,8 @@ class VillageActions:
         self._adb.tap(424, 625)
         self._clock.sleep(3.0)
 
-    def collect_resources(self) -> tuple[int, int]:
-        """Return ``(found, tapped)`` collectors from one frame."""
-        frame = self._capture.capture()
-        if frame is None:
-            return (0, 0)
+    def _collect_from(self, frame) -> tuple[int, int]:
+        """Return ``(found, tapped)`` collectors from *frame*."""
         found = 0
         tapped = 0
         for name in COLLECTOR_TEMPLATES:
@@ -171,23 +215,131 @@ class VillageActions:
                         tapped += 1
         return (found, tapped)
 
+    def collect_resources(self) -> tuple[int, int]:
+        """Return ``(found, tapped)`` collectors from one frame."""
+        frame = self._capture.capture()
+        if frame is None:
+            return (0, 0)
+        return self._collect_from(frame)
+
+    def _storages_from(self, frame) -> dict[str, int]:
+        """Return full-storage icon counts for *frame*."""
+        counts: dict[str, int] = {}
+        for resource, name in self.FULL_STORAGE_TEMPLATES.items():
+            matches = self._matcher.match_all(
+                frame,
+                name,
+                threshold=0.85,
+                limit=40,
+            )
+            counts[resource] = len(matches)
+        return counts
+
+    def detect_full_storages(self) -> dict[str, int]:
+        """Return full-storage icon counts per resource."""
+        frame = self._capture.capture()
+        if frame is None:
+            return {name: 0 for name in self.FULL_STORAGE_TEMPLATES}
+        return self._storages_from(frame)
+
+    def _resources_from(self, frame) -> ResourceSnapshot:
+        """Read the home-village counters from *frame*."""
+        if self._ocr is None:
+            return ResourceSnapshot()
+        gold = self._ocr.read_number(frame, HR_GOLD_REGION) or 0
+        elixir = self._ocr.read_number(frame, HR_ELIXIR_REGION) or 0
+        dark = self._ocr.read_number(frame, HR_DARK_REGION) or 0
+        return ResourceSnapshot(gold=gold, elixir=elixir, dark_elixir=dark)
+
+    def read_home_resources(self) -> ResourceSnapshot:
+        """Read the home-village gold/elixir/dark counters."""
+        frame = self._capture.capture()
+        if frame is None:
+            return ResourceSnapshot()
+        return self._resources_from(frame)
+
+    def close_panels(self) -> int:
+        """Find and (optionally) dismiss common popups."""
+        frame = self._capture.capture()
+        if frame is None:
+            return 0
+        closed = 0
+        for name in self.CLOSE_TEMPLATES:
+            match = self._matcher.match(frame, name, threshold=0.75)
+            if match is None:
+                continue
+            closed += 1
+            if self._execute:
+                center = match.center()
+                if self._adb.tap(center.x, center.y):
+                    self._clock.sleep(0.4)
+        return closed
+
+    def zoom_out(self, count: int = 3) -> bool:
+        """Pinch out to see more of the village (real input only)."""
+        if not self._execute or self._multitouch is None:
+            self._log("info", "Dry run: would zoom out")
+            return False
+        any_ok = False
+        for index in range(max(1, int(count))):
+            if self._multitouch.pinch_in(percent=100, steps=20):
+                any_ok = True
+            if index < count - 1:
+                self._clock.sleep(0.5)
+        return any_ok
+
+    def scan_walls(self, zoom_first: bool = False) -> tuple[Point, ...]:
+        """Return deduplicated wall coordinates on the zoomed-out home village."""
+        if zoom_first:
+            self.zoom_out(3)
+        frame = self._capture.capture()
+        if frame is None:
+            return ()
+        points: list[Point] = []
+        for name in self.WALL_TEMPLATES:
+            matches = self._matcher.match_all(
+                frame,
+                name,
+                region=HR_WALL_ROI,
+                threshold=0.90,
+                limit=40,
+            )
+            for match in matches:
+                center = match.center()
+                if all(center.distance_to(existing) > 10 for existing in points):
+                    points.append(center)
+        return tuple(points)
+
     def run(self, cancel_event: Event | None = None) -> VillageActionResult:
-        """Return home and collect available resources."""
+        """Return home, collect, and inspect storages/resources."""
         self._check_cancel(cancel_event)
         self._return_home()
         self._check_cancel(cancel_event)
-        found, tapped = self.collect_resources()
+        frame = self._capture.capture()
+        if frame is None:
+            return VillageActionResult(ok=False, message="Capture failed")
+        found, tapped = self._collect_from(frame)
+        storages = self._storages_from(frame)
+        resources = (
+            self._resources_from(frame)
+            if self._read_resources_flag
+            else ResourceSnapshot()
+        )
         if found == 0:
             return VillageActionResult(
                 ok=False,
                 message="No collector templates found",
+                full_storages=storages,
+                resources=resources,
             )
         mode = "tapped" if self._execute else "found (dry run)"
         return VillageActionResult(
             ok=True,
             found=found,
             tapped=tapped,
-            message=f"{found} collectors {mode}",
+            message=f"{found} collectors {mode}; storages={storages}",
+            full_storages=storages,
+            resources=resources,
         )
 
 
@@ -210,5 +362,10 @@ class VillageStep:
             result.ok,
             result.message,
             phase=BotPhase.RUNNING,
-            data={"found": result.found, "tapped": result.tapped},
+            data={
+                "found": result.found,
+                "tapped": result.tapped,
+                "full_storages": dict(result.full_storages),
+                "resources": result.resources.as_dict(),
+            },
         )

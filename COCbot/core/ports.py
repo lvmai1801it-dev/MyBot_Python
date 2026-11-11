@@ -184,6 +184,14 @@ class AccountStorePort(Protocol):
         """Delete the stored profile."""
 
 
+@runtime_checkable
+class MultiTouchPort(Protocol):
+    """Multi-finger gestures used for map zoom."""
+
+    def pinch_in(self, percent: int = 100, steps: int = 20) -> bool:
+        """Perform a pinch-in (zoom-out) gesture."""
+
+
 class BotEnginePort(Protocol):
     """Long-running bot engine started by a background worker."""
 

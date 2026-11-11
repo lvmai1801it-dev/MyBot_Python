@@ -28,7 +28,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
                                   attack execution, main view-model tests
-                                  (160 total)
+                                  (161 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -287,6 +287,35 @@ army bar, plans deploy points, and reports them without tapping. Real input is
 available by constructing `BattleService`, `AttackExecutor`, and `FullAttackStep`
 with `execute=True` after device calibration.
 
+### Module 13 — Clean runtime port, stage 3 (village utilities)
+
+```text
+COCbot/core/adb/multitouch.py       uiautomator2 pinch/zoom adapter
+COCbot/features/village/model.py    storage/resource/wall/close/zoom routines
+```
+
+`VillageActions` now provides:
+
+- collector taps (existing)
+- full-storage icon detection (gold/elixir/DE)
+- home resource OCR (opt-in: `read_resources=True`)
+- common popup close-template scan
+- wall template scan (`wall.png` … `wall_4.png`)
+- pinch-to-zoom through `MultiTouchPort`
+
+Live MEmu test (home village, CoC launched):
+
+```text
+VillageActions.run(dry-run): 0.76 s
+collectors found: 9
+full storages: DE = 1
+zoom_out(3): True (uiautomator2, ~4 s)
+wall scan: 0 matches on the current wall level (templates need level calibration)
+```
+
+Resource OCR is deliberately off by default: PaddleOCR initialisation costs
+~19 s on first use, which would break the sub-second scan loop.
+
 ## Verification commands
 
 ```powershell
@@ -297,7 +326,7 @@ with `execute=True` after device calibration.
 
 ## Remaining work
 
-1. Stage 3: wall/hero/defense upgrade execution, storage detection, zoom.
+1. Stage 3b: wall/hero/defense upgrade execution and wall-template calibration.
 2. Stage 4: Clan Games / Clan Capital / Donate execution.
 3. Calibrate attack/village stages on MEmu, then enable `execute=True`.
 4. Purge batch 2 and switch the default launcher only after parity tests pass.
