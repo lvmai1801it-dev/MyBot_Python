@@ -9,6 +9,7 @@ the Village tab can offer a checkbox list instead of free text.
 from __future__ import annotations
 
 import difflib
+import re
 
 from COCbot.models.enums import UpgradeCategory
 
@@ -27,6 +28,7 @@ DEFENSES: tuple[str, ...] = (
     "Mortar",
     "Air Defense",
     "Wizard Tower",
+    "Super Wizard Tower",
     "Air Sweeper",
     "Hidden Tesla",
     "Bomb Tower",
@@ -44,6 +46,12 @@ DEFENSES: tuple[str, ...] = (
     "Multi-Gear Tower",
     "Giga Inferno",
     "Giga Tesla",
+    "Spring Trap",
+    "Air Bomb",
+    "Giant Bomb",
+    "Seeking Air Mine",
+    "Skeleton Trap",
+    "Tornado Trap",
 )
 
 RESOURCES: tuple[str, ...] = (
@@ -120,9 +128,17 @@ def normalize(text: str) -> str:
     return "".join(ch for ch in str(text).lower() if ch.isalnum())
 
 
+_BUNDLE_RE = re.compile(r"\s*x\s*\d+\s*$", re.IGNORECASE)
+
+
+def strip_bundle(text: str) -> str:
+    """Drop a trailing bundle count such as ``x 4`` from a row label."""
+    return _BUNDLE_RE.sub("", str(text).strip())
+
+
 def canonical_name(name: str) -> str | None:
     """Return the catalog name closest to *name* (``None`` when unknown)."""
-    target = normalize(name)
+    target = normalize(strip_bundle(name))
     if not target:
         return None
     best: str | None = None
@@ -173,7 +189,7 @@ def group_targets(names: object) -> dict[UpgradeCategory, list[str]]:
         text = str(raw).strip()
         if not text:
             continue
-        name = canonical_name(text) or text
+        name = canonical_name(text) or strip_bundle(text)
         key = normalize(name)
         if not key or key in seen:
             continue

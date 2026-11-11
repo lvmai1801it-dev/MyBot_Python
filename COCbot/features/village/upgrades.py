@@ -53,6 +53,11 @@ DIALOG_TITLE_REGION = Rect(190, 105, 500, 42)
 DIALOG_REGION = Rect(0, 80, 860, 600)
 DIALOG_CLOSE_REGION = Rect(780, 105, 70, 55)
 PANEL_CLOSE_REGION = Rect(795, 6, 55, 45)
+# The upgrade list is scrollable; one screen only shows ~10 of the buildings.
+PANEL_SCROLL_FROM = Point(700, 620)
+PANEL_SCROLL_TO = Point(700, 180)
+PANEL_SCROLL_MS = 450
+MAX_SCAN_PAGES = 8
 
 PANEL_TITLE_KEYWORDS = ("buildings", "heroes")
 FUZZY_ROW_THRESHOLD = 0.80
@@ -211,6 +216,14 @@ def _ocr_lines(frame: Frame, threshold: int) -> list[tuple[int, str]]:
     return results
 
 
+def _looks_like_name(text: str) -> bool:
+    """Return ``True`` for plausible multi-word building names."""
+    import re
+
+    words = re.findall(r"[A-Za-z']+", text)
+    return len(words) >= 2 and all(len(word) >= 3 for word in words)
+
+
 def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
     """Return the upgrade rows visible in the Buildings & Heroes panel.
 
@@ -239,6 +252,7 @@ def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
     rows = [
         UpgradeRow(name=name, point=Point(PANEL_TAP_X, y + PANEL_ROW_OFFSET))
         for y, name in merged
+        if canonical_name(name) is not None or _looks_like_name(name)
     ]
     rows.sort(key=lambda row: row.point.y)
     return rows
@@ -316,18 +330,25 @@ class HeroDefenseUpgrader:
             location[1] + template.shape[0] // 2,
         )
 
-    def find(self, frame: Frame, template_name: str, region: Rect | None = None) -> Point | None:
+    def find(
+        self,
+        frame: Frame,
+        template_name: str,
+        region: Rect | None = None,
+        threshold: float | None = None,
+    ) -> Point | None:
         """Find a template in *frame*, optionally limited to *region*."""
         image = frame_image(frame)
         template = self._load(template_name)
         if image is None or template is None:
             return None
+        limit = self._threshold if threshold is None else threshold
         if region is None:
-            return self._match(image, template, self._threshold)
+            return self._match(image, template, limit)
         crop = image[region.y : region.bottom, region.x : region.right]
         if crop.size == 0:
             return None
-        point = self._match(crop, template, self._threshold)
+        point = self._match(crop, template, limit)
         if point is None:
             return None
         return Point(point.x + region.x, point.y + region.y)
@@ -385,15 +406,37 @@ class HeroDefenseUpgrader:
             )
         return found
 
-    def scan_rows(self, execute: bool = True) -> list[UpgradeRow]:
-        """Open the panel, read every row, then close it again."""
+    def scan_rows(self, execute: bool = True, max_pages: int = MAX_SCAN_PAGES) -> list[UpgradeRow]:
+        """Open the panel, page through the list, then close it again."""
         if not self.open_panel(execute=execute):
             return []
-        frame = self._capture.capture()
-        rows = self.rows(frame) if frame is not None else []
+        from COCbot.features.village.targets import canonical_name
+
+        collected: dict[str, UpgradeRow] = {}
+        for _page in range(max(1, int(max_pages))):
+            frame = self._capture.capture()
+            if frame is None:
+                break
+            added = 0
+            for row in self.rows(frame):
+                key = _normalize(canonical_name(row.name) or row.name)
+                if not key or key in collected:
+                    continue
+                collected[key] = row
+                added += 1
+            if not execute or added == 0:
+                break
+            self._adb.swipe(
+                PANEL_SCROLL_FROM.x,
+                PANEL_SCROLL_FROM.y,
+                PANEL_SCROLL_TO.x,
+                PANEL_SCROLL_TO.y,
+                duration_ms=PANEL_SCROLL_MS,
+            )
+            self._clock.sleep(0.5)
         if execute:
             self.dismiss(execute=True)
-        return rows
+        return list(collected.values())
 
     def find_row(self, rows: Sequence[UpgradeRow], name: str) -> UpgradeRow | None:
         """Return the row whose OCR text matches *name*.
@@ -440,15 +483,27 @@ class HeroDefenseUpgrader:
         if frame is None:
             return False
         if self.dialog_open(frame):
-            target = self.find(frame, self._buttons["close"], DIALOG_CLOSE_REGION)
+            target = self.find(
+                frame, self._buttons["close"], DIALOG_CLOSE_REGION, threshold=0.66
+            )
+            fallback = Point(808, 132)
+        elif self.panel_open(frame):
+            target = self.find(
+                frame, self._buttons["close"], PANEL_CLOSE_REGION, threshold=0.66
+            )
+            fallback = Point(824, 30)
         else:
-            target = self.find(frame, self._buttons["close"], PANEL_CLOSE_REGION)
-        if target is None:
-            return False
+            target = self.find(
+                frame, self._buttons["close"], PANEL_CLOSE_REGION, threshold=0.66
+            )
+            fallback = Point(824, 30)
+            if target is None:
+                return False
         if not execute:
             self._log("info", "Dry run: would close the upgrade window")
             return False
-        self._adb.tap(target.x, target.y)
+        point = target or fallback
+        self._adb.tap(point.x, point.y)
         self._clock.sleep(0.7)
         return True
 

@@ -35,13 +35,25 @@ class FakeClock:
 
 
 class FakeAdb:
-    """Record taps."""
+    """Record taps and swipes."""
 
     def __init__(self) -> None:
         self.taps: list[tuple[int, int]] = []
+        self.swipes: list[tuple[int, int, int, int]] = []
 
     def tap(self, x: int, y: int) -> bool:
         self.taps.append((x, y))
+        return True
+
+    def swipe(
+        self,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        duration_ms: int = 300,
+    ) -> bool:
+        self.swipes.append((x1, y1, x2, y2))
         return True
 
 
@@ -231,6 +243,27 @@ class HeroDefenseUpgraderTests(unittest.TestCase):
             text_reader=FakeText({}),
         )
         self.assertTrue(upgrader.panel_open(frame))
+
+    def test_scan_reads_one_page_without_tapping_when_dry(self) -> None:
+        frames = [
+            frame_with(self.close, 800, 130),
+            frame_with(self.close, 800, 130),
+        ]
+        upgrader, adb = self._upgrader(False, frames)
+        rows = upgrader.scan_rows(execute=False)
+        self.assertEqual([row.name for row in rows], ["Archer Queen"])
+        self.assertEqual(adb.swipes, [])
+        self.assertEqual(adb.taps, [])
+
+    def test_dismiss_falls_back_to_the_corner_button(self) -> None:
+        frame = frame_with(self.upgrade, 200, 600)
+        upgrader, adb = self._upgrader(
+            True,
+            [frame, frame],
+            text={PANEL_TITLE_REGION: "buildings & heroes"},
+        )
+        self.assertTrue(upgrader.dismiss(execute=True))
+        self.assertEqual(adb.taps, [(824, 30)])
 
 
 if __name__ == "__main__":
