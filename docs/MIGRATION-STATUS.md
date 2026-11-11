@@ -26,7 +26,8 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
-                                  accounts, logs, main view-model tests (137 total)
+                                  accounts, logs, statistics, main view-model tests
+                                  (145 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -210,6 +211,20 @@ events (shell ready, ADB connected/offline) are logged before the view is shown.
 
 Rendered screenshot: `artifacts/logs_view.png`.
 
+### Module 9 — Statistics vertical slice
+
+```text
+COCbot/features/statistics/
+├── model.py       StatisticsModel: read/aggregate/reset Stats_N.json
+├── viewmodel.py   StatisticsViewModel: snapshot + reset signals
+└── view.py        StatisticsView: totals, per-village table, reset
+```
+
+The model reads `profiles/Stats_1.json … Stats_5.json`, aggregates loot, attacks,
+and star buckets, and resets all files atomically. The view shows overall totals
+and a per-village table with the last update time. Rendered screenshot:
+`artifacts/statistics_view.png`.
+
 ## Verification commands
 
 ```powershell
@@ -221,6 +236,6 @@ Rendered screenshot: `artifacts/logs_view.png`.
 ## Next modules
 
 1. Migrate remaining features using the same vertical-slice pattern:
-   village/upgrade, clan games/capital, donate, statistics.
+   village/upgrade, clan games/capital, donate.
 2. Purge batch 2: archive legacy packages once parity tests pass.
 3. Switch `run.py` to `COCbot.main` and remove the legacy GUI tree.

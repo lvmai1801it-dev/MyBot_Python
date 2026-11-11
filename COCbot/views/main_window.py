@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         settings_view: QWidget,
         accounts_view: QWidget,
         attack_view: QWidget,
+        statistics_view: QWidget,
         viewmodel: MainViewModel,
         parent: QWidget | None = None,
     ) -> None:
@@ -65,7 +66,13 @@ class MainWindow(QMainWindow):
 
         root.addWidget(self._build_header())
         root.addWidget(
-            self._build_tabs(logs_view, settings_view, accounts_view, attack_view),
+            self._build_tabs(
+                logs_view,
+                settings_view,
+                accounts_view,
+                attack_view,
+                statistics_view,
+            ),
             1,
         )
         root.addWidget(self._build_footer())
@@ -121,6 +128,7 @@ class MainWindow(QMainWindow):
         settings_view: QWidget,
         accounts_view: QWidget,
         attack_view: QWidget,
+        statistics_view: QWidget,
     ) -> QTabWidget:
         """Create the top-level feature tabs."""
         tabs = QTabWidget()
@@ -130,6 +138,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(settings_view, "Settings")
         tabs.addTab(accounts_view, "Accounts")
         tabs.addTab(attack_view, "Attack")
+        tabs.addTab(statistics_view, "Statistics")
         return tabs
 
     def _build_footer(self) -> QWidget:

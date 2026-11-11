@@ -34,6 +34,9 @@ from COCbot.features.logs.viewmodel import LogsViewModel
 from COCbot.features.settings.model import SettingsModel
 from COCbot.features.settings.view import SettingsView
 from COCbot.features.settings.viewmodel import SettingsViewModel
+from COCbot.features.statistics.model import StatisticsModel
+from COCbot.features.statistics.view import StatisticsView
+from COCbot.features.statistics.viewmodel import StatisticsViewModel
 from COCbot.game.account.shared_prefs import SharedPrefsManager
 from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import LogLevel
@@ -137,6 +140,10 @@ def main() -> int:
     settings_viewmodel = SettingsViewModel(settings_model, store=config_store)
     settings_view = SettingsView(settings_viewmodel)
 
+    statistics_model = StatisticsModel()
+    statistics_viewmodel = StatisticsViewModel(statistics_model)
+    statistics_view = StatisticsView(statistics_viewmodel)
+
     orchestrator = BotOrchestrator(
         [AttackStep(attack_model, execute=False)],
         config=config,
@@ -150,6 +157,7 @@ def main() -> int:
         settings_view,
         accounts_view,
         attack_view,
+        statistics_view,
         main_viewmodel,
     )
     window.show()

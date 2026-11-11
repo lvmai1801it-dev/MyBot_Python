@@ -59,6 +59,7 @@ DEFAULT_SETTINGS_FILE = "settings.json"
 DEFAULT_ARMY_PRESETS_FILE = "army_presets.json"
 MAX_ACCOUNTS = 16
 ACCOUNTS_PER_PAGE = 8
+MAX_VILLAGES = 5
 
 # --- Auto capture ---------------------------------------------------------
 DEFAULT_AUTO_CAPTURE_DIR = "datasets/redline/images/raw"
