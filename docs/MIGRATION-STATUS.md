@@ -24,8 +24,9 @@ COCbot/core/config/               AppConfig schema, paths, coordinates, defaults
 COCbot/core/logging/              BotFormatter, rotating logger, SUCCESS level
 COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
-tests/unit/                       Model, config, ADB, vision, emulator, session,
-                                  orchestrator, worker, settings tests (90 total)
+tests/unit/                       Model, config, ADB, vision, redline, emulator,
+                                  session, orchestrator, worker, settings, attack
+                                  tests (106 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -116,6 +117,41 @@ view-model command; `dirty_changed` enables Save; `loaded`/`saved`/`error_occurr
 flow back through signals. Verified with an offscreen GUI test and a rendered
 screenshot (`artifacts/settings_view.png`).
 
+### Module 5 — Attack vertical slice (complex feature)
+
+```text
+COCbot/core/vision/redline.py       YOLO-seg + OpenCV redline fallback, geometry
+COCbot/features/attack/
+├── model.py       AttackModel/AttackStep: capture → detect → redline → plan
+├── viewmodel.py   AttackViewModel: TaskWorker scan/deploy + progress signals
+└── view.py        AttackView: scan button, plan summary, live log
+```
+
+The model is pure Python and supports a safe dry-run deployment by default.
+`AttackViewModel` runs scans in `TaskWorker`; progress and plan events return to
+the GUI thread through `pyqtSignal`.
+
+Live MEmu verification (no YOLO weights installed):
+
+```text
+source=cv  detections=0  redline_edges=4  valid=True
+progress=Capturing → Detecting targets → Detecting redline → Building plan → Complete
+QThread scan: plan_ready emitted, status "Plan ready: none · redline cv · 0.34s"
+```
+
+Rendered screenshot: `artifacts/attack_view.png`.
+
+### Review / refactor pass
+
+- `AppConfig` now preserves unknown `settings.json` keys through `extra`, so
+  saving from the new UI cannot silently drop future/legacy fields.
+- Settings side edit updates both `attack.side` and `recipe.side`; ADB host is
+  validated before saving.
+- `BaseWorker` always emits `work_finished` (with `None` on failure), so
+  view-models always clear their busy state.
+- Fixed card styling that hid primary button text, cleaned unused imports,
+  and made emulator/worker tests share one `QApplication`.
+
 ## Verification commands
 
 ```powershell
@@ -126,6 +162,8 @@ screenshot (`artifacts/settings_view.png`).
 
 ## Next modules
 
-1. `features/attack/` — reference complex feature (YOLO + worker + live UI).
-2. `COCbot/main.py` — composition root.
-3. Purge batch 2: archive the legacy packages once parity tests pass.
+1. `COCbot/main.py` — composition root: wire config, logger, ADB, vision,
+   settings/attack view-models, and workers; replace the legacy launcher.
+2. Purge batch 2: archive the legacy packages once parity tests pass.
+3. Optional: migrate remaining features (village/upgrade, accounts, clan,
+   statistics, logs) using the same vertical-slice pattern.

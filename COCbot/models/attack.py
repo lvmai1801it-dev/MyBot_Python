@@ -58,3 +58,25 @@ class AttackResult:
     def is_victory(self) -> bool:
         """Return ``True`` when at least one star was earned."""
         return self.success and self.stars > 0
+
+
+@dataclass(frozen=True)
+class RedlineResult:
+    """No-deploy boundary returned by the redline detector."""
+
+    polygon: tuple[Point, ...] = ()
+    edges: tuple[tuple[Point, ...], ...] = ()
+    source: str = "none"
+
+    def is_valid(self) -> bool:
+        """Return ``True`` when all four deploy edges are usable."""
+        return len(self.edges) >= 4 and all(len(edge) >= 3 for edge in self.edges)
+
+    def edge_midpoint(self, index: int) -> Point:
+        """Return a midpoint for edge *index* (``TR, BR, BL, TL`` order)."""
+        if not self.edges:
+            return Point(0, 0)
+        edge = self.edges[index % len(self.edges)]
+        if not edge:
+            return Point(0, 0)
+        return edge[len(edge) // 2]

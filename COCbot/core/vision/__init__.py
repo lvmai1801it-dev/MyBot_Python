@@ -14,6 +14,7 @@ from COCbot.core.vision.image import (
     to_gray,
 )
 from COCbot.core.vision.ocr import NumberOcr, OcrConfig, normalize_digits
+from COCbot.core.vision.redline import RedlineDetector, RedlineSegmenter
 from COCbot.core.vision.templates import TemplateMatcher
 
 __all__ = [
@@ -21,6 +22,8 @@ __all__ = [
     "DetectorConfig",
     "NumberOcr",
     "OcrConfig",
+    "RedlineDetector",
+    "RedlineSegmenter",
     "ScreenCapture",
     "TemplateMatcher",
     "YoloDetector",

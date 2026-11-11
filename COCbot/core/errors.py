@@ -45,3 +45,7 @@ class StorageError(BotError):
 
 class WorkerError(BotError):
     """Raised when a background worker stops unexpectedly."""
+
+
+class OperationCancelled(BotError):
+    """Raised when a long-running operation is cancelled cooperatively."""
