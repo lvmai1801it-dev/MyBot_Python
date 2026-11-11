@@ -234,6 +234,17 @@ def _maybe_switch_full_storages(cfg):
 
     return False
 
+def _notify_resources(resources=None):
+    """Call the optional resource hook installed by the shell."""
+    hook = getattr(state, 'resource_hook', None)
+    if hook is None:
+        return
+    try:
+        hook(resources or {})
+    except Exception as e:
+        print(f'[RES] resource readout skipped: {e}')
+
+
 def one_cycle(cfg):
     sync_state()
     try:
@@ -273,6 +284,12 @@ def one_cycle(cfg):
     print('ZOOMING OUT . . .')
     state.pause_event.wait()
     multi_zoom_out(state.host)
+    if not _check_stop():
+        try:
+            from COCbot.game.village.main_village import read_current_resources
+            _notify_resources(read_current_resources())
+        except Exception as e:
+            print(f'[RES] resource readout skipped: {e}')
 
     try:
         if _maybe_switch_full_storages(cfg):
@@ -540,6 +557,7 @@ def bot_loop(cfg):
         if resources is None:
             print('[VILLAGE] Không xác nhận được làng chính — dừng bot.')
             return
+        _notify_resources(resources)
     except Exception as e:
         print(f'[VILLAGE] entry check skipped: {e}')
 

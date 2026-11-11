@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 import unittest
 
 from PyQt5.QtWidgets import QApplication
@@ -15,22 +14,16 @@ from COCbot.views.resource_bar import ResourceBar
 _APP = QApplication.instance() or QApplication([])
 
 
-class FakeReader:
-    """Reader stub that never touches ADB."""
-
-    def __init__(self) -> None:
-        self.reads = 0
-
-    def read(self) -> VillageResources:
-        self.reads += 1
-        return VillageResources(
-            gold=16_000_000,
-            elixir=13_086_862,
-            dark_elixir=250_000,
-            gems=1_497,
-            builders_available=5,
-            builders_total=5,
-        )
+def sample() -> VillageResources:
+    """Return a full live-looking snapshot."""
+    return VillageResources(
+        gold=16_000_000,
+        elixir=13_086_862,
+        dark_elixir=250_000,
+        gems=1_497,
+        builders_available=5,
+        builders_total=5,
+    )
 
 
 class ResourceBarTests(unittest.TestCase):
@@ -38,8 +31,7 @@ class ResourceBarTests(unittest.TestCase):
 
     def setUp(self) -> None:
         apply_theme(_APP)
-        self.reader = FakeReader()
-        self.viewmodel = ResourceBarViewModel(self.reader, interval=3600)
+        self.viewmodel = ResourceBarViewModel()
         self.bar = ResourceBar(self.viewmodel)
         self.bar.show()
         _APP.processEvents()
@@ -48,12 +40,13 @@ class ResourceBarTests(unittest.TestCase):
         self.bar.close()
         _APP.processEvents()
 
-    def test_starts_empty(self) -> None:
+    def test_empty_until_the_bot_publishes(self) -> None:
         self.assertEqual(self.bar._values["gold"].text(), "—")
         self.assertEqual(self.bar._values["builders"].text(), "—")
+        self.assertEqual(self.viewmodel.snapshot, VillageResources())
 
     def test_apply_snapshot(self) -> None:
-        self.viewmodel.snapshot_updated.emit(self.reader.read())
+        self.viewmodel.publish(sample())
         _APP.processEvents()
         self.assertEqual(self.bar._values["gold"].text(), "16,000,000")
         self.assertEqual(self.bar._values["elixir"].text(), "13,086,862")
@@ -61,16 +54,17 @@ class ResourceBarTests(unittest.TestCase):
         self.assertEqual(self.bar._values["gems"].text(), "1,497")
         self.assertEqual(self.bar._values["builders"].text(), "5/5")
 
-    def test_poller_reads_off_thread(self) -> None:
-        self.viewmodel.start()
-        for _ in range(300):
-            _APP.processEvents()
-            if self.viewmodel.snapshot.gold is not None:
-                break
-            time.sleep(0.01)
-        self.viewmodel.stop()
-        self.assertEqual(self.viewmodel.snapshot.gold, 16_000_000)
-        self.assertGreaterEqual(self.reader.reads, 1)
+    def test_start_clears_previous_values(self) -> None:
+        self.viewmodel.publish(sample())
+        _APP.processEvents()
+        self.viewmodel.on_running_changed(True)
+        _APP.processEvents()
+        self.assertEqual(self.bar._values["gold"].text(), "—")
+        self.assertEqual(self.bar._values["builders"].text(), "—")
+
+    def test_ignores_non_snapshot_values(self) -> None:
+        self.viewmodel.publish({"gold": 5})
+        self.assertEqual(self.viewmodel.snapshot, VillageResources())
 
 
 if __name__ == "__main__":

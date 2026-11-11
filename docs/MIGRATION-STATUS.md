@@ -30,7 +30,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
                                   engine, resource bar, main view-model tests
-                                  (182 total)
+                                  (187 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -495,33 +495,40 @@ settings, accounts, and statistics UI.
 .venv\Scripts\python.exe -m COCbot.gui.app   # legacy GUI smoke
 ```
 
-### Resource bar (always-on village readout)
+### Resource bar (start-driven village readout)
 
 ```text
 COCbot/features/village/resources.py        ResourceReader + VillageResources
-COCbot/viewmodels/resource_bar.py           ResourcePoller (QThread) + view-model
+COCbot/viewmodels/resource_bar.py           view-model fed by the farm engine
 COCbot/views/resource_bar.py                ResourceBar widget
+COCbot/app/state.py                         resource_hook
+COCbot/app/bootstrap.py                     _notify_resources at home/zoom-out
 ```
 
 The shell shows a bar under the header on every tab with gold, elixir, dark
-elixir, gems, and the builder counter (`available/total`). It reads the 860x732
-frame with the Tesseract white-digit mask used for loot OCR:
+elixir, gems, and the builder counter (`available/total`).
+
+**The bar is empty until the bot starts.** Pressing Start clears every cell,
+then the legacy loop checks the home village, zooms out, and calls
+`state.resource_hook`, which is installed by `LegacyEngine.run_forever` while
+the run is active. The same hook fires at the start of every cycle right after
+`multi_zoom_out`, so the counters stay current without any background polling.
+
+Currency values come from the farm loop's own readout
+(`read_current_resources()`, `prepare_main_village()`), which is the proven
+reader for the top bar; the shell reader adds gems and the builder/lab counters
+that the legacy code never reads:
 
 ```text
-HOME_GOLD_REGION     Rect(660,  12, 168, 34)
-HOME_ELIXIR_REGION   Rect(660,  45, 168, 35)
-HOME_DARK_REGION     Rect(660,  79, 168, 35)
 HOME_GEMS_REGION     Rect(685, 110, 130, 42)
-HOME_BUILDERS_REGION Rect(740, 596,  64, 40)   # "5/5" above the Build button
+HOME_BUILDERS_REGION Rect(740, 596,  64, 40)   # "3/6" above the Build button
 ```
 
-`ResourcePoller` runs off the GUI thread, refreshes every 15 s (or immediately
-through the ↻ button), keeps the last good values when a field is unreadable,
-and drops out-of-range digits. Live read on MEmu:
+Live run on MEmu (bar after Start, matching the on-screen HUD):
 
 ```text
-VillageResources(gold=16000000, elixir=13086862, dark_elixir=250000,
-                 gems=1497, builders_available=5, builders_total=5)
+VillageResources(gold=10128117, elixir=7822777, dark_elixir=90168,
+                 gems=991, builders_available=3, builders_total=6)
 ```
 
 ## Remaining work

@@ -161,13 +161,17 @@ def main() -> int:
     statistics_viewmodel = StatisticsViewModel(statistics_model)
     statistics_view = StatisticsView(statistics_viewmodel)
 
-    engine = LegacyEngine(config_store, logger=logger)
+    resource_viewmodel = ResourceBarViewModel()
+    engine = LegacyEngine(
+        config_store,
+        logger=logger,
+        resource_reader=ResourceReader(capture, logger=logger),
+        on_resources=resource_viewmodel.publish,
+    )
     main_viewmodel = MainViewModel(engine)
     main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
+    main_viewmodel.running_changed.connect(resource_viewmodel.on_running_changed)
 
-    resource_viewmodel = ResourceBarViewModel(
-        ResourceReader(capture, logger=logger)
-    )
     resource_bar = ResourceBar(resource_viewmodel)
 
     def _reload_config_views(*_args: object) -> None:
@@ -192,9 +196,7 @@ def main() -> int:
     )
     window.show()
 
-    resource_viewmodel.start()
     application.aboutToQuit.connect(main_viewmodel.shutdown)
-    application.aboutToQuit.connect(resource_viewmodel.stop)
     application.aboutToQuit.connect(accounts_viewmodel.shutdown)
     application.aboutToQuit.connect(attack_viewmodel.shutdown)
 

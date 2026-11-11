@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -51,7 +50,7 @@ class ResourceBar(QWidget):
         self._viewmodel = viewmodel
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 4, 8, 4)
+        layout.setContentsMargins(12, 4, 12, 4)
         layout.setSpacing(4)
 
         self._values: dict[str, QLabel] = {}
@@ -79,15 +78,7 @@ class ResourceBar(QWidget):
                 separator.setFixedWidth(1)
                 layout.addWidget(separator)
 
-        self.refresh_btn = QPushButton("↻")
-        self.refresh_btn.setObjectName("resRefresh")
-        self.refresh_btn.setFixedSize(24, 24)
-        self.refresh_btn.setToolTip("Read the village counters now")
-        self.refresh_btn.clicked.connect(self._viewmodel.refresh_now)
-        layout.addWidget(self.refresh_btn)
-
         self._viewmodel.snapshot_updated.connect(self.apply)
-        self._viewmodel.error_occurred.connect(self._on_error)
 
     def apply(self, snapshot: object) -> None:
         """Render one snapshot."""
@@ -100,7 +91,3 @@ class ResourceBar(QWidget):
         self._values["builders"].setText(
             _format_builders(snapshot.builders_available, snapshot.builders_total)
         )
-
-    def _on_error(self, message: str) -> None:
-        """Keep the old values but surface the failure as a tooltip."""
-        self.refresh_btn.setToolTip(message)

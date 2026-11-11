@@ -20,3 +20,6 @@ wall_save = False
 _switch_attack_counts = {}
 # Last resources read from the Home Village
 current_resources = {}
+# Optional callable(dict) invoked after the home village is zoomed out, so the
+# shell can refresh its resource readout from the same screen.
+resource_hook = None
