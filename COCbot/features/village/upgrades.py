@@ -645,19 +645,8 @@ class HeroDefenseUpgrader:
             )
         gold_button = buttons[0]
         elixir_button = buttons[1]
-
-        can_gold = (
-            gold_button[2] is not None
-            and gold is not None
-            and gold_button[2] > 0
-            and gold_button[2] < gold
-        )
-        can_elixir = (
-            elixir_button[2] is not None
-            and elixir is not None
-            and elixir_button[2] > 0
-            and elixir_button[2] < elixir
-        )
+        can_gold = gold_button[2]
+        can_elixir = elixir_button[2]
         if not can_gold and not can_elixir:
             self.dismiss(execute=True)
             return UpgradeResult(
@@ -666,19 +655,16 @@ class HeroDefenseUpgrader:
                 executed=False,
                 needs_loot=True,
                 message=(
-                    "Wall cost exceeds the stored resources "
-                    f"(gold={gold_button[2]}, elixir={elixir_button[2]}, "
-                    f"have gold={gold}, elixir={elixir})"
+                    "Wall prices are red — not enough gold or elixir; "
+                    "attack to earn resources"
                 ),
             )
 
         if can_gold:
             point = (gold_button[0], gold_button[1])
-            cost = gold_button[2]
             currency = "gold"
         else:
             point = (elixir_button[0], elixir_button[1])
-            cost = elixir_button[2]
             currency = "elixir"
 
         self._adb.tap(point[0], point[1])
@@ -708,7 +694,7 @@ class HeroDefenseUpgrader:
             "Wall",
             executed=True,
             taps=2,
-            message=f"Upgraded a wall using {currency} ({cost:,})",
+            message=f"Upgraded a wall using {currency}",
         )
 
     def _tap_wall_row(self, execute: bool) -> UpgradeRow | None:
@@ -773,6 +759,8 @@ class HeroDefenseUpgrader:
                     continue
                 if self._wall_controls_visible(next_frame):
                     return row
+                if len(self._wall_upgrade_buttons(next_frame)) >= 2:
+                    return row
             self._adb.swipe(
                 PANEL_SCROLL_FROM.x,
                 PANEL_SCROLL_FROM.y,
@@ -798,51 +786,69 @@ class HeroDefenseUpgrader:
         text = self._text_reader(frame, Rect(130, 470, 300, 70)).lower()
         return "wall" in text and "level" in text
 
-    def _wall_upgrade_buttons(self, frame: Frame) -> list[tuple[int, int, int | None]]:
-        """Find the wall Upgrade buttons using the button template.
+    def _wall_upgrade_buttons(self, frame: Frame) -> list[tuple[int, int, bool]]:
+        """Find the wall Upgrade buttons and whether each is affordable.
 
-        The wall control panel moves with the camera, so the two hammer
-        buttons are matched by image and then sorted left (gold) to right
-        (elixir). The price above each button is OCR'd for the affordability
-        check.
+        The wall control panel moves with the camera, so the two hammer buttons
+        are matched by image and sorted left (gold) to right (elixir). A red
+        price means the village does not hold enough of that resource.
         """
-        from COCbot.features.village.resources import ocr_number
-
         image = frame_image(frame)
         template = self._load("wall_upgrade_button.png")
         if image is None or template is None:
             return []
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         tpl = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-        if tpl.shape[0] >= gray.shape[0] or tpl.shape[1] >= gray.shape[1]:
+        candidates: list[tuple[int, int, int, int]] = []
+        for scale in (0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15):
+            scaled = cv2.resize(tpl, None, fx=scale, fy=scale)
+            height, width = scaled.shape[:2]
+            if height >= gray.shape[0] or width >= gray.shape[1]:
+                continue
+            result = cv2.matchTemplate(gray, scaled, cv2.TM_CCOEFF_NORMED)
+            dilated = cv2.dilate(result, np.ones((5, 5), np.uint8))
+            ys, xs = np.where((result == dilated) & (result >= 0.8))
+            for y, x in zip(ys, xs):
+                candidates.append((int(x), int(y), width, height))
+        if not candidates:
             return []
-        result = cv2.matchTemplate(gray, tpl, cv2.TM_CCOEFF_NORMED)
-        dilated = cv2.dilate(result, np.ones((5, 5), np.uint8))
-        ys, xs = np.where((result == dilated) & (result >= 0.85))
-        buttons: list[tuple[int, int, int | None]] = []
-        height, width = tpl.shape[:2]
-        for y, x in zip(ys, xs):
-            center_x = int(x) + width // 2
-            center_y = int(y) + height // 2
-            cost = None
-            for offset, height_px in ((-14, 22), (-18, 26), (-22, 28)):
-                price_region = Rect(
-                    max(0, int(x) + 2),
-                    max(0, int(y) + offset),
-                    width,
-                    height_px,
-                )
-                price_crop = image[
-                    price_region.y : price_region.bottom,
-                    price_region.x : price_region.right,
-                ]
-                value = ocr_number(price_crop)
-                if value is not None and value >= 10_000:
-                    cost = value
-                    break
-            buttons.append((center_x, center_y, cost))
+        buttons: list[tuple[int, int, bool]] = []
+        # Keep the strongest matches only, then dedupe by button centre.
+        candidates.sort(key=lambda item: (item[1], item[0]))
+        used: list[tuple[int, int]] = []
+        for x, y, width, height in candidates:
+            center_x = x + width // 2
+            center_y = y + height // 2
+            if any(abs(center_x - ux) < 20 and abs(center_y - uy) < 20 for ux, uy in used):
+                continue
+            used.append((center_x, center_y))
+            price_region = Rect(
+                max(0, x - 4),
+                max(0, y - 22),
+                width + 8,
+                34,
+            )
+            crop = image[
+                price_region.y : price_region.bottom,
+                price_region.x : price_region.right,
+            ]
+            buttons.append((center_x, center_y, not self._price_is_red(crop)))
         buttons.sort(key=lambda item: item[0])
         return buttons
+
+    @staticmethod
+    def _price_is_red(crop: np.ndarray) -> bool:
+        """Return ``True`` when the price text is red (unaffordable)."""
+        if crop is None or getattr(crop, "size", 0) == 0 or crop.ndim != 3:
+            return False
+        blue = crop[:, :, 0].astype(int)
+        green = crop[:, :, 1].astype(int)
+        red = crop[:, :, 2].astype(int)
+        red_pixels = (red > 170) & (green < 110) & (blue < 110)
+        white_pixels = (red > 200) & (green > 200) & (blue > 200)
+        red_count = int(red_pixels.sum())
+        white_count = int(white_pixels.sum())
+        return red_count >= 25 and red_count > white_count
 
     def upgrade_listed(
         self,

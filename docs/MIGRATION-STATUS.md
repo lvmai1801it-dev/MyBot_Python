@@ -538,10 +538,17 @@ cycle logs `No upgrade targets selected — tick targets in Village and Save`.
 
 Walls use the Build panel instead of scanning the map: `upgrade_walls_via_panel`
 opens Buildings & Heroes, pages to a `Wall` row (matched with the
-`Templates/buildings/wall.png` label), taps it to enter wall-select mode, drags
-over a wall line, and only confirms when the dialog title mentions "wall". The
-legacy map-scanning wall routine is skipped while the shell hook is active
-because its wall templates no longer match current wall sprites.
+`Templates/buildings/wall.png` label), taps it to select the wall, then finds
+the two Upgrade buttons with `Templates/upgrade/wall_upgrade_button.png`
+(multi-scale, price-independent crop). A **red price** means the village cannot
+afford that currency, so the cheaper affordable button (gold first) is used;
+both red reports `needs_loot`. The confirm dialog must mention "wall" before
+CONFIRM is tapped. The legacy map-scanning wall routine is skipped while the
+shell hook is active because its wall templates no longer match current wall
+sprites.
+
+Verified live: Build → Wall x 138 → gold button (500 000, white) → CONFIRM,
+gold dropped 7,139,639 → 6,639,639 and the row became `Wall x 137`.
 
 `UpgradeRunner.run()` stays a dry-run when `execute=False`; the button passes
 `execute=True` only after the confirmation dialog, and both Scan and Upgrade

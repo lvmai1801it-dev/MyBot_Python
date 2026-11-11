@@ -303,8 +303,8 @@ class WallPanelFlowTests(unittest.TestCase):
         upgrader._text_reader = lambda frame, region: "upgrade wall to level 19?"  # type: ignore[assignment]
         upgrader.find = lambda frame, name, region=None, threshold=None: Point(612, 548)  # type: ignore[assignment]
         upgrader._wall_upgrade_buttons = lambda frame: [  # type: ignore[assignment]
-            (196, 655, 500_000),
-            (290, 655, 500_000),
+            (196, 655, True),
+            (290, 655, True),
         ]
         return upgrader, adb
 
@@ -330,8 +330,8 @@ class WallPanelFlowTests(unittest.TestCase):
     def test_wall_cost_above_resources_needs_loot(self) -> None:
         upgrader, adb = self._stub(True)
         upgrader._wall_upgrade_buttons = lambda frame: [  # type: ignore[assignment]
-            (196, 655, 900_000),
-            (290, 655, 900_000),
+            (196, 655, False),
+            (290, 655, False),
         ]
         result = upgrader.upgrade_walls_via_panel(
             execute=True,
@@ -342,6 +342,15 @@ class WallPanelFlowTests(unittest.TestCase):
         self.assertFalse(result.executed)
         self.assertNotIn((196, 655), adb.taps)
         self.assertNotIn((290, 655), adb.taps)
+
+
+    def test_price_colour_detection(self) -> None:
+        red = np.zeros((34, 72, 3), dtype=np.uint8)
+        red[:, :] = (40, 40, 220)  # BGR red text block
+        white = np.zeros((34, 72, 3), dtype=np.uint8)
+        white[:, :] = (245, 245, 245)
+        self.assertTrue(HeroDefenseUpgrader._price_is_red(red))
+        self.assertFalse(HeroDefenseUpgrader._price_is_red(white))
 
 
 if __name__ == "__main__":
