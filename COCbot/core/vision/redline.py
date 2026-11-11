@@ -140,7 +140,7 @@ def offset_edges_to_outer(
 def _redline_cv_geometry(
     image: np.ndarray,
     tolerance: int = 25,
-    inset: int = 15,
+    inset: int = 0,
 ) -> tuple[list[list[PointTuple]], list[PointTuple]]:
     """Pure OpenCV isometric fallback: inset edges + redline polygon."""
     height, width = image.shape[:2]
@@ -161,10 +161,10 @@ def _redline_cv_geometry(
     if len(xs) > 20:
         dx = int(np.percentile(np.abs(xs - center_x), 95))
         dy = int(np.percentile(np.abs(ys - center_y), 95))
-        dx = max(380, min(420, dx))
-        dy = max(290, min(340, dy))
+        dx = max(400, min(415, dx))
+        dy = max(315, min(335, dy))
     else:
-        dx, dy = 400, 310
+        dx, dy = 410, 325
 
     top = (center_x, center_y - dy)
     bottom = (center_x, center_y + dy)
@@ -224,7 +224,7 @@ def _redline_cv_geometry(
 def get_redline_edges_cv(
     image: np.ndarray,
     tolerance: int = 25,
-    inset: int = 15,
+    inset: int = 0,
 ) -> list[list[PointTuple]]:
     """Return only the inset redline edges (backward-compatible wrapper)."""
     edges, _polygon = _redline_cv_geometry(image, tolerance, inset)

@@ -34,7 +34,7 @@ from COCbot.features.attack.model import AttackModel, AttackScan
 from COCbot.models.attack import AttackResult, Detection, RedlineResult
 from COCbot.models.enums import BotPhase
 from COCbot.models.frame import Frame
-from COCbot.models.geometry import Point
+from COCbot.models.geometry import Point, Rect
 from COCbot.models.resources import ResourceSnapshot
 
 BATTLE_KEYWORDS = (
@@ -46,6 +46,12 @@ BATTLE_KEYWORDS = (
     "you got",
     "troops expended",
     "return home",
+)
+
+BATTLE_START_KEYWORDS = (
+    "battle ends in",
+    "overall damage",
+    "surrender",
 )
 
 
@@ -105,11 +111,11 @@ class BattleService:
     def search_attack(self) -> None:
         """Open the attack menu and start matchmaking."""
         self._tap(NAV.battle_button)
-        self._clock.sleep(1.0)
+        self._clock.sleep(2.0)
         self._tap(NAV.find_match)
-        self._clock.sleep(1.0)
+        self._clock.sleep(2.0)
         self._tap(NAV.attack_confirm)
-        self._clock.sleep(1.0)
+        self._clock.sleep(2.0)
 
     def find_next_button(self) -> Detection | None:
         """Return the scout-screen Next button when visible."""
@@ -147,8 +153,36 @@ class BattleService:
                 threshold=0.70,
             ):
                 return True
+            if frame is not None and self._battle_started_by_text(frame):
+                return True
             self._clock.sleep(1.5)
         return False
+
+    @staticmethod
+    def _ocr_region(frame: Frame, region) -> str:
+        """OCR one screen region and return lowercase text."""
+        try:
+            import pytesseract
+        except Exception:
+            return ""
+        image = frame_image(frame)
+        if image is None:
+            return ""
+        crop = image[region.y : region.bottom, region.x : region.right]
+        if crop.size == 0:
+            return ""
+        try:
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+            gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+            return pytesseract.image_to_string(gray, config="--psm 6").lower()
+        except Exception:
+            return ""
+
+    def _battle_started_by_text(self, frame: Frame) -> bool:
+        """Return ``True`` when the battle HUD is visible."""
+        text = self._ocr_region(frame, BATTLE_REGION)
+        text += " " + self._ocr_region(frame, Rect(0, 0, 860, 160))
+        return any(keyword in text for keyword in BATTLE_START_KEYWORDS)
 
     def wait_for_battle_end(self, cancel_event: Event | None = None) -> bool:
         """Wait for the battle-end panel."""
