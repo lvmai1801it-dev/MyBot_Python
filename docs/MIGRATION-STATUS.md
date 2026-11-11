@@ -24,7 +24,8 @@ COCbot/core/config/               AppConfig schema, paths, coordinates, defaults
 COCbot/core/logging/              BotFormatter, rotating logger, SUCCESS level
 COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
-tests/unit/                       Model, config, ADB, vision, emulator tests (55 total)
+tests/unit/                       Model, config, ADB, vision, emulator, session,
+                                  orchestrator, worker tests (75 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -69,6 +70,30 @@ Hardware verification (MEmu at `127.0.0.1:21503`):
 - `settings_logo.png` template score **1.00** on the live home screen.
 - `MemuEmulator` discovered `F:\Microvirt\MEmu` and reported instance 0 running.
 
+### Module 3 — Session, orchestrator, and QThread workers
+
+```text
+COCbot/app/session.py       thread-safe pause/stop/counters (no Qt)
+COCbot/app/orchestrator.py  CycleStep protocol, CycleContext, BotOrchestrator
+COCbot/workers/_bootstrap.py  torch-before-PyQt5 import guard
+COCbot/workers/base_worker.py generic QThread + signals
+COCbot/workers/task_worker.py one-shot heavy task worker
+COCbot/workers/bot_worker.py  wraps BotEnginePort, forwards BotEvent
+```
+
+Live integration test (real MEmu, offscreen Qt):
+
+```text
+QCoreApplication + BotWorker + BotOrchestrator + ScreenCapture
+→ thread_finished True
+→ EVENT INFO "Bot started"
+→ EVENT INFO "captured 860x732 in worker thread"
+→ EVENT INFO "Bot stopped"
+```
+
+This proves the capture path runs off the GUI thread and events return through
+`pyqtSignal`.
+
 ## Verification commands
 
 ```powershell
@@ -79,8 +104,7 @@ Hardware verification (MEmu at `127.0.0.1:21503`):
 
 ## Next modules
 
-1. `app/orchestrator.py` + `workers/` — QThread worker, pause/stop protocol.
-2. `features/settings/` — reference vertical slice.
-3. `features/attack/` — reference complex feature (YOLO + worker + live UI).
-4. `COCbot/main.py` — composition root.
-5. Purge batch 2: archive the legacy packages once parity tests pass.
+1. `features/settings/` — reference vertical slice (model + viewmodel + view).
+2. `features/attack/` — reference complex feature (YOLO + worker + live UI).
+3. `COCbot/main.py` — composition root.
+4. Purge batch 2: archive the legacy packages once parity tests pass.

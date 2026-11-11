@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, Sequence, runtime_checkable
 
 from COCbot.models.attack import Detection
-from COCbot.models.bot_state import BotEvent
+from COCbot.models.bot_state import BotEvent, CycleResult
 from COCbot.models.emulator import EmulatorInstance
 from COCbot.models.enums import EmulatorType
 from COCbot.models.frame import Frame
@@ -163,8 +163,11 @@ class BotEnginePort(Protocol):
     def is_running(self) -> bool:
         """Return ``True`` while the engine loop is active."""
 
-    def run_cycle(self) -> None:
-        """Execute one complete bot cycle and return."""
+    def run_forever(self, sink: EventSinkPort | None = None) -> None:
+        """Run until stopped, forwarding events to *sink*."""
+
+    def run_cycle(self) -> CycleResult:
+        """Execute one complete bot cycle and return its result."""
 
     def request_stop(self) -> None:
         """Ask the engine to stop after the current step."""

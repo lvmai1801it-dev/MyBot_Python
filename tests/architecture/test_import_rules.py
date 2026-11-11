@@ -115,5 +115,55 @@ class LayerContractTests(unittest.TestCase):
                                 )
 
 
+class NewLayerTests(unittest.TestCase):
+    """Contracts for the new application and worker layers."""
+
+    APP_FILES = (
+        COCbot / "app" / "session.py",
+        COCbot / "app" / "orchestrator.py",
+    )
+    WORKER_FILES = (
+        COCbot / "workers" / "_bootstrap.py",
+        COCbot / "workers" / "base_worker.py",
+        COCbot / "workers" / "bot_worker.py",
+        COCbot / "workers" / "task_worker.py",
+    )
+
+    def test_application_layer_does_not_import_pyqt(self) -> None:
+        for path in self.APP_FILES:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for module in _imported_modules(tree):
+                self.assertFalse(
+                    module.startswith("PyQt5"),
+                    f"{path.relative_to(SRC_ROOT)} imports {module}",
+                )
+
+    def test_new_layers_have_docstrings(self) -> None:
+        for path in self.APP_FILES + self.WORKER_FILES:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            self.assertIsNotNone(
+                ast.get_docstring(tree),
+                f"{path.relative_to(SRC_ROOT)} is missing a module docstring",
+            )
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    if node.name.startswith("_"):
+                        continue
+                    self.assertIsNotNone(
+                        ast.get_docstring(node),
+                        f"{path.relative_to(SRC_ROOT)}::{node.name} is missing a docstring",
+                    )
+                    if isinstance(node, ast.ClassDef):
+                        for item in node.body:
+                            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                                if item.name.startswith("_"):
+                                    continue
+                                self.assertIsNotNone(
+                                    ast.get_docstring(item),
+                                    f"{path.relative_to(SRC_ROOT)}::{node.name}.{item.name} "
+                                    "is missing a docstring",
+                                )
+
+
 if __name__ == "__main__":
     unittest.main()

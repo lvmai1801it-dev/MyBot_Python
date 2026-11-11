@@ -69,3 +69,19 @@ class Progress:
     def is_complete(self) -> bool:
         """Return ``True`` when ``current`` has reached ``total``."""
         return self.total > 0 and self.current >= self.total
+
+
+@dataclass(frozen=True)
+class CycleResult:
+    """Outcome of one orchestrator cycle."""
+
+    completed: bool
+    steps_run: int = 0
+    errors: int = 0
+    duration: float = 0.0
+    message: str = ""
+
+    @property
+    def failed(self) -> bool:
+        """Return ``True`` when the cycle ended with at least one error."""
+        return self.errors > 0

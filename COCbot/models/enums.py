@@ -41,6 +41,7 @@ class BotPhase(str, Enum):
 
     IDLE = "idle"
     STARTING = "starting"
+    RUNNING = "running"
     SEARCHING = "searching"
     ATTACKING = "attacking"
     RETURNING = "returning"

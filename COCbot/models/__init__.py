@@ -5,7 +5,7 @@ This package must never import PyQt5.
 
 from COCbot.models.account import AccountProfile, AccountSwitchState
 from COCbot.models.attack import AttackPlan, AttackResult, Detection
-from COCbot.models.bot_state import BotEvent, BotStatus, Progress
+from COCbot.models.bot_state import BotEvent, BotStatus, CycleResult, Progress
 from COCbot.models.emulator import EmulatorInstance
 from COCbot.models.enums import (
     AccountSwitchMode,
@@ -32,6 +32,7 @@ __all__ = [
     "BotPhase",
     "BotStatus",
     "BoundingBox",
+    "CycleResult",
     "Detection",
     "EmulatorInstance",
     "EmulatorType",
