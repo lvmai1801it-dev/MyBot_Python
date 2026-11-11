@@ -54,17 +54,19 @@ class BaseWorker(QThread):
     def run(self) -> None:
         """Execute the callable and emit the appropriate terminal signal."""
         self.work_started.emit()
+        result: Any = None
+        failed = False
         try:
             if self._pass_cancel_event:
                 result = self._target(self._cancel_event, *self._args, **self._kwargs)
             else:
                 result = self._target(*self._args, **self._kwargs)
         except Exception as exc:  # pragma: no cover - exercised via tests
+            failed = True
             self._error_traceback = traceback.format_exc()
             self.log.emit("ERROR", self._error_traceback)
             self.failed.emit(type(exc).__name__, str(exc))
-            return
-        if self._cancel_event.is_set():
-            self.canceled.emit()
-            return
-        self.work_finished.emit(result)
+        finally:
+            if self._cancel_event.is_set():
+                self.canceled.emit()
+            self.work_finished.emit(None if failed else result)

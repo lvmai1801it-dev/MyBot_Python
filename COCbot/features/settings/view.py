@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QScrollArea,
     QSpinBox,

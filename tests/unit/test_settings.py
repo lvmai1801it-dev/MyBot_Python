@@ -6,14 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtWidgets import QApplication
 
 from COCbot.core.config import AppConfig, load_config
 from COCbot.features.settings.model import SettingsModel
 from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.models.enums import EmulatorType
 
-_APP = QCoreApplication.instance() or QCoreApplication([])
+_APP = QApplication.instance() or QApplication([])
 
 
 class SettingsModelTests(unittest.TestCase):

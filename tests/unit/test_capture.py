@@ -82,7 +82,7 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(to_gray(image).shape, (10, 20))
         self.assertTrue(is_blank(np.zeros((5, 5, 3), dtype=np.uint8)))
 
-    def test_frame_rejects_non_array(self) -> None:
+    def test_frame_is_empty_checks_none_and_size(self) -> None:
         frame = Frame(image="not-an-image", width=1, height=1)
         self.assertFalse(frame.is_empty())
 

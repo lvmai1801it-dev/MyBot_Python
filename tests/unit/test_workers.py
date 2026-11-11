@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import unittest
 
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtWidgets import QApplication
 
 from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import LogLevel
 from COCbot.workers import BotWorker, TaskWorker
 
 
-_APP = QCoreApplication.instance() or QCoreApplication([])
+_APP = QApplication.instance() or QApplication([])
 
 
-def app() -> QCoreApplication:
-    """Return the process-wide QCoreApplication, creating it if needed."""
+def app() -> QApplication:
+    """Return the process-wide QApplication, creating it if needed."""
     return _APP
 
 
@@ -40,11 +40,14 @@ class TaskWorkerTests(unittest.TestCase):
 
         worker = TaskWorker(boom)
         errors: list[tuple[str, str]] = []
+        finished: list[object] = []
         worker.failed.connect(lambda kind, message: errors.append((kind, message)))
+        worker.work_finished.connect(finished.append)
         worker.start()
         self.assertTrue(worker.wait(5000))
         application.processEvents()
         self.assertEqual(errors, [("ValueError", "bad input")])
+        self.assertEqual(finished, [None])
         self.assertIn("ValueError", worker.error_traceback)
 
     def test_cancel(self) -> None:

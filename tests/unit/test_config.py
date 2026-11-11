@@ -98,6 +98,10 @@ class ConfigSchemaTests(unittest.TestCase):
         self.assertEqual(config.attack.recipe.side, "Ngẫu nhiên")
         self.assertEqual(config.attack.sides, ["Ngẫu nhiên"])
 
+    def test_unknown_keys_are_preserved(self) -> None:
+        config = AppConfig.from_legacy_dict({**LEGACY_SAMPLE, "future_key": 123})
+        self.assertEqual(config.to_dict()["future_key"], 123)
+
     def test_emulator_host_defaults_by_type(self) -> None:
         self.assertEqual(
             EmulatorConfig(emulator_type=EmulatorType.LDPLAYER).host,

@@ -90,7 +90,11 @@ class TemplateMatcher:
         gray = to_gray(image)
         if region is not None:
             gray = crop(gray, region)
-        if gray.size == 0 or gray.shape[0] < template.shape[0] or gray.shape[1] < template.shape[1]:
+        if (
+            gray.size == 0
+            or gray.shape[0] < template.shape[0]
+            or gray.shape[1] < template.shape[1]
+        ):
             return 0.0
         result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
         _, max_value, _, _ = cv2.minMaxLoc(result)
@@ -128,7 +132,11 @@ class TemplateMatcher:
         if region is not None:
             gray = crop(gray, region)
             offset_x, offset_y = region.x, region.y
-        if gray.size == 0 or gray.shape[0] < template.shape[0] or gray.shape[1] < template.shape[1]:
+        if (
+            gray.size == 0
+            or gray.shape[0] < template.shape[0]
+            or gray.shape[1] < template.shape[1]
+        ):
             return []
 
         result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)

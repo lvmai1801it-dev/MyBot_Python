@@ -81,6 +81,10 @@ class SettingsViewModel(BaseViewModel):
         if not self._draft.attack.name.strip():
             self._report_error("Attack name cannot be empty")
             return False
+        host = self._draft.emulator.host.strip()
+        if not host or any(char.isspace() for char in host):
+            self._report_error("ADB host must be a non-empty value without spaces")
+            return False
         with self.busy():
             try:
                 self._model.save(self._draft)
@@ -139,13 +143,15 @@ class SettingsViewModel(BaseViewModel):
 
     def set_attack(self, name: str, side: str) -> None:
         """Update the default attack strategy and side."""
+        normalized_side = side.strip() or "Ngẫu nhiên"
         self._set_draft(
             replace(
                 self._draft,
                 attack=replace(
                     self._draft.attack,
                     name=name.strip(),
-                    side=side.strip() or "Ngẫu nhiên",
+                    side=normalized_side,
+                    recipe=replace(self._draft.attack.recipe, side=normalized_side),
                 ),
             )
         )

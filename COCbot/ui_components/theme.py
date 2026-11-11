@@ -85,7 +85,7 @@ QPushButton#primaryBtn {{
     font-weight: 600;
 }}
 QPushButton#primaryBtn:hover {{ background: {PRIMARY_HOVER}; border-color: {PRIMARY_HOVER}; }}
-QPushButton#primaryBtn:disabled {{ background: #9CC4BA; border-color: #9CC4BA; color: #F2F5F3; }}
+QPushButton#primaryBtn:disabled {{ background: #D7E5E0; border-color: #C4D8D2; color: {TEXT_MUTED}; }}
 QPushButton#stopBtn {{ background: {ERROR_BG}; color: {ERROR_TEXT}; border: 1px solid #D9A199; }}
 
 QCheckBox {{ spacing: 7px; color: {TEXT}; }}
@@ -94,7 +94,6 @@ QCheckBox::indicator:unchecked:hover {{ border-color: {PRIMARY}; }}
 QCheckBox::indicator:checked {{ background: {PRIMARY}; border-color: {PRIMARY}; }}
 
 QFrame#card {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 6px; }}
-QFrame#card QWidget {{ background: transparent; }}
 QGroupBox {{
     background: {CARD};
     border: 1px solid {BORDER};

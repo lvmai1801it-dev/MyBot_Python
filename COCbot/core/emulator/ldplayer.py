@@ -21,17 +21,15 @@ class LDPlayerEmulator(BaseEmulator):
 
     def find_tools(self) -> ToolPaths:
         """Locate ``ldconsole.exe`` and ``dnplayer.exe``."""
-        directories = [
-            *self._candidate_dirs(
-                "LDPLAYER_HOME",
-                (
-                    "LDPlayer/LDPlayer9",
-                    "LDPlayer/LDPlayer4.0",
-                    "LDPlayer9",
-                    "LDPlayer",
-                ),
-            )
-        ]
+        directories = self._candidate_dirs(
+            "LDPLAYER_HOME",
+            (
+                "LDPlayer/LDPlayer9",
+                "LDPlayer/LDPlayer4.0",
+                "LDPlayer9",
+                "LDPlayer",
+            ),
+        )
         for directory in directories:
             console = self._first_existing(directory / self.console_name)
             player = self._first_existing(directory / self.player_name)

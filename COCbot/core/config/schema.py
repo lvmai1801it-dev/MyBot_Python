@@ -226,6 +226,68 @@ class EmulatorConfig:
             )
 
 
+_KNOWN_KEYS = frozenset(
+    {
+        "gold_threshold",
+        "elixir_threshold",
+        "dark_elixir_threshold",
+        "upgrade_wall",
+        "wall_level",
+        "wall_gold_threshold",
+        "wall_elixir_threshold",
+        "upgrade_hero",
+        "hero_priorities",
+        "upgrade_defense",
+        "defense_priorities",
+        "upgrade_army",
+        "army_priorities",
+        "upgrade_resource",
+        "resource_priorities",
+        "upgrade_other",
+        "other_buildings",
+        "request_troops",
+        "attack",
+        "recipe_name",
+        "recipe",
+        "attack_side",
+        "check_troops",
+        "train_mode",
+        "quick_slot",
+        "enable_clan_games",
+        "enable_clan_capital",
+        "capital_hall_level",
+        "enable_stats",
+        "redline_model",
+        "redline_offset_ratio",
+        "yolo_confidence",
+        "yolo_iou",
+        "auto_capture_dataset",
+        "auto_capture_dir",
+        "auto_capture_min_interval_sec",
+        "auto_capture_max_files",
+        "auto_capture_only_on_fallback",
+        "auto_capture_success_sample",
+        "auto_capture_scout_sample",
+        "auto_capture_on_scout",
+        "auto_capture_on_attack",
+        "auto_capture_format",
+        "auto_capture_jpeg_quality",
+        "auto_capture_webp_quality",
+        "auto_capture_png_compression",
+        "attack_sides",
+        "log_level",
+        "log_file_enabled",
+        "log_file_path",
+        "log_max_bytes",
+        "log_backup_count",
+        "emulator_type",
+        "emulator_host",
+        "ld_index",
+        "schema_version",
+    }
+)
+
+
 @dataclass(frozen=True)
 class AppConfig:
     """Complete application configuration."""
@@ -241,12 +303,14 @@ class AppConfig:
     emulator: EmulatorConfig = field(default_factory=EmulatorConfig)
     enable_stats: bool = False
     schema_version: int = CONFIG_SCHEMA_VERSION
+    extra: Mapping[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_legacy_dict(cls, data: Mapping[str, Any]) -> "AppConfig":
         """Build a config from the legacy flat ``settings.json`` mapping."""
         raw = _as_mapping(data)
         recipe = _as_mapping(raw.get("recipe"))
+        extra = {key: value for key, value in raw.items() if key not in _KNOWN_KEYS}
 
         wall = WallUpgradeConfig(
             enabled=_as_bool(raw.get("upgrade_wall"), False),
@@ -363,12 +427,14 @@ class AppConfig:
             ),
             enable_stats=_as_bool(raw.get("enable_stats"), False),
             schema_version=_as_int(raw.get("schema_version"), CONFIG_SCHEMA_VERSION),
+            extra=extra,
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the config to the legacy flat ``settings.json`` shape."""
         wall = self.upgrades.wall
-        return {
+        payload: dict[str, Any] = dict(self.extra)
+        payload.update({
             "gold_threshold": self.resources.gold,
             "elixir_threshold": self.resources.elixir,
             "dark_elixir_threshold": self.resources.dark_elixir,
@@ -430,4 +496,5 @@ class AppConfig:
             "emulator_host": self.emulator.host,
             "ld_index": self.emulator.ld_index,
             "schema_version": self.schema_version,
-        }
+        })
+        return payload
