@@ -108,6 +108,41 @@ QScrollBar::handle:vertical {{ background: #C9D6D2; border-radius: 4px; min-heig
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QToolTip {{ background: {CARD}; color: {TEXT}; border: 1px solid {BORDER}; padding: 6px 8px; border-radius: 4px; }}
 QMessageBox {{ background: {BG}; }}
+
+/* ---------- Shell ---------- */
+QWidget#appRoot {{ background: {BG}; }}
+QWidget#appHeader {{ background: {TITLE_BG}; }}
+QLabel#appTitle {{ color: #FFFFFF; font-size: 15px; font-weight: 600; }}
+QLabel#appSub {{ color: #BFD3CE; font-size: 10px; }}
+QLabel#appBadge {{ color: #9FB8B1; font-size: 10px; }}
+QPushButton#winBtn, QPushButton#winClose {{
+    background: transparent;
+    color: #E6EFEC;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    font-size: 14px;
+    min-height: 0;
+}}
+QPushButton#winBtn:hover {{ background: #1E3A38; color: #FFFFFF; }}
+QPushButton#winClose:hover {{ background: #C0392B; color: #FFFFFF; }}
+QTabWidget#mainTabs::pane {{ border: none; background: transparent; }}
+QTabWidget#mainTabs > QTabBar::tab {{
+    background: transparent;
+    color: {TEXT_MUTED};
+    padding: 8px 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 11px;
+    font-weight: 500;
+}}
+QTabWidget#mainTabs > QTabBar::tab:selected {{
+    background: {TAB_ACTIVE};
+    color: {PRIMARY};
+    border-bottom: 2px solid {PRIMARY};
+    font-weight: 600;
+}}
+QTabWidget#mainTabs > QTabBar::tab:hover:!selected {{ color: {TEXT}; }}
 """
 
 

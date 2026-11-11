@@ -1,0 +1,123 @@
+"""MVVM application composition root.
+
+Run with ``python -m COCbot.main``. The legacy ``run.py`` entry point is kept
+until the remaining features reach parity.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import os
+import sys
+
+import COCbot.qt_startup  # noqa: F401  (torch before PyQt5)
+
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication
+
+from COCbot.app.orchestrator import BotOrchestrator
+from COCbot.core.adb import AdbClient
+from COCbot.core.config import ConfigStore, load_config
+from COCbot.core.config.paths import get_project_paths
+from COCbot.core.logging import build_logger
+from COCbot.core.vision import RedlineDetector, ScreenCapture, YoloDetector
+from COCbot.features.attack.model import AttackModel, AttackStep
+from COCbot.features.attack.view import AttackView
+from COCbot.features.attack.viewmodel import AttackViewModel
+from COCbot.features.settings.model import SettingsModel
+from COCbot.features.settings.view import SettingsView
+from COCbot.features.settings.viewmodel import SettingsViewModel
+from COCbot.ui_components import apply_theme
+from COCbot.viewmodels.main_viewmodel import MainViewModel
+from COCbot.views.main_window import MainWindow
+
+
+def _enable_dpi_awareness() -> None:
+    """Enable crisp rendering on high-DPI Windows displays."""
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+
+def _configure_ssl() -> None:
+    """Use certifi's CA bundle for the updater and HTTP calls."""
+    try:
+        import certifi
+
+        ca_bundle = certifi.where()
+        os.environ.setdefault("SSL_CERT_FILE", ca_bundle)
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", ca_bundle)
+    except Exception:
+        pass
+
+
+def main() -> int:
+    """Build the object graph and run the Qt event loop."""
+    _enable_dpi_awareness()
+    _configure_ssl()
+
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    application = QApplication(sys.argv)
+    apply_theme(application)
+
+    config = load_config()
+    config_store = ConfigStore(config)
+    paths = get_project_paths()
+    paths.ensure_runtime_dirs()
+    logger = build_logger("mybot", config.logging)
+    logger.info("Starting MVVM shell")
+
+    adb = AdbClient(host=config.emulator.host, logger=logger)
+    if not adb.connect(config.emulator.host, timeout=3.0):
+        logger.warning("ADB is not connected; attack scans will fail until it is")
+
+    capture = ScreenCapture(adb, logger=logger)
+    detector = YoloDetector(logger=logger)
+    redline = RedlineDetector(
+        model_path=config.vision.redline_model,
+        confidence=config.vision.confidence,
+        offset_ratio=config.vision.redline_offset_ratio,
+        logger=logger,
+    )
+    attack_model = AttackModel(
+        capture=capture,
+        detector=detector,
+        redline=redline,
+        adb=adb,
+        config=config,
+        config_store=config_store,
+        logger=logger,
+        allow_input=False,
+    )
+    attack_viewmodel = AttackViewModel(attack_model)
+    attack_view = AttackView(attack_viewmodel)
+
+    settings_model = SettingsModel()
+    settings_viewmodel = SettingsViewModel(settings_model, store=config_store)
+    settings_view = SettingsView(settings_viewmodel)
+
+    orchestrator = BotOrchestrator(
+        [AttackStep(attack_model, execute=False)],
+        config=config,
+        logger=logger,
+        cycle_delay=1.0,
+    )
+    main_viewmodel = MainViewModel(orchestrator)
+    window = MainWindow(settings_view, attack_view, main_viewmodel)
+    window.show()
+
+    if os.environ.get("MYBOT_SMOKE_TEST") == "1":
+        from PyQt5.QtCore import QTimer
+
+        QTimer.singleShot(1500, application.quit)
+
+    return application.exec_()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

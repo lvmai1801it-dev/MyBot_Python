@@ -25,8 +25,8 @@ COCbot/core/logging/              BotFormatter, rotating logger, SUCCESS level
 COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
-                                  session, orchestrator, worker, settings, attack
-                                  tests (106 total)
+                                  session, orchestrator, worker, settings, attack,
+                                  main view-model tests (113 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -152,6 +152,30 @@ Rendered screenshot: `artifacts/attack_view.png`.
 - Fixed card styling that hid primary button text, cleaned unused imports,
   and made emulator/worker tests share one `QApplication`.
 
+### Module 6 — Composition root and MVVM shell
+
+```text
+COCbot/main.py                     composition root / new entry point
+COCbot/core/config/store.py        live ConfigStore shared by features
+COCbot/viewmodels/main_viewmodel.py start/stop/pause + BotWorker lifecycle
+COCbot/views/main_window.py        frameless shell, Settings/Attack tabs, footer
+COCbot/ui_components/title_bar.py  draggable header surface
+```
+
+Run the new shell:
+
+```powershell
+python -m COCbot.main
+```
+
+`run.py` still launches the legacy GUI until the remaining features reach
+parity. The new entry point imports torch before PyQt5, builds the logger, ADB,
+capture/detector/redline, both feature view-models/views, the orchestrator, and
+the shell. A smoke hook (`MYBOT_SMOKE_TEST=1`) exits after 1.5 s for CI.
+
+Settings saved from the new UI update the shared `ConfigStore`, so the attack
+model picks up recipe changes without a restart.
+
 ## Verification commands
 
 ```powershell
@@ -162,8 +186,7 @@ Rendered screenshot: `artifacts/attack_view.png`.
 
 ## Next modules
 
-1. `COCbot/main.py` — composition root: wire config, logger, ADB, vision,
-   settings/attack view-models, and workers; replace the legacy launcher.
-2. Purge batch 2: archive the legacy packages once parity tests pass.
-3. Optional: migrate remaining features (village/upgrade, accounts, clan,
-   statistics, logs) using the same vertical-slice pattern.
+1. Purge batch 2: archive legacy packages once parity tests pass.
+2. Migrate remaining features using the same vertical-slice pattern:
+   village/upgrade, accounts, clan games/capital, donate, logs, statistics.
+3. Switch `run.py` to `COCbot.main` and remove the legacy GUI tree.

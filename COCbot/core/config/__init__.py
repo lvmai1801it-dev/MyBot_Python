@@ -23,6 +23,7 @@ from COCbot.core.config.defaults import (
     SCREEN_WIDTH,
 )
 from COCbot.core.config.paths import ProjectPaths, get_project_paths, resolve_src_dir
+from COCbot.core.config.store import ConfigStore
 from COCbot.core.config.schema import (
     AppConfig,
     AttackConfig,
@@ -60,6 +61,7 @@ __all__ = [
     "AttackConfig",
     "AutoCaptureConfig",
     "ClanConfig",
+    "ConfigStore",
     "EmulatorConfig",
     "LoggingConfig",
     "NavigationPoints",

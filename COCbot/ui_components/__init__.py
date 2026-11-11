@@ -12,6 +12,7 @@ from COCbot.ui_components.inputs import (
 )
 from COCbot.ui_components.status import StatusLabel
 from COCbot.ui_components.theme import GLOBAL_QSS, apply_theme
+from COCbot.ui_components.title_bar import TitleBar
 
 __all__ = [
     "Card",
@@ -23,6 +24,7 @@ __all__ = [
     "PrimaryButton",
     "SecondaryButton",
     "StatusLabel",
+    "TitleBar",
     "ToggleRow",
     "apply_theme",
 ]

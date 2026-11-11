@@ -13,6 +13,7 @@ from COCbot.core.config.schema import (
     ResourceThresholds,
     WallUpgradeConfig,
 )
+from COCbot.core.config.store import ConfigStore
 from COCbot.core.errors import StorageError
 from COCbot.features.settings.model import SettingsModel
 from COCbot.models.enums import EmulatorType
@@ -27,10 +28,16 @@ class SettingsViewModel(BaseViewModel):
     dirty_changed = pyqtSignal(bool)
     status_message = pyqtSignal(str, str)
 
-    def __init__(self, model: SettingsModel, parent=None) -> None:
+    def __init__(
+        self,
+        model: SettingsModel,
+        store: ConfigStore | None = None,
+        parent=None,
+    ) -> None:
         """Create the view-model around a settings model."""
         super().__init__(parent)
         self._model = model
+        self._store = store
         self._saved = AppConfig()
         self._draft = AppConfig()
         self._dirty = False
@@ -68,6 +75,8 @@ class SettingsViewModel(BaseViewModel):
         self._saved = config
         self._dirty = False
         self._draft = config
+        if self._store is not None:
+            self._store.set(config)
         self.loaded.emit(config)
         self.dirty_changed.emit(False)
         self._status("Settings loaded", "info")
@@ -95,6 +104,8 @@ class SettingsViewModel(BaseViewModel):
                 self._report_error(f"Unexpected save error: {exc}")
                 return False
         self._saved = self._draft
+        if self._store is not None:
+            self._store.set(self._draft)
         if self._dirty:
             self._dirty = False
             self.dirty_changed.emit(False)

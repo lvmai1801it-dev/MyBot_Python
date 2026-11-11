@@ -9,6 +9,7 @@ from typing import Callable, Sequence
 
 from COCbot.app.orchestrator import CycleContext, StepResult
 from COCbot.core.config.schema import AppConfig
+from COCbot.core.config.store import ConfigStore
 from COCbot.core.errors import AttackError, OperationCancelled
 from COCbot.core.ports import AdbPort, CapturePort, DetectorPort, LoggerPort
 from COCbot.core.vision.redline import RedlineDetector
@@ -56,6 +57,7 @@ class AttackModel:
         redline: RedlineDetector | None = None,
         adb: AdbPort | None = None,
         config: AppConfig | None = None,
+        config_store: ConfigStore | None = None,
         logger: LoggerPort | None = None,
         allow_input: bool = False,
     ) -> None:
@@ -71,6 +73,7 @@ class AttackModel:
         )
         self._adb = adb
         self._config = cfg
+        self._store = config_store
         self._logger = logger
         self._allow_input = allow_input
         self._last_scan: AttackScan | None = None
@@ -147,7 +150,8 @@ class AttackModel:
         )
         target = ranked[0]
         side = self._side_for_target(target, redline)
-        recipe = self._config.attack.recipe
+        config = self._store.get() if self._store is not None else self._config
+        recipe = config.attack.recipe
         return AttackPlan(
             target=target,
             side=side,
@@ -222,7 +226,7 @@ class AttackStep:
 
     def run(self, context: CycleContext) -> StepResult:
         """Scan once and optionally deploy the resulting plan."""
-        scan = self._model.scan()
+        scan = self._model.scan(cancel_event=context.session.stop_event)
         if scan.plan.target is None:
             return StepResult(False, "No attack target detected", phase=BotPhase.SEARCHING)
         taps = 0

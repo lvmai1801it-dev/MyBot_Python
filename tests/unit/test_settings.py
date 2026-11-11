@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import QApplication
 
-from COCbot.core.config import AppConfig, load_config
+from COCbot.core.config import AppConfig, ConfigStore, load_config
 from COCbot.features.settings.model import SettingsModel
 from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.models.enums import EmulatorType
@@ -45,7 +45,8 @@ class SettingsViewModelTests(unittest.TestCase):
         self._temp = tempfile.TemporaryDirectory()
         self.path = Path(self._temp.name) / "settings.json"
         self.model = SettingsModel(self.path)
-        self.vm = SettingsViewModel(self.model)
+        self.store = ConfigStore(AppConfig())
+        self.vm = SettingsViewModel(self.model, store=self.store)
         self.loaded: list[object] = []
         self.saved: list[object] = []
         self.dirty: list[bool] = []
@@ -114,6 +115,14 @@ class SettingsViewModelTests(unittest.TestCase):
         self.assertEqual(config.clan.capital_hall_level, 10)
         self.assertFalse(config.clan.request_troops)
         self.assertTrue(config.enable_stats)
+
+
+    def test_save_updates_live_config_store(self) -> None:
+        self.vm.load()
+        self.vm.set_resources(77, 88, 99)
+        self.assertTrue(self.vm.save())
+        self.assertEqual(self.store.get().resources.gold, 77)
+        self.assertEqual(self.store.get().resources.elixir, 88)
 
 
 if __name__ == "__main__":

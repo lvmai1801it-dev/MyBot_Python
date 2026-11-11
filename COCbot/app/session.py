@@ -45,6 +45,11 @@ class BotSession:
         return self._stop_event.is_set()
 
     @property
+    def stop_event(self) -> threading.Event:
+        """Return the cooperative stop event for long-running steps."""
+        return self._stop_event
+
+    @property
     def is_paused(self) -> bool:
         """Return ``True`` while the session is paused."""
         with self._condition:
