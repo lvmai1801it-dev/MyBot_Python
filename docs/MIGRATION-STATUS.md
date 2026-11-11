@@ -26,7 +26,7 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
-                                  main view-model tests (113 total)
+                                  accounts, main view-model tests (124 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -176,6 +176,24 @@ the shell. A smoke hook (`MYBOT_SMOKE_TEST=1`) exits after 1.5 s for CI.
 Settings saved from the new UI update the shared `ConfigStore`, so the attack
 model picks up recipe changes without a restart.
 
+### Module 7 — Accounts vertical slice
+
+```text
+COCbot/features/accounts/
+├── model.py       AccountsModel: profiles + switch_accounts.json (no Qt)
+├── viewmodel.py   AccountsViewModel: worker-backed pull/push/switch/delete
+└── view.py        AccountsView: profile picker, actions, auto-switch card
+```
+
+`AccountStorePort` in `core/ports.py` isolates the feature from the legacy
+`SharedPrefsManager`; `COCbot.main` injects the legacy manager as a transitional
+adapter. Pull/Push/Switch/Delete run in `TaskWorker`, so the GUI never freezes
+during ADB file copies. Profile list/root status refresh automatically after
+each mutation.
+
+Verified on the real MEmu device: profiles list, root status, ADB operations
+are wired through the worker. Rendered screenshot: `artifacts/accounts_view.png`.
+
 ## Verification commands
 
 ```powershell
@@ -186,7 +204,7 @@ model picks up recipe changes without a restart.
 
 ## Next modules
 
-1. Purge batch 2: archive legacy packages once parity tests pass.
-2. Migrate remaining features using the same vertical-slice pattern:
-   village/upgrade, accounts, clan games/capital, donate, logs, statistics.
+1. Migrate remaining features using the same vertical-slice pattern:
+   village/upgrade, clan games/capital, donate, logs, statistics.
+2. Purge batch 2: archive legacy packages once parity tests pass.
 3. Switch `run.py` to `COCbot.main` and remove the legacy GUI tree.

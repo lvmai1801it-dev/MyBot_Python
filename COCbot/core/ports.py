@@ -8,7 +8,7 @@ tests.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, Sequence, runtime_checkable
+from typing import TYPE_CHECKING, Mapping, Protocol, Sequence, runtime_checkable
 
 from COCbot.models.attack import Detection
 from COCbot.models.bot_state import BotEvent, CycleResult
@@ -154,6 +154,34 @@ class EventSinkPort(Protocol):
 
     def emit(self, event: BotEvent) -> None:
         """Publish one event to the sink."""
+
+
+@runtime_checkable
+class AccountStorePort(Protocol):
+    """shared_prefs profile storage used by the accounts feature."""
+
+    def list_profiles(self) -> Sequence[Mapping[str, object]]:
+        """Return profiles as mappings with name/saved_at/files/exists keys."""
+
+    def root_label(self) -> str:
+        """Return a human-readable ADB root status."""
+
+    def pull_profile(self, name: str, close_game: bool = True) -> None:
+        """Save the current game account into profile *name*."""
+
+    def push_profile(
+        self,
+        name: str,
+        current_profile: str = "",
+        close_game: bool = True,
+    ) -> None:
+        """Restore profile *name* into the game."""
+
+    def switch_profile(self, current_profile: str, target_profile: str) -> None:
+        """Pull the current account, then push the target account."""
+
+    def delete_profile(self, name: str) -> None:
+        """Delete the stored profile."""
 
 
 class BotEnginePort(Protocol):

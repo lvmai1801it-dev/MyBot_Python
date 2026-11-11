@@ -80,6 +80,18 @@ class AttackViewModel(BaseViewModel):
         if self._worker is not None:
             self._worker.cancel()
 
+    def shutdown(self, wait_ms: int = 3000) -> None:
+        """Cancel and wait for the active worker on app exit."""
+        worker = self._worker
+        if worker is None:
+            return
+        worker.cancel()
+        if worker.isRunning() and not worker.wait(wait_ms):
+            worker.terminate()
+            worker.wait(1000)
+        self._worker = None
+        self._set_busy(False)
+
     def _finish(self, _result: object) -> None:
         """Reset busy state when a worker terminates."""
         self._set_busy(False)

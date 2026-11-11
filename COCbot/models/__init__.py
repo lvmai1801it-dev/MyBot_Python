@@ -3,7 +3,12 @@
 This package must never import PyQt5.
 """
 
-from COCbot.models.account import AccountProfile, AccountSwitchState
+from COCbot.models.account import (
+    AccountProfile,
+    AccountProfileInfo,
+    AccountSwitchState,
+    AccountsSnapshot,
+)
 from COCbot.models.attack import AttackPlan, AttackResult, Detection, RedlineResult
 from COCbot.models.bot_state import BotEvent, BotStatus, CycleResult, Progress
 from COCbot.models.emulator import EmulatorInstance
@@ -25,6 +30,8 @@ __all__ = [
     "AccountProfile",
     "AccountSwitchMode",
     "AccountSwitchState",
+    "AccountsSnapshot",
+    "AccountProfileInfo",
     "AttackPlan",
     "AttackResult",
     "AttackSide",

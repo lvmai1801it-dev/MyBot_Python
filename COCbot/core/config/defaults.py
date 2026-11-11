@@ -57,6 +57,8 @@ LOG_MESSAGE_FORMAT = "%(asctime)s • %(levelname)s %(name)s: %(message)s"
 # --- Settings / resources -------------------------------------------------
 DEFAULT_SETTINGS_FILE = "settings.json"
 DEFAULT_ARMY_PRESETS_FILE = "army_presets.json"
+MAX_ACCOUNTS = 16
+ACCOUNTS_PER_PAGE = 8
 
 # --- Auto capture ---------------------------------------------------------
 DEFAULT_AUTO_CAPTURE_DIR = "datasets/redline/images/raw"

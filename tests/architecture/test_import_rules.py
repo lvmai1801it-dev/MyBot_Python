@@ -192,8 +192,17 @@ class FeatureContractTests(unittest.TestCase):
                 f"features/attack/model.py imports {module}",
             )
 
+    def test_accounts_model_is_qt_free(self) -> None:
+        path = COCbot / "features" / "accounts" / "model.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for module in _imported_modules(tree):
+            self.assertFalse(
+                module.startswith("PyQt5"),
+                f"features/accounts/model.py imports {module}",
+            )
+
     def test_feature_files_have_docstrings(self) -> None:
-        for feature in ("settings", "attack"):
+        for feature in ("settings", "attack", "accounts"):
             for name in ("model.py", "viewmodel.py", "view.py"):
                 path = COCbot / "features" / feature / name
                 tree = ast.parse(path.read_text(encoding="utf-8"))

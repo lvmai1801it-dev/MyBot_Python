@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any, Mapping
 
 from COCbot.models.enums import AccountSwitchMode
 
@@ -43,3 +44,31 @@ class AccountSwitchState:
         if self.attacks_per_account <= 0:
             return False
         return self.attacks_done >= self.attacks_per_account
+
+
+@dataclass(frozen=True)
+class AccountProfileInfo:
+    """A shared_prefs profile discovered on disk."""
+
+    name: str
+    safe_name: str = ""
+    saved_at: str = ""
+    android_id: str = ""
+    files: int = 0
+    exists: bool = True
+
+    def display_text(self) -> str:
+        """Return a compact label for the profile picker."""
+        if self.saved_at:
+            return f"{self.name} · {self.saved_at} · {self.files} files"
+        return f"{self.name} · {self.files} files"
+
+
+@dataclass(frozen=True)
+class AccountsSnapshot:
+    """Profiles plus the current switch configuration."""
+
+    profiles: tuple[AccountProfileInfo, ...] = ()
+    current_profile: str = ""
+    root_label: str = ""
+    config: Mapping[str, Any] = field(default_factory=dict)

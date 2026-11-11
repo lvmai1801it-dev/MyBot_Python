@@ -16,17 +16,22 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 
 from COCbot.app.orchestrator import BotOrchestrator
+from COCbot.app import state as legacy_state
 from COCbot.core.adb import AdbClient
 from COCbot.core.config import ConfigStore, load_config
 from COCbot.core.config.paths import get_project_paths
 from COCbot.core.logging import build_logger
 from COCbot.core.vision import RedlineDetector, ScreenCapture, YoloDetector
+from COCbot.features.accounts.model import AccountsModel
+from COCbot.features.accounts.view import AccountsView
+from COCbot.features.accounts.viewmodel import AccountsViewModel
 from COCbot.features.attack.model import AttackModel, AttackStep
 from COCbot.features.attack.view import AttackView
 from COCbot.features.attack.viewmodel import AttackViewModel
 from COCbot.features.settings.model import SettingsModel
 from COCbot.features.settings.view import SettingsView
 from COCbot.features.settings.viewmodel import SettingsViewModel
+from COCbot.game.account.shared_prefs import SharedPrefsManager
 from COCbot.ui_components import apply_theme
 from COCbot.viewmodels.main_viewmodel import MainViewModel
 from COCbot.views.main_window import MainWindow
@@ -72,6 +77,11 @@ def main() -> int:
     logger = build_logger("mybot", config.logging)
     logger.info("Starting MVVM shell")
 
+    # Transitional bridge for the shared_prefs manager, which still reads this.
+    legacy_state.host = config.emulator.host
+    legacy_state.emulator_key = config.emulator.emulator_type.value
+    legacy_state.ld_index = config.emulator.ld_index
+
     adb = AdbClient(host=config.emulator.host, logger=logger)
     if not adb.connect(config.emulator.host, timeout=3.0):
         logger.warning("ADB is not connected; attack scans will fail until it is")
@@ -97,6 +107,10 @@ def main() -> int:
     attack_viewmodel = AttackViewModel(attack_model)
     attack_view = AttackView(attack_viewmodel)
 
+    accounts_model = AccountsModel(SharedPrefsManager())
+    accounts_viewmodel = AccountsViewModel(accounts_model)
+    accounts_view = AccountsView(accounts_viewmodel)
+
     settings_model = SettingsModel()
     settings_viewmodel = SettingsViewModel(settings_model, store=config_store)
     settings_view = SettingsView(settings_viewmodel)
@@ -108,8 +122,12 @@ def main() -> int:
         cycle_delay=1.0,
     )
     main_viewmodel = MainViewModel(orchestrator)
-    window = MainWindow(settings_view, attack_view, main_viewmodel)
+    window = MainWindow(settings_view, accounts_view, attack_view, main_viewmodel)
     window.show()
+
+    application.aboutToQuit.connect(main_viewmodel.shutdown)
+    application.aboutToQuit.connect(accounts_viewmodel.shutdown)
+    application.aboutToQuit.connect(attack_viewmodel.shutdown)
 
     if os.environ.get("MYBOT_SMOKE_TEST") == "1":
         from PyQt5.QtCore import QTimer
