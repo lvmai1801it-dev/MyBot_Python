@@ -1,4 +1,4 @@
-"""Unit tests for the template-driven hero/defense upgrade flow."""
+"""Unit tests for the template + OCR driven hero/defense upgrade flow."""
 
 from __future__ import annotations
 
@@ -11,10 +11,14 @@ import numpy as np
 
 from COCbot.features.village.upgrades import (
     DEFAULT_BUTTONS,
+    DIALOG_TITLE_REGION,
+    PANEL_TITLE_REGION,
     HeroDefenseUpgrader,
+    UpgradeRow,
     UpgradeTarget,
 )
 from COCbot.models.frame import Frame
+from COCbot.models.geometry import Point
 
 
 class FakeClock:
@@ -61,58 +65,131 @@ def frame_with(template: np.ndarray, x: int, y: int) -> Frame:
     return Frame(image=image, width=860, height=732)
 
 
+class FakeText:
+    """Return canned OCR text per screen region."""
+
+    def __init__(self, mapping: dict[object, str]) -> None:
+        self.mapping = mapping
+
+    def __call__(self, frame: Frame, region: object) -> str:
+        return self.mapping.get(region, "")
+
+
 class HeroDefenseUpgraderTests(unittest.TestCase):
-    """Verify dry-run and template-validated execution."""
+    """Verify dry-run, row matching, and the guarded confirm step."""
 
     def setUp(self) -> None:
         self._temp = tempfile.TemporaryDirectory()
         self.dir = Path(self._temp.name)
+        (self.dir / "hero").mkdir()
         rng = np.random.default_rng(21)
-        self.target = rng.integers(0, 255, size=(30, 30, 3), dtype=np.uint8)
+        self.portrait = rng.integers(0, 255, size=(30, 30, 3), dtype=np.uint8)
         self.upgrade = rng.integers(0, 255, size=(24, 24, 3), dtype=np.uint8)
         self.confirm = rng.integers(0, 255, size=(24, 24, 3), dtype=np.uint8)
         self.close = rng.integers(0, 255, size=(24, 24, 3), dtype=np.uint8)
-        cv2.imwrite(str(self.dir / "hero_queen.png"), self.target)
+        cv2.imwrite(str(self.dir / "hero" / "queen.png"), self.portrait)
         cv2.imwrite(str(self.dir / DEFAULT_BUTTONS["upgrade"]), self.upgrade)
         cv2.imwrite(str(self.dir / DEFAULT_BUTTONS["confirm"]), self.confirm)
         cv2.imwrite(str(self.dir / DEFAULT_BUTTONS["close"]), self.close)
-        self.frames = [
-            frame_with(self.target, 100, 100),
-            frame_with(self.upgrade, 200, 200),
-            frame_with(self.confirm, 300, 300),
-            frame_with(self.close, 400, 400),
-        ]
+        self.rows = [UpgradeRow("Archer Queen", Point(620, 118))]
+        self.panel_frame = frame_with(self.upgrade, 200, 600)
+        self.dialog_frame = frame_with(self.confirm, 300, 300)
+        self.done_frame = frame_with(self.close, 800, 130)
 
     def tearDown(self) -> None:
         self._temp.cleanup()
 
-    def _upgrader(self, execute: bool) -> tuple[HeroDefenseUpgrader, FakeAdb]:
+    def _upgrader(
+        self,
+        execute: bool,
+        frames: list[Frame],
+        text: dict[object, str] | None = None,
+        rows: list[UpgradeRow] | None = None,
+    ) -> tuple[HeroDefenseUpgrader, FakeAdb]:
         adb = FakeAdb()
+        mapping = {
+            PANEL_TITLE_REGION: "buildings & heroes",
+            DIALOG_TITLE_REGION: "upgrade archer queen to level 70?",
+        }
+        if text is not None:
+            mapping.update(text)
         upgrader = HeroDefenseUpgrader(
             adb,  # type: ignore[arg-type]
-            SequenceCapture(self.frames),  # type: ignore[arg-type]
+            SequenceCapture(frames),  # type: ignore[arg-type]
             clock=FakeClock(),
             template_dir=self.dir,
-            targets=(UpgradeTarget("Queen", "hero", "hero_queen.png"),),
+            targets=(UpgradeTarget("Archer Queen", "hero", "hero/queen.png"),),
             execute=execute,
+            rows_provider=lambda _frame: self.rows if rows is None else rows,
+            text_reader=FakeText(mapping),
         )
         return upgrader, adb
 
-    def test_available_and_dry_run(self) -> None:
-        upgrader, adb = self._upgrader(execute=False)
-        self.assertEqual(upgrader.available_targets(), ["Queen"])
-        result = upgrader.execute("Queen")
+    def test_available_targets(self) -> None:
+        upgrader, _ = self._upgrader(False, [self.panel_frame])
+        self.assertEqual(upgrader.available_targets(), ["Archer Queen"])
+
+    def test_dry_run_plans_without_tapping(self) -> None:
+        upgrader, adb = self._upgrader(False, [self.panel_frame, self.dialog_frame])
+        result = upgrader.execute("Archer Queen")
         self.assertTrue(result.ok)
         self.assertFalse(result.executed)
+        self.assertEqual(result.target, "Archer Queen")
+        self.assertIn("would open Archer Queen", result.message)
         self.assertEqual(adb.taps, [])
 
-    def test_execute(self) -> None:
-        upgrader, adb = self._upgrader(execute=True)
-        result = upgrader.execute("Queen")
+    def test_dry_run_when_panel_closed(self) -> None:
+        upgrader, adb = self._upgrader(
+            False,
+            [self.panel_frame],
+            text={PANEL_TITLE_REGION: ""},
+        )
+        result = upgrader.execute("Archer Queen")
         self.assertTrue(result.ok)
+        self.assertIn("would open the Buildings & Heroes panel", result.message)
+        self.assertEqual(adb.taps, [])
+
+    def test_missing_target_reports_rows(self) -> None:
+        upgrader, adb = self._upgrader(False, [self.panel_frame])
+        result = upgrader.execute("Monolith")
+        self.assertFalse(result.ok)
+        self.assertIn("Archer Queen", result.message)
+        self.assertEqual(adb.taps, [])
+
+    def test_execute_confirms_and_closes(self) -> None:
+        upgrader, adb = self._upgrader(
+            True,
+            [self.panel_frame, self.dialog_frame, self.done_frame],
+        )
+        result = upgrader.execute("Archer Queen")
+        self.assertTrue(result.ok, result.message)
         self.assertTrue(result.executed)
-        self.assertEqual(result.taps, 4)
-        self.assertEqual(len(adb.taps), 4)
+        self.assertEqual(result.taps, 3)
+        self.assertEqual(adb.taps[0], (620, 118))
+        self.assertEqual(len(adb.taps), 3)
+
+    def test_title_mismatch_blocks_confirm(self) -> None:
+        upgrader, adb = self._upgrader(
+            True,
+            [self.panel_frame, self.dialog_frame],
+            text={DIALOG_TITLE_REGION: "upgrade elixir collector to level 6?"},
+        )
+        result = upgrader.execute("Archer Queen")
+        self.assertFalse(result.ok)
+        self.assertIn("does not mention", result.message)
+        self.assertEqual(result.taps, 1)
+        self.assertEqual(len(adb.taps), 1)
+
+    def test_missing_confirm_template_blocks_tap(self) -> None:
+        upgrader, adb = self._upgrader(
+            True,
+            [self.panel_frame, self.panel_frame],
+        )
+        result = upgrader.execute("Archer Queen")
+        self.assertFalse(result.ok)
+        self.assertIn("Confirm button template not found", result.message)
+        self.assertEqual(result.taps, 1)
+        self.assertEqual(len(adb.taps), 1)
 
 
 if __name__ == "__main__":

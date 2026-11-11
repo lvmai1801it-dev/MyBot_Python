@@ -29,7 +29,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   accounts, logs, statistics, village, clan,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
-                                  engine, main view-model tests (170 total)
+                                  engine, main view-model tests (175 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -337,9 +337,10 @@ level 8 : 5 wall points, best 0.686, 1.03 s
 level 17: 2 wall points, best 0.727, 0.98 s
 ```
 
-Hero/defense upgrade execution is **not** implemented: the legacy project only
-ever implemented wall upgrades; hero/defense have no reference flow or
-validation templates. They remain config-only until a device flow is designed.
+Hero/defense upgrades are implemented in stage 3c below: the legacy project only
+ever implemented wall upgrades, so the clean port drives the in-game
+"Buildings & Heroes" panel with OCR row selection and template-validated
+confirmation.
 
 ### Live input switches (MVVM shell)
 
@@ -368,42 +369,65 @@ ERROR   No attack target detected
 
 This confirms the MVVM chain is live; the bot logic is simply gated.
 
-### Module 15 — Clean runtime port, stage 3c (hero/defense framework)
+### Module 15 — Clean runtime port, stage 3c (hero/defense upgrades)
 
 ```text
 COCbot/features/village/upgrades.py          HeroDefenseUpgrader
-tools/calibrate_upgrade_templates.py         template score / missing report
+tools/calibrate_upgrade_templates.py         template score / row report
+Templates/upgrade/hero/*.png                 hero portraits (6)
+Templates/upgrade/upgrade_button.png         map info-panel Upgrade button
+Templates/upgrade/confirm_button.png         green CONFIRM button
+Templates/upgrade/close_button.png           red X of the upgrade dialog
 ```
 
-The legacy project has no hero/defense upgrade flow or validation assets, so
-this stage is intentionally **template-driven and safe**:
+The game exposes hero/building upgrades through the **Buildings & Heroes**
+panel (bottom-right quick access), so the flow is validated at every step:
 
-- `Templates/Upgrades/hero_king.png`, `hero_queen.png`, `hero_warden.png`,
-  `hero_champion.png`, `hero_prince.png`
-- `Templates/Upgrades/upgrade_button.png`
-- `Templates/Upgrades/confirm_button.png`
-- `Templates/Upgrades/close_button.png`
+1. `open_panel()` taps the quick access and verifies the panel title by OCR.
+2. `rows()` reads the panel name column. The crop skips the icon column and the
+   cost/time column, and keeps white names plus green "new" labels, then
+   Tesseract returns line boxes.
+3. `execute(name)` taps the matching row (exact substring, then fuzzy match for
+   OCR slips such as `Elixir Catlector`), requires the dialog title to mention
+   the target, requires `confirm_button.png` before tapping, and dismisses the
+   dialog with `close_button.png`.
+4. Dry-run is the default; `execute=True` is required to spend resources, and
+   a missing template or an unexpected dialog title aborts without tapping.
 
-`HeroDefenseUpgrader` finds a target portrait, then requires the upgrade,
-confirm, and close templates before tapping. Missing templates → safe failure,
-never a blind tap. Dry-run is the default.
+`VillageActions` wires this in as `upgrade_target()`, `scan_upgrade_rows()`
+and `open_upgrade_panel()`.
 
-Calibration currently reports every required file as missing:
+Calibration on the captured panel screenshot:
 
 ```text
-MISSING hero_king.png
-MISSING hero_queen.png
-MISSING upgrade_button.png
-MISSING confirm_button.png
-MISSING close_button.png
+1.000  upgrade_button.png
+1.000  confirm_button.png
+1.000  close_button.png
+rows=10
+  (620,108)  Barbarian King
+  (620,168)  Hero Hall
+  (620,227)  Elixir Catlector
+  (620,309)  MonolitH
+  (620,405)  Spell Tower
+  (620,501)  Crafting Station
 ```
 
-Create the crops from a real screenshot (the existing crop tool works), place
-them in `Templates/Upgrades/`, then rerun:
+Live rehearsal on MEmu (no confirm tap, so no resources spent):
 
-```powershell
-python tools\calibrate_upgrade_templates.py --image artifacts\coc_home.png
+```text
+panel True
+ROW Barbarian King (620,108)
+  dialog_open True | title: upgrade barbarian king to level 48?
+  confirm@ (612,548) | dismiss: True
+ROW Elixir Collector (620,227)
+  dialog_open True | title: upgrade elixir collector to level 6?
+  confirm@ (612,548) | dismiss: True
 ```
+
+The only gated step is the CONFIRM tap itself: it runs only when the caller
+passes `execute=True`, which the shell keeps off while the legacy farm engine
+handles gameplay.
+
 
 ### Module 16 — Training quick-train (farm prerequisite)
 
@@ -473,7 +497,8 @@ settings, accounts, and statistics UI.
 ## Remaining work
 
 1. Clean attack port calibration (retained for future; shell uses legacy engine).
-2. Stage 3c assets: capture hero/defense + upgrade-button templates into
-   `Templates/Upgrades/`, then calibrate on MEmu.
+2. Stage 3c is done: templates captured in `Templates/upgrade/`, rows read by
+   OCR, and the confirm step gated on `execute=True`. Next step is wiring it
+   into the farm cycle once hero/defense priorities are enabled in settings.
 3. Stage 4 clean port: Clan Games / Clan Capital / Donate execution.
 4. Purge batch 2 only after the clean engine reaches parity with the legacy one.

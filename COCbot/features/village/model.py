@@ -30,6 +30,11 @@ from COCbot.core.ports import (
     SettingsPort,
 )
 from COCbot.core.vision.templates import TemplateMatcher
+from COCbot.features.village.upgrades import (
+    HeroDefenseUpgrader,
+    UpgradeResult,
+    UpgradeRow,
+)
 from COCbot.features.village.wall import WallUpgrader, WallUpgradePlan
 from COCbot.models.enums import BotPhase, UpgradeCategory
 from COCbot.models.geometry import Point
@@ -161,6 +166,7 @@ class VillageActions:
         logger: LoggerPort | None = None,
         multitouch: MultiTouchPort | None = None,
         wall_upgrader: WallUpgrader | None = None,
+        upgrader: HeroDefenseUpgrader | None = None,
         read_resources: bool = False,
         execute: bool = False,
     ) -> None:
@@ -175,6 +181,7 @@ class VillageActions:
         self._logger = logger
         self._multitouch = multitouch
         self._wall_upgrader = wall_upgrader
+        self._upgrader = upgrader
         self._read_resources_flag = read_resources
         self._execute = execute
 
@@ -338,6 +345,33 @@ class VillageActions:
                 message=f"No walls matched level {level} (best={scan.best_score:.2f})",
             )
         return self._wall_upgrader.execute(target, resource, level)
+
+    def scan_upgrade_rows(self) -> tuple[UpgradeRow, ...]:
+        """Return the hero/defense rows of the Buildings & Heroes panel."""
+        if self._upgrader is None:
+            return ()
+        frame = self._capture.capture()
+        if frame is None:
+            return ()
+        return tuple(self._upgrader.rows(frame))
+
+    def upgrade_target(
+        self,
+        name: str,
+        execute: bool | None = None,
+    ) -> UpgradeResult:
+        """Run one guarded hero/defense upgrade from the upgrade panel."""
+        if self._upgrader is None:
+            return UpgradeResult(False, name, message="No upgrade helper configured")
+        return self._upgrader.execute(name, execute=execute)
+
+    def open_upgrade_panel(self, execute: bool | None = None) -> bool:
+        """Open the Buildings & Heroes panel (dry-run aware)."""
+        if self._upgrader is None:
+            return False
+        return self._upgrader.open_panel(
+            execute=self._execute if execute is None else bool(execute)
+        )
 
     def run(self, cancel_event: Event | None = None) -> VillageActionResult:
         """Return home, collect, and inspect storages/resources."""
