@@ -21,6 +21,7 @@ __pycache__/
 # RUNTIME ARTIFACTS
 # ==========================================
 artifacts/
+debug/
 local_test/
 my_screenshot.png
 debug_*.png
