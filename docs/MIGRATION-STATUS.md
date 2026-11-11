@@ -28,8 +28,8 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
                                   attack execution, wall calibration,
-                                  hero/defense framework, main view-model tests
-                                  (165 total)
+                                  hero/defense framework, training,
+                                  main view-model tests (168 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -405,6 +405,32 @@ them in `Templates/Upgrades/`, then rerun:
 python tools\calibrate_upgrade_templates.py --image artifacts\coc_home.png
 ```
 
+### Module 16 — Training quick-train (farm prerequisite)
+
+```text
+COCbot/features/training/model.py   TrainingActions + TrainingStep
+```
+
+The clean training flow now opens Battle → Edit Army → Saved Recipes, taps the
+Use button for the configured quick slot, confirms, closes the army window, and
+sends `KEYCODE_BACK` to return home.
+
+Live MEmu result:
+
+```text
+quick_train(slot=1): ok=True, taps=6, ~9 s
+after: back on the home village
+```
+
+The shell orchestrator order is now:
+
+```text
+TrainingStep → VillageStep → FullAttackStep
+```
+
+With live flags, training and village collection are real; attack remains
+dry-run until its device calibration is approved.
+
 ## Verification commands
 
 ```powershell
@@ -415,8 +441,9 @@ python tools\calibrate_upgrade_templates.py --image artifacts\coc_home.png
 
 ## Remaining work
 
-1. Stage 3c assets: capture hero/defense + upgrade-button templates into
+1. Live attack calibration: enable `MYBOT_LIVE_ATTACK=1` on a test attack and
+   verify search/army scan/deploy/battle-end/loot.
+2. Stage 3c assets: capture hero/defense + upgrade-button templates into
    `Templates/Upgrades/`, then calibrate on MEmu.
-2. Stage 4: Clan Games / Clan Capital / Donate execution.
-3. Calibrate wall/village/attack on MEmu, then enable `execute=True`.
+3. Stage 4: Clan Games / Clan Capital / Donate execution.
 4. Purge batch 2 and switch the default launcher only after parity tests pass.

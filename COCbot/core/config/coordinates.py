@@ -105,6 +105,21 @@ HR_SAFE_TAP = Point(227, 55)
 HR_HOME_TAP = Point(397, 29)
 HR_DISMISS_TAP = Point(614, 170)
 
+# Army / training window.
+ARMY_EDIT_BUTTON = Point(67, 704)
+ARMY_EDIT_ROI = Rect(34, 678, 152, 51)
+ARMY_WINDOW_ROI = Rect(74, 169, 245, 42)
+ARMY_RECIPE_PANE = Point(440, 190)
+ARMY_USE_BUTTONS = {
+    1: Point(756, 260),
+    2: Point(756, 408),
+    3: Point(756, 548),
+}
+ARMY_CLOSE_BUTTON = Point(791, 185)
+ARMY_RECIPE_ROI_1 = Rect(733, 154, 113, 192)
+ARMY_RECIPE_ROI_2 = Rect(735, 395, 110, 203)
+ARMY_CONFIRM_BUTTON = Point(523, 475)
+
 # Attack bar (860x732): 11 cards, 72 px apart, card 70x88.
 ARMY_BAR_Y = 638
 ARMY_CARD_WIDTH = 70

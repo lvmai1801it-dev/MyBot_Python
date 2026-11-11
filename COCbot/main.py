@@ -49,6 +49,7 @@ from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.features.statistics.model import StatisticsModel
 from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
+from COCbot.features.training.model import TrainingActions, TrainingStep
 from COCbot.features.village.model import VillageActions, VillageModel, VillageStep
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
@@ -99,6 +100,7 @@ def main() -> int:
     live_village = os.environ.get("MYBOT_LIVE_VILLAGE") == "1"
     live_attack = os.environ.get("MYBOT_LIVE_ATTACK") == "1"
     live_wall = os.environ.get("MYBOT_LIVE_WALL") == "1"
+    live_training = os.environ.get("MYBOT_LIVE_TRAINING") == "1"
     paths = get_project_paths()
     paths.ensure_runtime_dirs()
     logger = build_logger("mybot", config.logging)
@@ -129,13 +131,13 @@ def main() -> int:
         )
     )
     logs_view = LogsView(logs_viewmodel)
-    if live_village or live_attack or live_wall:
+    if live_village or live_attack or live_wall or live_training:
         logs_viewmodel.append_event(
             BotEvent(
                 level=LogLevel.WARNING,
                 message=(
-                    f"LIVE input: village={live_village} "
-                    f"attack={live_attack} wall={live_wall}"
+                    f"LIVE input: village={live_village} attack={live_attack} "
+                    f"wall={live_wall} training={live_training}"
                 ),
             )
         )
@@ -178,6 +180,13 @@ def main() -> int:
         execute=live_wall,
         threshold=0.65,
     )
+    training_actions = TrainingActions(
+        adb,
+        capture,
+        matcher,
+        logger=logger,
+        execute=live_training,
+    )
     attack_viewmodel = AttackViewModel(attack_model)
     attack_view = AttackView(attack_viewmodel)
 
@@ -203,6 +212,7 @@ def main() -> int:
 
     orchestrator = BotOrchestrator(
         [
+            TrainingStep(training_actions, slot=config.training.quick_slot),
             VillageStep(
                 VillageActions(
                     adb,
