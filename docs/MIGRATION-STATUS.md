@@ -30,7 +30,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
                                   engine, resource bar, main view-model tests
-                                  (209 total)
+                                  (211 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -433,41 +433,32 @@ handles gameplay.
 
 ```text
 COCbot/features/village/targets.py     catalog + OCR name normalization
-COCbot/features/village/view.py        checkable target lists per category
+COCbot/features/village/view.py        four Build-panel tabs with target lists
 COCbot/features/village/viewmodel.py   UpgradeScanWorker (QThread)
 ```
 
-Village → Hero/Defense/Army/Resource/Other are no longer free-text only. Each
-tab holds a checkable list, filled by pressing **Scan from game**:
-
-1. the worker opens the Buildings & Heroes panel through the upgrader;
-2. the panel is **paged**: the name column is read twice (thresholds 130 and
-   145) and merged by row, then the list is swiped up and read again until a
-   page adds nothing new (max 8 pages), so every building in the scrollable
-   list is collected, not just the first ten;
-3. OCR slips are mapped to the catalog (`Monolitn` → `Monolith`,
-   `Minlon Prince` → `Minion Prince`), bundle suffixes such as `x 4` are
-   stripped, and names that are neither in the catalog nor plausible
-   multi-word names are dropped as noise;
-4. the panel closes (template match, with a corner-button fallback), duplicates
-   are dropped, and the rows become unchecked entries the user can tick (an
-   Extra field still accepts custom names).
-
-Live scan on MEmu (29 rows across the whole panel):
+The Village tab now mirrors the in-game Build panel exactly:
 
 ```text
-hero     ['Grand Warden', 'Minion Prince']
-defense  ['Air Bomb', 'Air Defense', 'Bomb Tower', 'Cannon', 'Firespitter',
-          'Giant Bomb', 'Hidden Tesla', 'Inferno Tower', 'Monolith', 'Mortar',
-          'Multi-Archer Tower', 'Multi-Gear Tower', 'Revenge Tower',
-          'Scattershot', 'Seeking Air Mine', 'Skeleton Trap', 'Spell Tower',
-          'Spring Trap', 'Super Wizard Tower', 'Wizard Tower', 'X-Bow']
-resource ['Dark Elixir Drill', 'Elixir Collector', 'Gold Mine']
-other    ["Builder's Hut", 'Crafting Station', 'Wall']
+Buildings & Heroes | Army Upgrades | Hero Equipment | Hero Pets
 ```
 
-A full scan takes roughly 20–25 s because each page costs one screencap and
-two OCR passes; the Scan button shows `Scanning…` and is disabled meanwhile.
+Pressing **Scan from game** opens the panel, switches through the four tabs
+(bottom tab buttons, verified by their header text) and pages each list:
+
+1. each tab is switched and its title is confirmed before reading;
+2. the name column is read with a single fast OCR pass per page, merged with
+   the `Templates/buildings` label templates;
+3. the list is swiped upwards until a page adds nothing new (max 7 pages),
+   then scrolled back so the next scan starts at the top;
+4. OCR slips map to the catalog (`Monolitn` → `Monolith`), bundle suffixes such
+   as `x 4` are stripped, and UI labels (`Unequipped`, `Favorite target`) are
+   rejected;
+5. the panel closes and each tab's rows become unchecked entries.
+
+Walls live inside the **Buildings & Heroes** tab (enable, level, thresholds)
+together with the *heroes first* and *money buildings first* priority flags;
+the other three tabs carry a single priority flag each.
 
 Scanning is disabled while the bot is running so it never interrupts a farm
 cycle. Ticked rows are saved into `hero_priorities` / `defense_priorities` / …
@@ -490,10 +481,11 @@ merged with the OCR rows, replacing mangled names at the same y. The
 check, so a tab that reads *Army Upgrades* is never mistaken for it. Item
 names are shared with the scan, so `grandwarden.png` yields `Grand Warden`.
 
-The Village tab adds a **Priority** checkbox to the Hero and Resource tabs:
-those groups are attempted before defense/army/other. When wall upgrading is
-enabled, one builder is reserved, so with `builders = 3` the building queue
-gets `budget = 2` and any extra target is reported as skipped:
+The **Buildings & Heroes** tab carries two extra priority flags — *heroes first*
+and *money buildings first* — which the planner applies by classifying each
+name with the catalog. When wall upgrading is enabled, one builder is reserved,
+so with `builders = 3` the queue gets `budget = 2` and any extra target is
+reported as skipped:
 
 ```text
 plan_upgrades(config, builders_available=3)

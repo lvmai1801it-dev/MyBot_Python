@@ -54,12 +54,25 @@ DIALOG_REGION = Rect(0, 80, 860, 600)
 DIALOG_CLOSE_REGION = Rect(780, 105, 70, 55)
 PANEL_CLOSE_REGION = Rect(795, 6, 55, 45)
 # The upgrade list is scrollable; one screen only shows ~10 of the buildings.
-PANEL_SCROLL_FROM = Point(700, 620)
-PANEL_SCROLL_TO = Point(700, 180)
+PANEL_SCROLL_FROM = Point(700, 560)
+PANEL_SCROLL_TO = Point(700, 200)
 PANEL_SCROLL_MS = 450
-MAX_SCAN_PAGES = 8
+MAX_SCAN_PAGES = 7
 
-PANEL_TITLE_KEYWORDS = ("buildings", "heroes")
+PANEL_TITLE_KEYWORDS = ("buildings", "heroes", "army", "equipment", "pets")
+# Bottom tab buttons of the Build panel (860x732).
+PANEL_TABS: dict[str, Point] = {
+    "buildings": Point(545, 660),
+    "army": Point(634, 660),
+    "equipment": Point(723, 660),
+    "pets": Point(812, 660),
+}
+PANEL_TAB_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "buildings": ("buildings", "heroes"),
+    "army": ("army",),
+    "equipment": ("equipment",),
+    "pets": ("pets",),
+}
 FUZZY_ROW_THRESHOLD = 0.80
 ROW_SKIP_KEYWORDS = (
     "suggested",
@@ -72,6 +85,8 @@ ROW_SKIP_KEYWORDS = (
     "damage",
     "duration",
     "level",
+    "unequipped",
+    "equipped",
 )
 ROW_HEADERS = ("suggested upgrades", "other upgrades")
 
@@ -206,6 +221,12 @@ def _ocr_lines(frame: Frame, threshold: int) -> list[tuple[int, str]]:
             continue
         if any(flag in raw_lower for flag in ROW_SKIP_KEYWORDS):
             continue
+        if (
+            lowered.startswith("unequipped")
+            or lowered.startswith("equipped")
+            or "favoritetarget" in lowered
+        ):
+            continue
         if any(
             difflib.SequenceMatcher(None, lowered, _normalize(header)).ratio() >= 0.8
             for header in ROW_HEADERS
@@ -224,7 +245,10 @@ def _looks_like_name(text: str) -> bool:
     return len(words) >= 2 and all(len(word) >= 3 for word in words)
 
 
-def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
+def _ocr_rows(
+    frame: Frame,
+    thresholds: tuple[int, ...] = (130, 145),
+) -> list[UpgradeRow]:
     """Return the upgrade rows visible in the Buildings & Heroes panel.
 
     Two thresholds are merged because the panel mixes pure white names with
@@ -234,7 +258,7 @@ def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
     from COCbot.features.village.targets import canonical_name
 
     merged: list[list] = []  # [y, name]
-    for threshold in (130, 145):
+    for threshold in thresholds:
         for y, name in _ocr_lines(frame, threshold):
             match = None
             for entry in merged:
@@ -297,6 +321,7 @@ class HeroDefenseUpgrader:
         self._threshold = threshold
         self._execute = execute
         self._rows_provider = rows_provider or _ocr_rows
+        self._custom_rows = rows_provider is not None
         self._text_reader = text_reader or _ocr_text
 
     def _log(self, level: str, message: str) -> None:
@@ -353,14 +378,18 @@ class HeroDefenseUpgrader:
             return None
         return Point(point.x + region.x, point.y + region.y)
 
-    def rows(self, frame: Frame) -> list[UpgradeRow]:
+    def rows(self, frame: Frame, fast: bool = False) -> list[UpgradeRow]:
         """Return the upgrade rows visible in *frame*.
 
         OCR rows are merged with template labels from ``Templates/buildings``
         (``grandwarden.png``, ``minionprince.png``, ``wall.png`` …), which are
-        pixel-exact and rescue rows the OCR pass mangles.
+        pixel-exact and rescue rows the OCR pass mangles. *fast* uses a single
+        OCR threshold, which is enough while paging through a scan.
         """
-        rows = list(self._rows_provider(frame))
+        if fast and not self._custom_rows:
+            rows = list(_ocr_rows(frame, thresholds=(135,)))
+        else:
+            rows = list(self._rows_provider(frame))
         for name, point in self._label_rows(frame):
             match = None
             for row in rows:
@@ -407,18 +436,35 @@ class HeroDefenseUpgrader:
         return found
 
     def scan_rows(self, execute: bool = True, max_pages: int = MAX_SCAN_PAGES) -> list[UpgradeRow]:
-        """Open the panel, page through the list, then close it again."""
+        """Open the panel, page through the current tab, then close it."""
         if not self.open_panel(execute=execute):
             return []
+        rows = self._scan_active_tab(execute=execute, max_pages=max_pages)
+        if execute:
+            self.dismiss(execute=True)
+        return rows
+
+    def _scan_active_tab(
+        self,
+        execute: bool = True,
+        max_pages: int = MAX_SCAN_PAGES,
+        expect_tab: str | None = None,
+    ) -> list[UpgradeRow]:
+        """Page through the currently visible Build tab."""
         from COCbot.features.village.targets import canonical_name
 
         collected: dict[str, UpgradeRow] = {}
+        scrolls = 0
         for _page in range(max(1, int(max_pages))):
             frame = self._capture.capture()
             if frame is None:
                 break
+            if expect_tab is not None:
+                active = self.tab_name(frame)
+                if active and active != expect_tab:
+                    break
             added = 0
-            for row in self.rows(frame):
+            for row in self.rows(frame, fast=True):
                 key = _normalize(canonical_name(row.name) or row.name)
                 if not key or key in collected:
                     continue
@@ -433,10 +479,72 @@ class HeroDefenseUpgrader:
                 PANEL_SCROLL_TO.y,
                 duration_ms=PANEL_SCROLL_MS,
             )
+            scrolls += 1
             self._clock.sleep(0.5)
         if execute:
-            self.dismiss(execute=True)
+            # Restore the start offset so the next scan begins at the top again.
+            for _ in range(scrolls):
+                self._adb.swipe(
+                    PANEL_SCROLL_TO.x,
+                    PANEL_SCROLL_TO.y,
+                    PANEL_SCROLL_FROM.x,
+                    PANEL_SCROLL_FROM.y,
+                    duration_ms=PANEL_SCROLL_MS,
+                )
+                self._clock.sleep(0.3)
         return list(collected.values())
+
+    def tab_name(self, frame: Frame) -> str:
+        """Return the active Build tab key, or ``""`` when unknown."""
+        title = self._text_reader(frame, PANEL_TITLE_REGION)
+        for tab, keywords in PANEL_TAB_KEYWORDS.items():
+            if any(keyword in title for keyword in keywords):
+                return tab
+        return ""
+
+    def open_tab(self, tab: str, execute: bool = True) -> bool:
+        """Switch the Build panel to *tab* and confirm by its title."""
+        point = PANEL_TABS.get(tab)
+        if point is None:
+            return False
+        for attempt in range(3):
+            frame = self._capture.capture()
+            if frame is not None and self.tab_name(frame) == tab:
+                return True
+            if not execute:
+                return False
+            if attempt == 0:
+                self._adb.tap(point.x, point.y)
+            self._clock.sleep(0.8 if attempt == 0 else 0.5)
+        return False
+
+    def scan_panel(
+        self,
+        execute: bool = True,
+        max_pages: int = MAX_SCAN_PAGES,
+    ) -> dict[str, list[UpgradeRow]]:
+        """Open the Build panel and scan all four tabs."""
+        if not self.open_panel(execute=execute):
+            return {}
+        results: dict[str, list[UpgradeRow]] = {}
+        for tab in PANEL_TABS:
+            rows: list[UpgradeRow] = []
+            for attempt in range(2):
+                if not self.open_tab(tab, execute=execute):
+                    break
+                if execute:
+                    self._clock.sleep(1.2)
+                rows = self._scan_active_tab(
+                    execute=execute,
+                    max_pages=max_pages,
+                    expect_tab=tab,
+                )
+                if rows or not execute:
+                    break
+            results[tab] = rows
+        if execute:
+            self.dismiss(execute=True)
+        return results
 
     def find_row(self, rows: Sequence[UpgradeRow], name: str) -> UpgradeRow | None:
         """Return the row whose OCR text matches *name*.

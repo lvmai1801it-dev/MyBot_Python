@@ -53,9 +53,14 @@ class FakeScanner:
         self.names = names
         self.calls = 0
 
-    def scan_rows(self, execute: bool = True) -> list[UpgradeRow]:
+    def scan_panel(self, execute: bool = True) -> dict[str, list[UpgradeRow]]:
         self.calls += 1
-        return [UpgradeRow(name, Point(0, 0)) for name in self.names]
+        return {
+            "buildings": [UpgradeRow(name, Point(0, 0)) for name in self.names],
+            "army": [UpgradeRow("Laboratory", Point(0, 0))],
+            "equipment": [],
+            "pets": [],
+        }
 
 
 class VillageScanTests(unittest.TestCase):
@@ -70,15 +75,17 @@ class VillageScanTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._temp.cleanup()
 
-    def test_scan_returns_row_names(self) -> None:
+    def test_scan_returns_rows_per_tab(self) -> None:
         scanner = FakeScanner(["Barbarian King", "MonolitH"])
         model = VillageModel(self.store, self.settings, scanner=scanner)
-        self.assertEqual(model.scan_targets(), ("Barbarian King", "MonolitH"))
+        scanned = model.scan_panel()
+        self.assertEqual(scanned["buildings"], ("Barbarian King", "Monolith"))
+        self.assertEqual(scanned["army"], ("Laboratory",))
         self.assertEqual(scanner.calls, 1)
 
     def test_scan_without_scanner_is_empty(self) -> None:
         model = VillageModel(self.store, self.settings)
-        self.assertEqual(model.scan_targets(), ())
+        self.assertEqual(model.scan_panel(), {})
 
 
 if __name__ == "__main__":

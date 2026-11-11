@@ -78,12 +78,33 @@ class VillageModel:
         """Return the default upgrade configuration."""
         return AppConfig().upgrades
 
-    def scan_targets(self) -> tuple[str, ...]:
-        """Open the in-game upgrade panel and return every listed row name."""
+    def scan_panel(self) -> dict[str, tuple[str, ...]]:
+        """Open the in-game Build panel and scan all four tabs."""
         if self._scanner is None:
-            return ()
-        rows = self._scanner.scan_rows(execute=True)
-        return tuple(row.name for row in rows)
+            return {}
+        from COCbot.features.village.targets import canonical_name
+
+        scanned = self._scanner.scan_panel(execute=True)
+        result: dict[str, tuple[str, ...]] = {}
+        for tab, rows in scanned.items():
+            names: list[str] = []
+            seen: set[str] = set()
+            for row in rows:
+                name = canonical_name(row.name) or row.name
+                key = name.strip().lower()
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                names.append(name.strip())
+            result[tab] = tuple(names)
+        return result
+
+    def scan_targets(self) -> tuple[str, ...]:
+        """Return every scanned row across the Build panel tabs."""
+        names: list[str] = []
+        for values in self.scan_panel().values():
+            names.extend(values)
+        return tuple(names)
 
     def upgrade_plan(self, builders_available: int) -> UpgradePlan:
         """Return the persisted upgrade queue for the current builder count."""
@@ -107,6 +128,31 @@ class VillageModel:
         return replace(upgrades, wall=wall)
 
     @staticmethod
+    def set_priority_flag(
+        upgrades: UpgradeConfig,
+        category: UpgradeCategory,
+        priority: bool,
+    ) -> UpgradeConfig:
+        """Flip the priority flag of one group without touching its list."""
+        field_name = {
+            UpgradeCategory.BUILDINGS: "buildings",
+            UpgradeCategory.ARMY: "army",
+            UpgradeCategory.EQUIPMENT: "equipment",
+            UpgradeCategory.PETS: "pets",
+            UpgradeCategory.HERO: "hero",
+            UpgradeCategory.RESOURCE: "resource",
+            UpgradeCategory.DEFENSE: "defense",
+            UpgradeCategory.OTHER: "other",
+        }.get(category)
+        if field_name is None:
+            return upgrades
+        group = getattr(upgrades, field_name)
+        return replace(
+            upgrades,
+            **{field_name: replace(group, priority=bool(priority))},
+        )
+
+    @staticmethod
     def set_priority(
         upgrades: UpgradeConfig,
         category: UpgradeCategory,
@@ -116,9 +162,12 @@ class VillageModel:
     ) -> UpgradeConfig:
         """Return an upgrade config with one priority group replaced."""
         field_name = {
+            UpgradeCategory.BUILDINGS: "buildings",
+            UpgradeCategory.ARMY: "army",
+            UpgradeCategory.EQUIPMENT: "equipment",
+            UpgradeCategory.PETS: "pets",
             UpgradeCategory.HERO: "hero",
             UpgradeCategory.DEFENSE: "defense",
-            UpgradeCategory.ARMY: "army",
             UpgradeCategory.RESOURCE: "resource",
             UpgradeCategory.OTHER: "other",
         }.get(category)

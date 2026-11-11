@@ -1,11 +1,13 @@
-"""Upgrade ordering with hero/resource priority and a wall builder reserve.
+"""Upgrade ordering with hero/money priority and a wall builder reserve.
 
 Rules requested by the operator:
 
-* hero and resource ("money") groups can be flagged as priority, so their
-  upgrades are attempted before defense/army/other buildings;
+* the Village tab mirrors the in-game Build panel: Buildings & Heroes, Army
+  Upgrades, Hero Equipment and Hero Pets;
+* inside Buildings & Heroes, heroes and resource ("money") buildings can be
+  flagged as priority, so they are attempted before defense/other buildings;
 * when wall upgrading is enabled, one builder must stay free for walls, so the
-  building/hero queue may only consume ``builders - 1`` slots.
+  queue may only consume ``builders - 1`` slots.
 """
 
 from __future__ import annotations
@@ -13,23 +15,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from COCbot.core.config.schema import PriorityUpgradeConfig, UpgradeConfig
+from COCbot.features.village.targets import category_for
 from COCbot.models.enums import UpgradeCategory
 
-# Stable order used when two groups share the same priority flag.
-CATEGORY_ORDER: tuple[UpgradeCategory, ...] = (
-    UpgradeCategory.HERO,
-    UpgradeCategory.RESOURCE,
-    UpgradeCategory.DEFENSE,
-    UpgradeCategory.ARMY,
-    UpgradeCategory.OTHER,
-)
+# Stable order of the four Build-panel tabs.
+TAB_ORDER: tuple[str, ...] = ("buildings", "army", "equipment", "pets")
 
-_FIELD_BY_CATEGORY = {
-    UpgradeCategory.HERO: "hero",
-    UpgradeCategory.RESOURCE: "resource",
-    UpgradeCategory.DEFENSE: "defense",
-    UpgradeCategory.ARMY: "army",
-    UpgradeCategory.OTHER: "other",
+_FIELD_BY_TAB = {
+    "buildings": "buildings",
+    "army": "army",
+    "equipment": "equipment",
+    "pets": "pets",
 }
 
 
@@ -49,34 +45,55 @@ class UpgradePlan:
         return bool(self.order)
 
 
-def _group(config: UpgradeConfig, category: UpgradeCategory) -> PriorityUpgradeConfig:
-    """Return the config group for *category*."""
-    return getattr(config, _FIELD_BY_CATEGORY[category])
+def _group(config: UpgradeConfig, tab: str) -> PriorityUpgradeConfig:
+    """Return the config group for *tab*."""
+    return getattr(config, _FIELD_BY_TAB[tab])
+
+
+def _building_items(config: UpgradeConfig) -> list[tuple[int, str, str]]:
+    """Return ``(index, name, kind)`` for every Buildings & Heroes target."""
+    items: list[tuple[int, str, str]] = []
+    for index, name in enumerate(config.buildings.priorities):
+        category = category_for(name)
+        if category == UpgradeCategory.HERO:
+            kind = "hero"
+        elif category == UpgradeCategory.RESOURCE:
+            kind = "money"
+        else:
+            kind = "other"
+        items.append((index, name, kind))
+    return items
 
 
 def ordered_targets(config: UpgradeConfig) -> tuple[str, ...]:
-    """Return enabled targets with priority groups first, in stable order."""
-    enabled = [
-        (category, _group(config, category))
-        for category in CATEGORY_ORDER
-        if _group(config, category).enabled
-    ]
-    ordered = sorted(
-        enabled,
-        key=lambda item: (
-            0 if item[1].priority else 1,
-            CATEGORY_ORDER.index(item[0]),
-        ),
-    )
+    """Return enabled targets with priority items first, in stable order."""
+    ranked: list[tuple[int, int, int, str]] = []
+    for tab_index, tab in enumerate(TAB_ORDER):
+        group = _group(config, tab)
+        if not group.enabled:
+            continue
+        if tab == "buildings":
+            for index, name, kind in _building_items(config):
+                promoted = group.priority
+                if kind == "hero":
+                    promoted = promoted or config.hero.priority
+                elif kind == "money":
+                    promoted = promoted or config.resource.priority
+                ranked.append((0 if promoted else 1, tab_index, index, name))
+        else:
+            flag = 0 if group.priority else 1
+            for index, name in enumerate(group.priorities):
+                ranked.append((flag, tab_index, index, name))
+
+    ranked.sort(key=lambda item: (item[0], item[1], item[2]))
     names: list[str] = []
     seen: set[str] = set()
-    for _category, group in ordered:
-        for name in group.priorities:
-            key = name.strip().lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            names.append(name.strip())
+    for _flag, _tab, _index, name in ranked:
+        key = name.strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        names.append(name.strip())
     return tuple(names)
 
 

@@ -12,11 +12,10 @@ from COCbot.models.enums import UpgradeCategory
 from COCbot.viewmodels.base_viewmodel import BaseViewModel
 
 PRIORITY_CATEGORIES = (
-    UpgradeCategory.HERO,
-    UpgradeCategory.DEFENSE,
+    UpgradeCategory.BUILDINGS,
     UpgradeCategory.ARMY,
-    UpgradeCategory.RESOURCE,
-    UpgradeCategory.OTHER,
+    UpgradeCategory.EQUIPMENT,
+    UpgradeCategory.PETS,
 )
 
 
@@ -32,13 +31,13 @@ class UpgradeScanWorker(QThread):
         self._model = model
 
     def run(self) -> None:
-        """Open the panel, read the rows, close it."""
+        """Open the panel, read all four tabs, close it."""
         try:
-            names = self._model.scan_targets()
+            scanned = self._model.scan_panel()
         except Exception as exc:
             self.failed.emit(f"{type(exc).__name__}: {exc}")
             return
-        self.scanned.emit(names)
+        self.scanned.emit(scanned)
 
 
 class VillageViewModel(BaseViewModel):
@@ -81,13 +80,20 @@ class VillageViewModel(BaseViewModel):
         return True
 
     def _on_scanned(self, names: object) -> None:
-        """Relay the scanned row names."""
-        values = tuple(str(name) for name in (names or ()))
-        if not values:
+        """Relay the scanned rows per Build tab."""
+        if isinstance(names, dict):
+            payload = {
+                str(tab): tuple(str(name) for name in (values or ()))
+                for tab, values in names.items()
+            }
+        else:
+            payload = {}
+        total = sum(len(values) for values in payload.values())
+        if not total:
             self._status("No upgrade rows found — open the village first", "warning")
             return
-        self.targets_scanned.emit(values)
-        self._status(f"{len(values)} upgrade rows detected", "success")
+        self.targets_scanned.emit(payload)
+        self._status(f"{total} upgrade rows detected", "success")
 
     def _on_scan_failed(self, message: str) -> None:
         """Report a failed scan."""
@@ -191,12 +197,21 @@ class VillageViewModel(BaseViewModel):
             )
         )
 
+    def set_priority_flag(self, category: UpgradeCategory, priority: bool) -> None:
+        """Update only the priority flag of one group."""
+        self._set_draft(
+            self._model.set_priority_flag(self._draft, category, priority)
+        )
+
     def priority_group(self, category: UpgradeCategory) -> PriorityUpgradeConfig:
         """Return the draft group for *category*."""
         mapping = {
+            UpgradeCategory.BUILDINGS: self._draft.buildings,
+            UpgradeCategory.ARMY: self._draft.army,
+            UpgradeCategory.EQUIPMENT: self._draft.equipment,
+            UpgradeCategory.PETS: self._draft.pets,
             UpgradeCategory.HERO: self._draft.hero,
             UpgradeCategory.DEFENSE: self._draft.defense,
-            UpgradeCategory.ARMY: self._draft.army,
             UpgradeCategory.RESOURCE: self._draft.resource,
             UpgradeCategory.OTHER: self._draft.other,
         }

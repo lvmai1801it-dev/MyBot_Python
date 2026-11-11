@@ -77,9 +77,13 @@ class UpgradeCategory(str, Enum):
     """Upgrade groups shown in the village upgrade tab."""
 
     WALL = "wall"
+    BUILDINGS = "buildings"
+    ARMY = "army"
+    EQUIPMENT = "equipment"
+    PETS = "pets"
+    # Legacy groups kept so old settings and callers keep working.
     HERO = "hero"
     DEFENSE = "defense"
-    ARMY = "army"
     RESOURCE = "resource"
     OTHER = "other"
 

@@ -54,6 +54,27 @@ DEFENSES: tuple[str, ...] = (
     "Tornado Trap",
 )
 
+SPELLS: tuple[str, ...] = (
+    "Lightning Spell",
+    "Healing Spell",
+    "Rage Spell",
+    "Jump Spell",
+    "Freeze Spell",
+    "Clone Spell",
+    "Poison Spell",
+    "Earthquake Spell",
+    "Haste Spell",
+    "Skeleton Spell",
+    "Bat Spell",
+    "Invisibility Spell",
+    "Recall Spell",
+    "Revive Spell",
+    "Overgrowth Spell",
+    "Ice Block Spell",
+    "Totem Spell",
+    "Angry Spell",
+)
+
 RESOURCES: tuple[str, ...] = (
     "Gold Mine",
     "Elixir Collector",
@@ -84,12 +105,49 @@ OTHER: tuple[str, ...] = (
     "Crafting Station",
 )
 
+EQUIPMENT: tuple[str, ...] = (
+    "Giant Gauntlet",
+    "Rage Vial",
+    "Earthquake Boots",
+    "Vampstache",
+    "Barbarian Puppet",
+    "Archer Puppet",
+    "Giant Arrow",
+    "Invisibility Vial",
+    "Healer Puppet",
+    "Eternal Tome",
+    "Life Gem",
+    "Seeking Shield",
+    "Royal Gem",
+    "Hog Rider Puppet",
+    "Haste Vial",
+    "Rocket Spear",
+)
+
+PETS: tuple[str, ...] = (
+    "L.A.S.S.I",
+    "Electro Owl",
+    "Mighty Yak",
+    "Unicorn",
+    "Frosty",
+    "Diggy",
+    "Poison Lizard",
+    "Phoenix",
+    "Spirit Fox",
+    "Angry Jelly",
+    "Sneezy",
+    "Greedy Raven",
+)
+
 CATALOG: tuple[tuple[str, UpgradeCategory], ...] = (
     *((name, UpgradeCategory.HERO) for name in HEROES),
     *((name, UpgradeCategory.DEFENSE) for name in DEFENSES),
     *((name, UpgradeCategory.RESOURCE) for name in RESOURCES),
     *((name, UpgradeCategory.ARMY) for name in ARMY),
+    *((name, UpgradeCategory.ARMY) for name in SPELLS),
     *((name, UpgradeCategory.OTHER) for name in OTHER),
+    *((name, UpgradeCategory.EQUIPMENT) for name in EQUIPMENT),
+    *((name, UpgradeCategory.PETS) for name in PETS),
 )
 
 FUZZY_THRESHOLD = 0.82

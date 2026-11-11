@@ -1,4 +1,4 @@
-"""Offscreen GUI test for scanning upgrade targets into the Village tab."""
+"""Offscreen GUI test for scanning the four Build panel tabs."""
 
 from __future__ import annotations
 
@@ -24,19 +24,20 @@ _APP = QApplication.instance() or QApplication([])
 
 
 class FakeScanner:
-    """Return canned panel rows."""
+    """Return canned rows for all four Build tabs."""
 
-    def __init__(self) -> None:
-        self.names = [
-            "Barbarian King",
-            "MonolitH",
-            "Elixir Catlector",
-            "Laboratory",
-            "Crafting Station",
-        ]
+    def scan_panel(self, execute: bool = True) -> dict[str, list[UpgradeRow]]:
+        def rows(names: list[str]) -> list[UpgradeRow]:
+            return [UpgradeRow(name, Point(0, 0)) for name in names]
 
-    def scan_rows(self, execute: bool = True) -> list[UpgradeRow]:
-        return [UpgradeRow(name, Point(0, 0)) for name in self.names]
+        return {
+            "buildings": rows(
+                ["Barbarian King", "MonolitH", "Elixir Catlector", "Crafting Station"]
+            ),
+            "army": rows(["Laboratory"]),
+            "equipment": rows(["Giant Gauntlet"]),
+            "pets": rows(["L.A.S.S.I"]),
+        }
 
 
 def labels(widget) -> list[str]:
@@ -45,7 +46,7 @@ def labels(widget) -> list[str]:
 
 
 class VillageScanViewTests(unittest.TestCase):
-    """Verify scanned rows land in the right category lists."""
+    """Verify scanned rows land in the matching Build tab."""
 
     def setUp(self) -> None:
         apply_theme(_APP)
@@ -77,33 +78,48 @@ class VillageScanViewTests(unittest.TestCase):
             time.sleep(0.01)
         _APP.processEvents()
 
-    def test_scan_groups_targets(self) -> None:
+    def test_four_tabs(self) -> None:
+        self.assertEqual(self.view.tabs.count(), 4)
+        self.assertEqual(
+            [
+                self.view.tabs.tabText(index).replace("&&", "&")
+                for index in range(4)
+            ],
+            [
+                "Buildings & Heroes",
+                "Army Upgrades",
+                "Hero Equipment",
+                "Hero Pets",
+            ],
+        )
+
+    def test_scan_fills_every_tab(self) -> None:
         self._scan()
         self.assertTrue(self.scanned)
-        hero = labels(self.view.priority_lists[UpgradeCategory.HERO])
-        defense = labels(self.view.priority_lists[UpgradeCategory.DEFENSE])
-        resource = labels(self.view.priority_lists[UpgradeCategory.RESOURCE])
+        buildings = labels(self.view.priority_lists[UpgradeCategory.BUILDINGS])
         army = labels(self.view.priority_lists[UpgradeCategory.ARMY])
-        other = labels(self.view.priority_lists[UpgradeCategory.OTHER])
-        self.assertIn("Barbarian King", hero)
-        self.assertIn("Monolith", defense)
-        self.assertIn("Elixir Collector", resource)
-        self.assertIn("Laboratory", army)
-        self.assertIn("Crafting Station", other)
+        equipment = labels(self.view.priority_lists[UpgradeCategory.EQUIPMENT])
+        pets = labels(self.view.priority_lists[UpgradeCategory.PETS])
+        self.assertIn("Barbarian King", buildings)
+        self.assertIn("Monolith", buildings)
+        self.assertIn("Elixir Collector", buildings)
+        self.assertIn("Crafting Station", buildings)
+        self.assertEqual(army, ["Laboratory"])
+        self.assertEqual(equipment, ["Giant Gauntlet"])
+        self.assertEqual(pets, ["L.A.S.S.I"])
 
     def test_checked_targets_are_saved(self) -> None:
         self._scan()
-        widget = self.view.priority_lists[UpgradeCategory.DEFENSE]
-        self.view.priority_checks[UpgradeCategory.DEFENSE].setChecked(True)
+        widget = self.view.priority_lists[UpgradeCategory.ARMY]
+        self.view.priority_checks[UpgradeCategory.ARMY].setChecked(True)
         for index in range(widget.count()):
-            item = widget.item(index)
-            item.setCheckState(Qt.Checked)
+            widget.item(index).setCheckState(Qt.Checked)
         _APP.processEvents()
         self.assertTrue(self.view.save_btn.isEnabled())
         self.view.save_btn.click()
         _APP.processEvents()
-        self.assertIn("Monolith", self.vm.config.defense.priorities)
-        self.assertTrue(self.vm.config.defense.enabled)
+        self.assertIn("Laboratory", self.vm.config.army.priorities)
+        self.assertTrue(self.vm.config.army.enabled)
 
     def test_scan_disabled_while_bot_runs(self) -> None:
         self.view.set_bot_running(True)
@@ -111,27 +127,21 @@ class VillageScanViewTests(unittest.TestCase):
         self.view.set_bot_running(False)
         self.assertTrue(self.view.scan_btn.isEnabled())
 
-    def test_priority_checkbox_only_for_hero_and_resource(self) -> None:
-        self.assertIn(UpgradeCategory.HERO, self.view.priority_flags)
-        self.assertIn(UpgradeCategory.RESOURCE, self.view.priority_flags)
-        self.assertNotIn(UpgradeCategory.DEFENSE, self.view.priority_flags)
-
-    def test_priority_flag_is_saved(self) -> None:
-        self.view.priority_checks[UpgradeCategory.HERO].setChecked(True)
-        self.view.priority_flags[UpgradeCategory.HERO].setChecked(True)
-        widget = self.view.priority_lists[UpgradeCategory.HERO]
-        widget.addItem(self.view._make_item("Archer Queen", True))
+    def test_priority_flags_are_saved(self) -> None:
+        self._scan()
+        self.view.hero_priority.setChecked(True)
+        self.view.money_priority.setChecked(True)
         self.view.wall_enabled.setChecked(True)
         _APP.processEvents()
         self.view.save_btn.click()
         _APP.processEvents()
         saved = self.vm.config
         self.assertTrue(saved.hero.priority)
+        self.assertTrue(saved.resource.priority)
         self.assertTrue(saved.wall.enabled)
         plan = self.vm.upgrade_plan(3)
         self.assertTrue(plan.wall_reserved)
         self.assertEqual(plan.budget, 2)
-        self.assertIn("Archer Queen", plan.order)
 
 
 if __name__ == "__main__":

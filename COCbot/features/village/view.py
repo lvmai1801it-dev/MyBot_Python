@@ -1,4 +1,4 @@
-"""Village / upgrade feature view (config-only for non-wall groups)."""
+"""Village upgrade view: one sub-tab per in-game Build panel tab."""
 
 from __future__ import annotations
 
@@ -17,22 +17,27 @@ from PyQt5.QtWidgets import (
 )
 
 from COCbot.core.config.schema import UpgradeConfig
-from COCbot.features.village.targets import group_targets
 from COCbot.features.village.viewmodel import PRIORITY_CATEGORIES, VillageViewModel
 from COCbot.models.enums import UpgradeCategory
 from COCbot.ui_components import Card, PrimaryButton, SecondaryButton, StatusLabel
 
 _CATEGORY_LABELS = {
-    UpgradeCategory.HERO: "Hero",
-    UpgradeCategory.DEFENSE: "Defense",
-    UpgradeCategory.ARMY: "Army",
-    UpgradeCategory.RESOURCE: "Resource",
-    UpgradeCategory.OTHER: "Other",
+    UpgradeCategory.BUILDINGS: "Buildings & Heroes",
+    UpgradeCategory.ARMY: "Army Upgrades",
+    UpgradeCategory.EQUIPMENT: "Hero Equipment",
+    UpgradeCategory.PETS: "Hero Pets",
+}
+
+_TAB_CATEGORIES = {
+    "buildings": UpgradeCategory.BUILDINGS,
+    "army": UpgradeCategory.ARMY,
+    "equipment": UpgradeCategory.EQUIPMENT,
+    "pets": UpgradeCategory.PETS,
 }
 
 
 class VillageView(QWidget):
-    """Edit wall upgrades and priority lists; no game logic lives here."""
+    """Edit walls and the scanned Build-panel targets; no game logic lives here."""
 
     def __init__(self, viewmodel: VillageViewModel, parent: QWidget | None = None) -> None:
         """Build the village config panel and bind view-model signals."""
@@ -50,7 +55,7 @@ class VillageView(QWidget):
         self._viewmodel.load()
 
     def _build_ui(self) -> None:
-        """Create the wall and priority sub-tabs."""
+        """Create one sub-tab per Build panel tab."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
@@ -58,13 +63,15 @@ class VillageView(QWidget):
         self.tabs = QTabWidget()
         self.tabs.setObjectName("subTabs")
         self.tabs.setDocumentMode(True)
-        self.tabs.addTab(self._build_wall_tab(), "Wall")
         self.priority_checks: dict[UpgradeCategory, QCheckBox] = {}
         self.priority_edits: dict[UpgradeCategory, QLineEdit] = {}
         self.priority_lists: dict[UpgradeCategory, QListWidget] = {}
         self.priority_flags: dict[UpgradeCategory, QCheckBox] = {}
         for category in PRIORITY_CATEGORIES:
-            self.tabs.addTab(self._build_priority_tab(category), _CATEGORY_LABELS[category])
+            self.tabs.addTab(
+                self._build_priority_tab(category),
+                _CATEGORY_LABELS[category].replace("&", "&&"),
+            )
         layout.addWidget(self.tabs, 1)
 
         footer = QHBoxLayout()
@@ -73,7 +80,7 @@ class VillageView(QWidget):
         footer.addWidget(self.status, 1)
         self.scan_btn = SecondaryButton("Scan from game")
         self.scan_btn.setToolTip(
-            "Open the in-game Buildings & Heroes panel and read the upgrade list"
+            "Open the in-game Build panel and scan all four tabs"
         )
         self.defaults_btn = SecondaryButton("Defaults")
         self.reload_btn = SecondaryButton("Reload")
@@ -85,38 +92,32 @@ class VillageView(QWidget):
         footer.addWidget(self.save_btn)
         layout.addLayout(footer)
 
-    def _build_wall_tab(self) -> QWidget:
-        """Create the functional wall upgrade form."""
-        card = Card(
-            "Wall upgrade",
-            "Spend overflow loot on walls automatically.",
-        )
-        self.wall_enabled = QCheckBox("Enable wall upgrade")
-        self.wall_level = self._spin(1, 20, 1, 140)
-        self.wall_gold = self._spin(0, 100_000_000, 100_000, 160)
-        self.wall_elixir = self._spin(0, 100_000_000, 100_000, 160)
-        card.add(self.wall_enabled)
-        note = QLabel("When enabled, one builder is kept free for walls.")
+    def _build_wall_card(self, card: Card) -> None:
+        """Add the wall controls (they live in the Buildings & Heroes tab)."""
+        self.wall_enabled = QCheckBox("Upgrade walls")
+        self.wall_level = self._spin(1, 20, 1, 120)
+        self.wall_gold = self._spin(0, 100_000_000, 100_000, 150)
+        self.wall_elixir = self._spin(0, 100_000_000, 100_000, 150)
+        note = QLabel("One builder is kept free for walls when enabled.")
         note.setObjectName("muted")
         note.setWordWrap(True)
+        card.add(self.wall_enabled)
         card.add(note)
-        card.add_row("Target level", self.wall_level)
+        card.add_row("Wall level", self.wall_level)
         card.add_row("Gold threshold", self.wall_gold)
         card.add_row("Elixir threshold", self.wall_elixir)
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 10, 0, 0)
-        layout.addWidget(card)
-        layout.addStretch(1)
-        return page
 
     def _build_priority_tab(self, category: UpgradeCategory) -> QWidget:
-        """Create a priority group tab with checkable targets."""
+        """Create a target tab with a checkable list."""
+        label = _CATEGORY_LABELS[category]
         card = Card(
-            f"{_CATEGORY_LABELS[category]} upgrades",
+            f"{label} upgrades",
             "Tick the targets you want, or press Scan from game to read them.",
         )
-        check = QCheckBox(f"Enable {_CATEGORY_LABELS[category].lower()} upgrades")
+        check = QCheckBox(
+            "Enable "
+            f"{_CATEGORY_LABELS[category].replace('&', 'and').lower()} upgrades"
+        )
         targets = QListWidget()
         targets.setObjectName("upgradeTargets")
         targets.setSelectionMode(QListWidget.NoSelection)
@@ -124,8 +125,14 @@ class VillageView(QWidget):
         edit = QLineEdit()
         edit.setPlaceholderText("Extra names, comma separated")
         card.add(check)
-        if category in (UpgradeCategory.HERO, UpgradeCategory.RESOURCE):
-            flag = QCheckBox("Priority — upgrade these before other buildings")
+        if category is UpgradeCategory.BUILDINGS:
+            self._build_wall_card(card)
+            self.hero_priority = QCheckBox("Priority — heroes first")
+            self.money_priority = QCheckBox("Priority — money buildings first")
+            card.add(self.hero_priority)
+            card.add(self.money_priority)
+        else:
+            flag = QCheckBox("Priority — upgrade this tab first")
             card.add(flag)
             self.priority_flags[category] = flag
         card.add(targets)
@@ -141,25 +148,6 @@ class VillageView(QWidget):
         return page
 
     @staticmethod
-    def _make_item(name: str, checked: bool) -> QListWidgetItem:
-        """Create one checkable target row."""
-        item = QListWidgetItem(name)
-        item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-        item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
-        return item
-
-    def _fill_list(self, category: UpgradeCategory, names: list[str]) -> None:
-        """Replace one category list with *names*, all checked."""
-        widget = self.priority_lists[category]
-        widget.blockSignals(True)
-        try:
-            widget.clear()
-            for name in names:
-                widget.addItem(self._make_item(name, True))
-        finally:
-            widget.blockSignals(False)
-
-    @staticmethod
     def _spin(minimum: int, maximum: int, step: int, width: int) -> QSpinBox:
         """Create a configured spin box."""
         widget = QSpinBox()
@@ -170,21 +158,19 @@ class VillageView(QWidget):
 
     def _connect_signals(self) -> None:
         """Connect widgets to the bulk-apply handler."""
-        for widget in (
-            self.wall_level,
-            self.wall_gold,
-            self.wall_elixir,
-        ):
+        for widget in (self.wall_level, self.wall_gold, self.wall_elixir):
             widget.valueChanged.connect(self._apply)
         self.wall_enabled.toggled.connect(self._apply)
+        self.hero_priority.toggled.connect(self._apply)
+        self.money_priority.toggled.connect(self._apply)
         for check in self.priority_checks.values():
             check.toggled.connect(self._apply)
-        for flag in self.priority_flags.values():
-            flag.toggled.connect(self._apply)
         for edit in self.priority_edits.values():
             edit.textChanged.connect(self._apply)
         for targets in self.priority_lists.values():
             targets.itemChanged.connect(self._apply)
+        for flag in self.priority_flags.values():
+            flag.toggled.connect(self._apply)
         self.scan_btn.clicked.connect(self._on_scan_clicked)
         self.save_btn.clicked.connect(self._viewmodel.save)
         self.reload_btn.clicked.connect(self._viewmodel.load)
@@ -194,11 +180,11 @@ class VillageView(QWidget):
         self._viewmodel.scan_finished.connect(self._on_scan_finished)
 
     def _on_scan_clicked(self) -> None:
-        """Ask the view-model to read the in-game panel."""
+        """Ask the view-model to scan the four Build panel tabs."""
         self._viewmodel.scan_targets()
 
     def _on_scan_started(self) -> None:
-        """Lock the scan button while the panel read is running."""
+        """Lock the scan button while the panel scan is running."""
         self.scan_btn.setEnabled(False)
         self.scan_btn.setText("Scanning…")
 
@@ -214,32 +200,45 @@ class VillageView(QWidget):
             self.scan_btn.setEnabled(self._scan_allowed)
         self.scan_btn.setToolTip(
             "Stop the bot first" if running
-            else "Open the in-game Buildings & Heroes panel and read the upgrade list"
+            else "Open the in-game Build panel and scan all four tabs"
         )
 
-    def _on_targets_scanned(self, names: object) -> None:
-        """Merge scanned names into the category lists."""
-        groups = group_targets(names)
-        for category, values in groups.items():
+    def _on_targets_scanned(self, payload: object) -> None:
+        """Replace each tab's list with the scanned rows."""
+        if not isinstance(payload, dict):
+            return
+        for tab, values in payload.items():
+            category = _TAB_CATEGORIES.get(str(tab))
+            if category is None:
+                continue
             widget = self.priority_lists[category]
-            existing = {
-                widget.item(index).text().lower()
-                for index in range(widget.count())
-            }
-            added = False
-            widget.blockSignals(True)
-            try:
-                for name in values:
-                    if name.lower() in existing:
-                        continue
-                    widget.addItem(self._make_item(name, False))
-                    existing.add(name.lower())
-                    added = True
-            finally:
-                widget.blockSignals(False)
-            if added:
-                widget.sortItems()
+            names = [str(name) for name in (values or ())]
+            self._fill_list(category, names, checked=False)
         self._apply()
+
+    @staticmethod
+    def _make_item(name: str, checked: bool) -> QListWidgetItem:
+        """Create one checkable target row."""
+        item = QListWidgetItem(name)
+        item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+        item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+        return item
+
+    def _fill_list(
+        self,
+        category: UpgradeCategory,
+        names: list[str],
+        checked: bool = True,
+    ) -> None:
+        """Replace one category list with *names*."""
+        widget = self.priority_lists[category]
+        widget.blockSignals(True)
+        try:
+            widget.clear()
+            for name in names:
+                widget.addItem(self._make_item(name, checked))
+        finally:
+            widget.blockSignals(False)
 
     def _apply(self, *_args: object) -> None:
         """Push widget values into the view-model draft."""
@@ -271,6 +270,12 @@ class VillageView(QWidget):
                 priorities,
                 None if flag is None else flag.isChecked(),
             )
+        self._viewmodel.set_priority_flag(
+            UpgradeCategory.HERO, self.hero_priority.isChecked()
+        )
+        self._viewmodel.set_priority_flag(
+            UpgradeCategory.RESOURCE, self.money_priority.isChecked()
+        )
 
     def _on_loaded(self, upgrades: object) -> None:
         """Render a loaded upgrade configuration."""
@@ -290,6 +295,8 @@ class VillageView(QWidget):
                 flag = self.priority_flags.get(category)
                 if flag is not None:
                     flag.setChecked(group.priority)
+            self.hero_priority.setChecked(upgrades.hero.priority)
+            self.money_priority.setChecked(upgrades.resource.priority)
         finally:
             self._loading = False
         self.save_btn.setEnabled(self._viewmodel.is_dirty)
@@ -307,7 +314,7 @@ class VillageView(QWidget):
         self._viewmodel.reset_defaults()
         self._on_loaded(self._viewmodel.config)
 
-    def _on_status(self, message: str, kind: str) -> None:
+    def _on_status(self, message: str, kind: str = "info") -> None:
         """Display a status line."""
         self.status.show_message(message, kind)
 

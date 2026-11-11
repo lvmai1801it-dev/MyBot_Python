@@ -110,9 +110,13 @@ class UpgradeConfig:
     """All upgrade groups shown in the village upgrade tab."""
 
     wall: WallUpgradeConfig = field(default_factory=WallUpgradeConfig)
+    buildings: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
+    army: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
+    equipment: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
+    pets: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
+    # Legacy groups, still parsed so older settings files keep working.
     hero: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
     defense: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
-    army: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
     resource: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
     other: PriorityUpgradeConfig = field(default_factory=PriorityUpgradeConfig)
 
@@ -251,6 +255,15 @@ _KNOWN_KEYS = frozenset(
         "upgrade_other",
         "other_buildings",
         "other_priority",
+        "upgrade_buildings",
+        "buildings_priorities",
+        "buildings_priority",
+        "upgrade_equipment",
+        "equipment_priorities",
+        "equipment_priority",
+        "upgrade_pets",
+        "pets_priorities",
+        "pets_priority",
         "request_troops",
         "attack",
         "recipe_name",
@@ -324,8 +337,50 @@ class AppConfig:
             gold_threshold=_as_int(raw.get("wall_gold_threshold"), 5_000_000),
             elixir_threshold=_as_int(raw.get("wall_elixir_threshold"), 5_000_000),
         )
+        legacy_priorities: list[str] = []
+        for key in (
+            "hero_priorities",
+            "defense_priorities",
+            "resource_priorities",
+            "other_buildings",
+        ):
+            for name in _as_str_list(raw.get(key)):
+                if name not in legacy_priorities:
+                    legacy_priorities.append(name)
+        buildings_priorities = _as_str_list(raw.get("buildings_priorities"))
+        if not buildings_priorities:
+            buildings_priorities = legacy_priorities
+        legacy_enabled = any(
+            _as_bool(raw.get(key), False)
+            for key in (
+                "upgrade_hero",
+                "upgrade_defense",
+                "upgrade_resource",
+                "upgrade_other",
+            )
+        )
         upgrades = UpgradeConfig(
             wall=wall,
+            buildings=PriorityUpgradeConfig(
+                enabled=_as_bool(raw.get("upgrade_buildings"), legacy_enabled),
+                priorities=buildings_priorities,
+                priority=_as_bool(raw.get("buildings_priority"), False),
+            ),
+            army=PriorityUpgradeConfig(
+                enabled=_as_bool(raw.get("upgrade_army"), False),
+                priorities=_as_str_list(raw.get("army_priorities")),
+                priority=_as_bool(raw.get("army_priority"), False),
+            ),
+            equipment=PriorityUpgradeConfig(
+                enabled=_as_bool(raw.get("upgrade_equipment"), False),
+                priorities=_as_str_list(raw.get("equipment_priorities")),
+                priority=_as_bool(raw.get("equipment_priority"), False),
+            ),
+            pets=PriorityUpgradeConfig(
+                enabled=_as_bool(raw.get("upgrade_pets"), False),
+                priorities=_as_str_list(raw.get("pets_priorities")),
+                priority=_as_bool(raw.get("pets_priority"), False),
+            ),
             hero=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_hero"), False),
                 priorities=_as_str_list(raw.get("hero_priorities")),
@@ -335,11 +390,6 @@ class AppConfig:
                 enabled=_as_bool(raw.get("upgrade_defense"), False),
                 priorities=_as_str_list(raw.get("defense_priorities")),
                 priority=_as_bool(raw.get("defense_priority"), False),
-            ),
-            army=PriorityUpgradeConfig(
-                enabled=_as_bool(raw.get("upgrade_army"), False),
-                priorities=_as_str_list(raw.get("army_priorities")),
-                priority=_as_bool(raw.get("army_priority"), False),
             ),
             resource=PriorityUpgradeConfig(
                 enabled=_as_bool(raw.get("upgrade_resource"), False),
@@ -468,6 +518,15 @@ class AppConfig:
             "upgrade_other": self.upgrades.other.enabled,
             "other_buildings": list(self.upgrades.other.priorities),
             "other_priority": self.upgrades.other.priority,
+            "upgrade_buildings": self.upgrades.buildings.enabled,
+            "buildings_priorities": list(self.upgrades.buildings.priorities),
+            "buildings_priority": self.upgrades.buildings.priority,
+            "upgrade_equipment": self.upgrades.equipment.enabled,
+            "equipment_priorities": list(self.upgrades.equipment.priorities),
+            "equipment_priority": self.upgrades.equipment.priority,
+            "upgrade_pets": self.upgrades.pets.enabled,
+            "pets_priorities": list(self.upgrades.pets.priorities),
+            "pets_priority": self.upgrades.pets.priority,
             "request_troops": self.clan.request_troops,
             "attack": self.attack.name,
             "recipe_name": self.attack.recipe.name,
