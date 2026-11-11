@@ -53,7 +53,14 @@ class MainWindowTests(unittest.TestCase):
         self.engine = FakeEngine()
         self.vm = MainViewModel(self.engine)
         self.window = MainWindow(
-            QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), self.vm
+            QWidget(),
+            QWidget(),
+            QWidget(),
+            QWidget(),
+            QWidget(),
+            QWidget(),
+            QWidget(),
+            self.vm,
         )
         self.window.show()
         _APP.processEvents()
@@ -65,7 +72,7 @@ class MainWindowTests(unittest.TestCase):
     def test_tabs_and_initial_state(self) -> None:
         tabs = self.window.findChild(QTabWidget)
         self.assertIsNotNone(tabs)
-        self.assertEqual(tabs.count(), 5)
+        self.assertEqual(tabs.count(), 7)
         self.assertTrue(self.window.start_btn.isEnabled())
         self.assertFalse(self.window.stop_btn.isEnabled())
 

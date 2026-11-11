@@ -43,7 +43,9 @@ class MainWindow(QMainWindow):
         self,
         logs_view: QWidget,
         settings_view: QWidget,
+        village_view: QWidget,
         accounts_view: QWidget,
+        clan_view: QWidget,
         attack_view: QWidget,
         statistics_view: QWidget,
         viewmodel: MainViewModel,
@@ -69,7 +71,9 @@ class MainWindow(QMainWindow):
             self._build_tabs(
                 logs_view,
                 settings_view,
+                village_view,
                 accounts_view,
+                clan_view,
                 attack_view,
                 statistics_view,
             ),
@@ -126,7 +130,9 @@ class MainWindow(QMainWindow):
         self,
         logs_view: QWidget,
         settings_view: QWidget,
+        village_view: QWidget,
         accounts_view: QWidget,
+        clan_view: QWidget,
         attack_view: QWidget,
         statistics_view: QWidget,
     ) -> QTabWidget:
@@ -136,7 +142,9 @@ class MainWindow(QMainWindow):
         tabs.setDocumentMode(True)
         tabs.addTab(logs_view, "Logs")
         tabs.addTab(settings_view, "Settings")
+        tabs.addTab(village_view, "Village")
         tabs.addTab(accounts_view, "Accounts")
+        tabs.addTab(clan_view, "Clan")
         tabs.addTab(attack_view, "Attack")
         tabs.addTab(statistics_view, "Statistics")
         return tabs

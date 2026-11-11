@@ -70,3 +70,7 @@ class SettingsModel:
     def reset(self) -> AppConfig:
         """Return a fresh default configuration (not written until saved)."""
         return AppConfig()
+
+    def reload(self) -> AppConfig:
+        """Alias for :meth:`load` to satisfy SettingsPort."""
+        return self.load()

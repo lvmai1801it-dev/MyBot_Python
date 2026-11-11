@@ -26,8 +26,8 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
-                                  accounts, logs, statistics, main view-model tests
-                                  (145 total)
+                                  accounts, logs, statistics, village, clan,
+                                  main view-model tests (152 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -225,6 +225,28 @@ and star buckets, and resets all files atomically. The view shows overall totals
 and a per-village table with the last update time. Rendered screenshot:
 `artifacts/statistics_view.png`.
 
+### Module 10 — Village/Upgrade and Clan config slices
+
+```text
+COCbot/features/village/   wall settings + Hero/Defense/Army/Resource/Other lists
+COCbot/features/clan/      Clan Games, Clan Capital, donation toggle
+```
+
+Both features share the live `ConfigStore` and `SettingsPort`, so saving from
+Settings/Village/Clan reloads the other config views without a restart. Wall is
+editable; the other upgrade groups are config-only, matching the original
+product requirement. Clan actions are also config-only in this build; the
+legacy runtime still performs the actual gameplay.
+
+### Launcher
+
+`run.py` is now a single entry point:
+
+```powershell
+python run.py           # legacy GUI (full farming runtime)
+python run.py --mvvm    # new MVVM shell
+```
+
 ## Verification commands
 
 ```powershell
@@ -233,9 +255,9 @@ and a per-village table with the last update time. Rendered screenshot:
 .venv\Scripts\python.exe -m COCbot.gui.app   # legacy GUI smoke
 ```
 
-## Next modules
+## Remaining work
 
-1. Migrate remaining features using the same vertical-slice pattern:
-   village/upgrade, clan games/capital, donate.
-2. Purge batch 2: archive legacy packages once parity tests pass.
-3. Switch `run.py` to `COCbot.main` and remove the legacy GUI tree.
+1. Gameplay parity: port the legacy attack/village/clan execution loops into
+   `CycleStep` adapters, then enable real input in the MVVM shell.
+2. Purge batch 2: archive legacy packages once parity tests pass on the device.
+3. Switch the default launcher from legacy to `COCbot.main` only after parity.

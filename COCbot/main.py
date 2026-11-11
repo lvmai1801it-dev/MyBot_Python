@@ -28,6 +28,9 @@ from COCbot.features.accounts.viewmodel import AccountsViewModel
 from COCbot.features.attack.model import AttackModel, AttackStep
 from COCbot.features.attack.view import AttackView
 from COCbot.features.attack.viewmodel import AttackViewModel
+from COCbot.features.clan.model import ClanModel
+from COCbot.features.clan.view import ClanView
+from COCbot.features.clan.viewmodel import ClanViewModel
 from COCbot.features.logs.model import LogsModel
 from COCbot.features.logs.view import LogsView
 from COCbot.features.logs.viewmodel import LogsViewModel
@@ -37,6 +40,9 @@ from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.features.statistics.model import StatisticsModel
 from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
+from COCbot.features.village.model import VillageModel
+from COCbot.features.village.view import VillageView
+from COCbot.features.village.viewmodel import VillageViewModel
 from COCbot.game.account.shared_prefs import SharedPrefsManager
 from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import LogLevel
@@ -140,6 +146,14 @@ def main() -> int:
     settings_viewmodel = SettingsViewModel(settings_model, store=config_store)
     settings_view = SettingsView(settings_viewmodel)
 
+    village_model = VillageModel(config_store, settings_model)
+    village_viewmodel = VillageViewModel(village_model)
+    village_view = VillageView(village_viewmodel)
+
+    clan_model = ClanModel(config_store, settings_model)
+    clan_viewmodel = ClanViewModel(clan_model)
+    clan_view = ClanView(clan_viewmodel)
+
     statistics_model = StatisticsModel()
     statistics_viewmodel = StatisticsViewModel(statistics_model)
     statistics_view = StatisticsView(statistics_viewmodel)
@@ -152,10 +166,22 @@ def main() -> int:
     )
     main_viewmodel = MainViewModel(orchestrator)
     main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
+
+    def _reload_config_views(*_args: object) -> None:
+        settings_viewmodel.reload()
+        village_viewmodel.load()
+        clan_viewmodel.load()
+
+    settings_viewmodel.saved.connect(_reload_config_views)
+    village_viewmodel.saved.connect(_reload_config_views)
+    clan_viewmodel.saved.connect(_reload_config_views)
+
     window = MainWindow(
         logs_view,
         settings_view,
+        village_view,
         accounts_view,
+        clan_view,
         attack_view,
         statistics_view,
         main_viewmodel,
