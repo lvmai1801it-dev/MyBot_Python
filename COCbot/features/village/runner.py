@@ -1,4 +1,4 @@
-"""Upgrade execution: keep upgrading listed targets until they leave the panel."""
+"""Upgrade execution: buildings until maxed, one army/pet upgrade at a time."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from COCbot.core.ports import LoggerPort
 from COCbot.features.village.planner import plan_upgrades
 from COCbot.features.village.upgrades import HeroDefenseUpgrader
 
-MAX_ATTEMPTS_PER_TARGET = 6
+MAX_ATTEMPTS_PER_TARGET = 8
 
 
 @dataclass(frozen=True)
@@ -20,10 +20,11 @@ class UpgradeRunResult:
     upgraded: tuple[str, ...]
     builders_left: int | None
     message: str
+    needs_loot: bool = False
 
 
 class UpgradeRunner:
-    """Drive the Build panel according to the planner budget."""
+    """Drive the Build panel according to the planner capacities."""
 
     def __init__(
         self,
@@ -46,7 +47,7 @@ class UpgradeRunner:
         execute: bool = False,
         max_per_target: int = MAX_ATTEMPTS_PER_TARGET,
     ) -> UpgradeRunResult:
-        """Upgrade up to ``builders`` targets, walls reserving one builder."""
+        """Upgrade buildings until maxed, then one army/pet upgrade."""
         plan = plan_upgrades(config, builders_available)
         if not plan.order:
             return UpgradeRunResult(
@@ -66,17 +67,28 @@ class UpgradeRunner:
         left = plan.budget
         upgraded: list[str] = []
         for name in plan.order:
-            if left <= 0:
+            repeat = name not in plan.single_slot
+            if repeat and left <= 0:
                 break
-            for _attempt in range(max(1, max_per_target)):
+            attempts = max(1, max_per_target) if repeat else 1
+            for _attempt in range(attempts):
                 result = self._upgrader.upgrade_listed(name, execute=True)
                 if result.executed:
                     upgraded.append(name)
-                    left -= 1
-                    self._log("info", f"Upgraded {name}; builders left: {left}")
-                    if left <= 0:
-                        break
+                    if repeat:
+                        left -= 1
+                        self._log("info", f"Upgraded {name}; builders left: {left}")
+                        if left <= 0:
+                            break
                     continue
+                if result.needs_loot:
+                    return UpgradeRunResult(
+                        True,
+                        tuple(upgraded),
+                        left,
+                        result.message,
+                        needs_loot=True,
+                    )
                 if "no longer listed" in result.message:
                     break
                 self._upgrader.dismiss(execute=True)
@@ -86,6 +98,8 @@ class UpgradeRunner:
                     left,
                     result.message,
                 )
+            if repeat and left <= 0:
+                break
         self._upgrader.dismiss(execute=True)
         return UpgradeRunResult(
             True,

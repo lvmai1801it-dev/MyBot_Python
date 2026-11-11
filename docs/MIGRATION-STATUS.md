@@ -30,7 +30,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
                                   engine, resource bar, main view-model tests
-                                  (218 total)
+                                  (223 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -507,17 +507,21 @@ COCbot/features/village/upgrades.py        find_in_panel / upgrade_listed
 The **Buildings & Heroes** tab shows `Builders free: N — tick up to N target(s)`
 after a scan. Ticking more than the free builders immediately unticks the extra
 rows; enabling walls drops the allowance to `N-1` because one builder is kept
-for walls.
+for walls. The Army Upgrades, Hero Equipment and Hero Pets tabs accept exactly
+one target each (one upgrade at a time).
 
 **Upgrade now** asks for confirmation, then the runner:
 
 1. reads the free builder count from the village;
-2. plans the ticked targets (hero/money priorities, wall reserve);
-3. for each target, opens the panel, pages to its row, taps it, verifies the
-   dialog title and the CONFIRM template before confirming;
-4. upgrades the same target again while builders remain, and stops that target
-   as soon as it no longer appears in the panel (maxed);
-5. stops when the builder budget reaches zero or a step fails safely.
+2. tunes the queue: every free builder (minus the wall reserve) for Buildings &
+   Heroes, one slot each for Army/Equipment/Pets, walls last;
+3. for each building target, opens the panel, pages to its row, verifies the
+   dialog title and the CONFIRM template, confirms, and repeats until that
+   target no longer appears in the panel (maxed) or builders run out;
+4. army/equipment/pet targets run exactly once per run;
+5. if the confirm dialog stays open after the tap (the usual "not enough loot"
+   signal) the run stops with `needs_loot=True` and asks the operator to start
+   the bot so it can attack and earn resources before upgrading again.
 
 `UpgradeRunner.run()` stays a dry-run when `execute=False`; the button passes
 `execute=True` only after the confirmation dialog, and both Scan and Upgrade

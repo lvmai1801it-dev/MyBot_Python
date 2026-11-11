@@ -123,6 +123,39 @@ class UpgradeRunnerTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(result.upgraded, ())
 
+    def test_army_upgrade_runs_once_and_keeps_builders(self) -> None:
+        cfg = UpgradeConfig(
+            army=PriorityUpgradeConfig(enabled=True, priorities=["Lava Hound"]),
+        )
+        upgrader = ScriptedUpgrader(
+            [UpgradeResult(True, "Lava Hound", executed=True, message="Upgraded")]
+        )
+        runner = UpgradeRunner(upgrader)  # type: ignore[arg-type]
+        result = runner.run(cfg, builders_available=3, execute=True)
+        self.assertTrue(result.ok)
+        self.assertEqual(result.upgraded, ("Lava Hound",))
+        self.assertEqual(len(upgrader.calls), 1)
+        self.assertEqual(result.builders_left, 3)
+
+    def test_missing_loot_stops_the_run(self) -> None:
+        upgrader = ScriptedUpgrader(
+            [
+                UpgradeResult(
+                    True,
+                    "Archer Queen",
+                    executed=False,
+                    needs_loot=True,
+                    message="not enough loot; attack first",
+                )
+            ]
+        )
+        runner = UpgradeRunner(upgrader)  # type: ignore[arg-type]
+        result = runner.run(config(), builders_available=2, execute=True)
+        self.assertTrue(result.ok)
+        self.assertTrue(result.needs_loot)
+        self.assertEqual(result.upgraded, ())
+        self.assertIn("attack", result.message)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -110,8 +110,10 @@ class VillageViewModel(BaseViewModel):
         """Report the finished run."""
         self.upgrade_completed.emit(result)
         message = getattr(result, "message", "Upgrade run finished")
+        needs_loot = bool(getattr(result, "needs_loot", False))
         ok = bool(getattr(result, "ok", False))
-        self._status(message, "success" if ok else "error")
+        kind = "warning" if needs_loot else ("success" if ok else "error")
+        self._status(message, kind)
 
     def _on_upgrade_failed(self, message: str) -> None:
         """Report a crashed upgrade run."""

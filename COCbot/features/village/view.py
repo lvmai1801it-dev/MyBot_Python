@@ -144,9 +144,10 @@ class VillageView(QWidget):
             card.add(self.hero_priority)
             card.add(self.money_priority)
         else:
-            flag = QCheckBox("Priority — upgrade this tab first")
-            card.add(flag)
-            self.priority_flags[category] = flag
+            note = QLabel("One upgrade at a time in this tab.")
+            note.setObjectName("muted")
+            note.setWordWrap(True)
+            card.add(note)
         card.add(targets)
         card.add_row("Extra", edit)
         self.priority_checks[category] = check
@@ -179,8 +180,10 @@ class VillageView(QWidget):
             check.toggled.connect(self._apply)
         for edit in self.priority_edits.values():
             edit.textChanged.connect(self._apply)
-        for targets in self.priority_lists.values():
-            targets.itemChanged.connect(self._on_item_changed)
+        for category, targets in self.priority_lists.items():
+            targets.itemChanged.connect(
+                lambda item, cat=category: self._on_item_changed(cat, item)
+            )
         for flag in self.priority_flags.values():
             flag.toggled.connect(self._apply)
         self.scan_btn.clicked.connect(self._on_scan_clicked)
@@ -195,8 +198,10 @@ class VillageView(QWidget):
         self._viewmodel.upgrade_started.connect(self._on_upgrade_started)
         self._viewmodel.upgrade_finished.connect(self._on_upgrade_finished)
 
-    def _allowance(self) -> int | None:
-        """Return how many building targets may be ticked right now."""
+    def _allowance(self, category: UpgradeCategory) -> int | None:
+        """Return how many targets of *category* may be ticked right now."""
+        if category is not UpgradeCategory.BUILDINGS:
+            return 1
         if self._builders is None:
             return None
         reserved = 1 if self.wall_enabled.isChecked() else 0
@@ -211,19 +216,24 @@ class VillageView(QWidget):
             if widget.item(index).checkState() == Qt.Checked
         ]
 
-    def _on_item_changed(self, _item: QListWidgetItem) -> None:
-        """Apply the builder limit while ticking targets."""
+    def _on_item_changed(
+        self,
+        category: UpgradeCategory,
+        _item: QListWidgetItem,
+    ) -> None:
+        """Apply the per-tab tick limit while ticking targets."""
         if self._loading:
             return
+        self._enforce_limit(category)
         self._apply()
 
-    def _enforce_limit(self) -> None:
-        """Untick building targets beyond the free builder count."""
-        limit = self._allowance()
+    def _enforce_limit(self, category: UpgradeCategory) -> None:
+        """Untick targets beyond the free builder / single slot allowance."""
+        limit = self._allowance(category)
         if limit is None:
             return
-        widget = self.priority_lists[UpgradeCategory.BUILDINGS]
-        checked = self._checked_items(UpgradeCategory.BUILDINGS)
+        widget = self.priority_lists[category]
+        checked = self._checked_items(category)
         if len(checked) <= limit:
             return
         widget.blockSignals(True)
@@ -232,10 +242,11 @@ class VillageView(QWidget):
                 item.setCheckState(Qt.Unchecked)
         finally:
             widget.blockSignals(False)
-        self.status.show_message(
-            f"Only {limit} builder(s) free — kept the first {limit} target(s)",
-            "warning",
-        )
+        if category is UpgradeCategory.BUILDINGS:
+            text = f"Only {limit} builder(s) free — kept the first {limit} target(s)"
+        else:
+            text = "Army/equipment/pets upgrade one at a time — kept one target"
+        self.status.show_message(text, "warning")
 
     def _update_builders_label(self) -> None:
         """Refresh the free-builder hint above the target list."""
@@ -244,7 +255,7 @@ class VillageView(QWidget):
                 "Builders free: unknown — press Scan from game"
             )
             return
-        limit = self._allowance() or 0
+        limit = self._allowance(UpgradeCategory.BUILDINGS) or 0
         extra = " (1 reserved for walls)" if self.wall_enabled.isChecked() else ""
         self.builders_label.setText(
             f"Builders free: {self._builders}{extra} — tick up to {limit} target(s)"
@@ -255,7 +266,8 @@ class VillageView(QWidget):
         if isinstance(value, int):
             self._builders = value
         self._update_builders_label()
-        self._enforce_limit()
+        for category in self.priority_lists:
+            self._enforce_limit(category)
         self._apply()
 
     def _on_scan_clicked(self) -> None:
@@ -350,7 +362,8 @@ class VillageView(QWidget):
         """Push widget values into the view-model draft."""
         if self._loading:
             return
-        self._enforce_limit()
+        for category in self.priority_lists:
+            self._enforce_limit(category)
         self._update_builders_label()
         self._viewmodel.set_wall(
             self.wall_enabled.isChecked(),

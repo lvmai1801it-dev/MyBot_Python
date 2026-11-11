@@ -75,16 +75,18 @@ class PlannerTests(unittest.TestCase):
             ("Monolith", "Gold Mine", "Archer Queen"),
         )
 
-    def test_tab_priority_flag_moves_a_whole_tab_up(self) -> None:
+    def test_single_slot_tabs_are_capped(self) -> None:
         cfg = config(
             buildings=PriorityUpgradeConfig(enabled=True, priorities=["Monolith"]),
             pets=PriorityUpgradeConfig(
                 enabled=True,
-                priorities=["L.A.S.S.I"],
-                priority=True,
+                priorities=["L.A.S.S.I", "Frosty"],
             ),
         )
-        self.assertEqual(ordered_targets(cfg), ("L.A.S.S.I", "Monolith"))
+        plan = plan_upgrades(cfg, builders_available=6)
+        self.assertEqual(plan.order, ("Monolith", "L.A.S.S.I"))
+        self.assertEqual(plan.single_slot, ("L.A.S.S.I",))
+        self.assertEqual(plan.skipped, ("Frosty",))
 
     def test_disabled_tabs_are_ignored(self) -> None:
         cfg = config(
@@ -141,6 +143,46 @@ class PlannerTests(unittest.TestCase):
             army=PriorityUpgradeConfig(enabled=True, priorities=["archer queen"]),
         )
         self.assertEqual(ordered_targets(cfg), ("Archer Queen",))
+
+    def test_army_and_pets_allow_one_upgrade_each(self) -> None:
+        cfg = config(
+            buildings=PriorityUpgradeConfig(enabled=True, priorities=["Monolith"]),
+            army=PriorityUpgradeConfig(
+                enabled=True,
+                priorities=["Lava Hound", "Bowler"],
+            ),
+            pets=PriorityUpgradeConfig(enabled=True, priorities=["Frosty", "Diggy"]),
+        )
+        plan = plan_upgrades(cfg, builders_available=6)
+        self.assertEqual(plan.order, ("Monolith", "Lava Hound", "Frosty"))
+        self.assertEqual(plan.single_slot, ("Lava Hound", "Frosty"))
+        self.assertIn("Bowler", plan.skipped)
+        self.assertIn("Diggy", plan.skipped)
+
+    def test_buildings_use_every_free_builder(self) -> None:
+        cfg = config(
+            buildings=PriorityUpgradeConfig(
+                enabled=True,
+                priorities=["Cannon", "Archer Tower", "Mortar", "X-Bow", "Inferno Tower"],
+            )
+        )
+        plan = plan_upgrades(cfg, builders_available=5)
+        self.assertEqual(len(plan.order), 5)
+        self.assertEqual(plan.budget, 5)
+        self.assertFalse(plan.wall_reserved)
+
+    def test_wall_keeps_one_builder_but_still_uses_the_rest(self) -> None:
+        cfg = config(
+            wall=WallUpgradeConfig(enabled=True),
+            buildings=PriorityUpgradeConfig(
+                enabled=True,
+                priorities=["Cannon", "Archer Tower", "Mortar", "X-Bow", "Inferno Tower", "Monolith"],
+            ),
+        )
+        plan = plan_upgrades(cfg, builders_available=6)
+        self.assertEqual(plan.budget, 5)
+        self.assertEqual(len(plan.order), 5)
+        self.assertEqual(plan.skipped, ("Monolith",))
 
 
 if __name__ == "__main__":

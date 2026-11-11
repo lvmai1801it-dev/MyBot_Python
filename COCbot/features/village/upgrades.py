@@ -133,6 +133,7 @@ class UpgradeResult:
     executed: bool = False
     message: str = ""
     taps: int = 0
+    needs_loot: bool = False
 
 
 def _normalize(text: str) -> str:
@@ -649,7 +650,21 @@ class HeroDefenseUpgrader:
             )
         self._adb.tap(confirm.x, confirm.y)
         taps += 1
-        self._clock.sleep(1.0)
+        self._clock.sleep(1.2)
+        frame = self._capture.capture()
+        if frame is not None and self.dialog_open(frame):
+            self.dismiss(execute=True)
+            return UpgradeResult(
+                True,
+                name,
+                executed=False,
+                taps=taps,
+                needs_loot=True,
+                message=(
+                    f"{name} did not start — probably not enough loot; "
+                    "attack to earn resources"
+                ),
+            )
         return UpgradeResult(
             True,
             name,
