@@ -27,7 +27,7 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
-                                  main view-model tests (152 total)
+                                  main view-model tests (155 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -246,6 +246,25 @@ legacy runtime still performs the actual gameplay.
 python run.py           # legacy GUI (full farming runtime)
 python run.py --mvvm    # new MVVM shell
 ```
+
+### Module 11 — Clean runtime port, stage 1 (village collectors)
+
+```text
+COCbot/features/village/model.py
+├── VillageActions   return home + template-match collector taps
+└── VillageStep      CycleStep adapter fed by the orchestrator
+```
+
+`VillageActions` uses the new `AdbPort`, `CapturePort`, `TemplateMatcher`, and
+`ClockPort`; no legacy imports. It is dry-run by default (`execute=False`) and
+is now the first step in the shell orchestrator:
+
+```text
+VillageStep (dry-run) → AttackStep (scan/dry-run)
+```
+
+Real-input stages still require device calibration before enabling:
+attack search/drop/battle-end, wall/hero/defense upgrades, Clan actions.
 
 ## Verification commands
 

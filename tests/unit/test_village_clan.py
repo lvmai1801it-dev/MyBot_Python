@@ -5,16 +5,25 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from PyQt5.QtWidgets import QApplication
 
+from COCbot.app.session import BotSession
 from COCbot.core.config import AppConfig, ConfigStore, load_config
 from COCbot.features.clan.model import ClanModel
 from COCbot.features.clan.viewmodel import ClanViewModel
 from COCbot.features.settings.model import SettingsModel
-from COCbot.features.village.model import VillageModel
+from COCbot.features.village.model import (
+    VillageActions,
+    VillageModel,
+    VillageStep,
+)
 from COCbot.features.village.viewmodel import VillageViewModel
+from COCbot.models.attack import Detection
 from COCbot.models.enums import UpgradeCategory
+from COCbot.models.frame import Frame
+from COCbot.models.geometry import BoundingBox
 
 _APP = QApplication.instance() or QApplication([])
 
@@ -90,6 +99,93 @@ class ClanFeatureTests(unittest.TestCase):
         self.vm.reset_defaults()
         self.assertTrue(self.vm.is_dirty)
         self.assertEqual(self.vm.config.capital_hall_level, AppConfig().clan.capital_hall_level)
+
+
+class FakeClock:
+    """No-op clock for the village routine."""
+
+    def now(self) -> float:
+        return 0.0
+
+    def monotonic(self) -> float:
+        return 0.0
+
+    def sleep(self, seconds: float) -> None:
+        pass
+
+
+class FakeCapture:
+    """Capture stub returning a fixed frame."""
+
+    def capture(self) -> Frame:
+        return Frame(image=object(), width=860, height=732)
+
+
+class FakeMatcher:
+    """Return two gold-collector matches."""
+
+    def match_all(self, frame, name, region=None, threshold=None, limit=20):
+        if name == "gold_collector.png":
+            return [
+                Detection("gold", 0.9, BoundingBox(10, 20, 40, 50)),
+                Detection("gold", 0.8, BoundingBox(60, 70, 90, 100)),
+            ]
+        return []
+
+
+class FakeAdb:
+    """Record taps."""
+
+    def __init__(self) -> None:
+        self.taps: list[tuple[int, int]] = []
+
+    def tap(self, x: int, y: int) -> bool:
+        self.taps.append((x, y))
+        return True
+
+
+class VillageActionsTests(unittest.TestCase):
+    """Verify dry-run and real collector tapping."""
+
+    def test_dry_run_taps_nothing(self) -> None:
+        adb = FakeAdb()
+        actions = VillageActions(
+            adb,
+            FakeCapture(),  # type: ignore[arg-type]
+            FakeMatcher(),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            execute=False,
+        )
+        result = actions.run()
+        self.assertTrue(result.ok)
+        self.assertEqual(result.found, 2)
+        self.assertEqual(result.tapped, 0)
+        self.assertEqual(adb.taps, [])
+
+    def test_execute_taps_home_and_collectors(self) -> None:
+        adb = FakeAdb()
+        actions = VillageActions(
+            adb,
+            FakeCapture(),  # type: ignore[arg-type]
+            FakeMatcher(),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            execute=True,
+        )
+        result = actions.run()
+        self.assertEqual(result.tapped, 2)
+        self.assertEqual(len(adb.taps), 3)  # home + 2 collectors
+
+    def test_village_step(self) -> None:
+        actions = VillageActions(
+            FakeAdb(),  # type: ignore[arg-type]
+            FakeCapture(),  # type: ignore[arg-type]
+            FakeMatcher(),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            execute=False,
+        )
+        result = VillageStep(actions).run(SimpleNamespace(session=BotSession()))
+        self.assertTrue(result.success)
+        self.assertIn("collectors", result.message)
 
 
 if __name__ == "__main__":

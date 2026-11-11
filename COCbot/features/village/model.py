@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from threading import Event
 
+from COCbot.app.orchestrator import CycleContext, StepResult
 from COCbot.core.config.schema import (
     AppConfig,
     PriorityUpgradeConfig,
@@ -11,8 +13,9 @@ from COCbot.core.config.schema import (
     WallUpgradeConfig,
 )
 from COCbot.core.config.store import ConfigStore
-from COCbot.core.ports import SettingsPort
-from COCbot.models.enums import UpgradeCategory
+from COCbot.core.ports import AdbPort, CapturePort, ClockPort, LoggerPort, SettingsPort
+from COCbot.core.vision.templates import TemplateMatcher
+from COCbot.models.enums import BotPhase, UpgradeCategory
 
 
 @dataclass(frozen=True)
@@ -84,3 +87,128 @@ class VillageModel:
             priorities=[item.strip() for item in priorities if item.strip()],
         )
         return replace(upgrades, **{field_name: group})
+
+
+COLLECTOR_TEMPLATES = (
+    "elixir_collector.png",
+    "DE_collector.png",
+    "gold_collector.png",
+)
+
+
+@dataclass(frozen=True)
+class VillageActionResult:
+    """Outcome of one village routine pass."""
+
+    ok: bool
+    found: int = 0
+    tapped: int = 0
+    message: str = ""
+
+
+class VillageActions:
+    """Clean-port home routine: return home and collect resources."""
+
+    def __init__(
+        self,
+        adb: AdbPort,
+        capture: CapturePort,
+        matcher: TemplateMatcher,
+        clock: ClockPort | None = None,
+        logger: LoggerPort | None = None,
+        execute: bool = False,
+    ) -> None:
+        """Create the routine; input is dry-run unless *execute* is explicit."""
+        from COCbot.core.clock import SystemClock
+
+        self._adb = adb
+        self._capture = capture
+        self._matcher = matcher
+        self._clock = clock or SystemClock()
+        self._logger = logger
+        self._execute = execute
+
+    def _log(self, level: str, message: str) -> None:
+        """Emit a log line when a logger was supplied."""
+        if self._logger is not None:
+            getattr(self._logger, level)(message)
+
+    @staticmethod
+    def _check_cancel(cancel_event: Event | None) -> None:
+        """Raise when the bot has been stopped."""
+        from COCbot.core.errors import OperationCancelled
+
+        if cancel_event is not None and cancel_event.is_set():
+            raise OperationCancelled("Village routine cancelled")
+
+    def _return_home(self) -> None:
+        """Tap the home button and allow the camera to settle."""
+        if not self._execute:
+            self._log("info", "Dry run: would return home")
+            return
+        self._adb.tap(424, 625)
+        self._clock.sleep(3.0)
+
+    def collect_resources(self) -> tuple[int, int]:
+        """Return ``(found, tapped)`` collectors from one frame."""
+        frame = self._capture.capture()
+        if frame is None:
+            return (0, 0)
+        found = 0
+        tapped = 0
+        for name in COLLECTOR_TEMPLATES:
+            matches = self._matcher.match_all(
+                frame,
+                name,
+                threshold=0.65,
+                limit=3,
+            )
+            for match in matches:
+                found += 1
+                if self._execute:
+                    center = match.center()
+                    if self._adb.tap(center.x, center.y):
+                        tapped += 1
+        return (found, tapped)
+
+    def run(self, cancel_event: Event | None = None) -> VillageActionResult:
+        """Return home and collect available resources."""
+        self._check_cancel(cancel_event)
+        self._return_home()
+        self._check_cancel(cancel_event)
+        found, tapped = self.collect_resources()
+        if found == 0:
+            return VillageActionResult(
+                ok=False,
+                message="No collector templates found",
+            )
+        mode = "tapped" if self._execute else "found (dry run)"
+        return VillageActionResult(
+            ok=True,
+            found=found,
+            tapped=tapped,
+            message=f"{found} collectors {mode}",
+        )
+
+
+class VillageStep:
+    """CycleStep adapter for the village routine."""
+
+    def __init__(self, actions: VillageActions) -> None:
+        """Wrap village actions as an orchestrator step."""
+        self._actions = actions
+
+    @property
+    def name(self) -> str:
+        """Return the stable step name."""
+        return "village"
+
+    def run(self, context: CycleContext) -> StepResult:
+        """Run one village routine pass."""
+        result = self._actions.run(context.session.stop_event)
+        return StepResult(
+            result.ok,
+            result.message,
+            phase=BotPhase.RUNNING,
+            data={"found": result.found, "tapped": result.tapped},
+        )

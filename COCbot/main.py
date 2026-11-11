@@ -21,7 +21,7 @@ from COCbot.core.adb import AdbClient
 from COCbot.core.config import ConfigStore, load_config
 from COCbot.core.config.paths import get_project_paths
 from COCbot.core.logging import build_logger
-from COCbot.core.vision import RedlineDetector, ScreenCapture, YoloDetector
+from COCbot.core.vision import RedlineDetector, ScreenCapture, TemplateMatcher, YoloDetector
 from COCbot.features.accounts.model import AccountsModel
 from COCbot.features.accounts.view import AccountsView
 from COCbot.features.accounts.viewmodel import AccountsViewModel
@@ -40,7 +40,7 @@ from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.features.statistics.model import StatisticsModel
 from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
-from COCbot.features.village.model import VillageModel
+from COCbot.features.village.model import VillageActions, VillageModel, VillageStep
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
 from COCbot.game.account.shared_prefs import SharedPrefsManager
@@ -119,6 +119,7 @@ def main() -> int:
 
     capture = ScreenCapture(adb, logger=logger)
     detector = YoloDetector(logger=logger)
+    matcher = TemplateMatcher(logger=logger)
     redline = RedlineDetector(
         model_path=config.vision.redline_model,
         confidence=config.vision.confidence,
@@ -159,7 +160,18 @@ def main() -> int:
     statistics_view = StatisticsView(statistics_viewmodel)
 
     orchestrator = BotOrchestrator(
-        [AttackStep(attack_model, execute=False)],
+        [
+            VillageStep(
+                VillageActions(
+                    adb,
+                    capture,
+                    matcher,
+                    logger=logger,
+                    execute=False,
+                )
+            ),
+            AttackStep(attack_model, execute=False),
+        ],
         config=config,
         logger=logger,
         cycle_delay=1.0,
