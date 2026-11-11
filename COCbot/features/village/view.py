@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
@@ -45,6 +46,7 @@ class VillageView(QWidget):
         self._viewmodel = viewmodel
         self._loading = False
         self._scan_allowed = True
+        self._builders: int | None = None
         self._build_ui()
         self._connect_signals()
         self._viewmodel.loaded.connect(self._on_loaded)
@@ -82,11 +84,17 @@ class VillageView(QWidget):
         self.scan_btn.setToolTip(
             "Open the in-game Build panel and scan all four tabs"
         )
+        self.upgrade_btn = PrimaryButton("Upgrade now")
+        self.upgrade_btn.setToolTip(
+            "Upgrade the ticked targets until they leave the Build panel"
+        )
+        self.upgrade_btn.setEnabled(True)
         self.defaults_btn = SecondaryButton("Defaults")
         self.reload_btn = SecondaryButton("Reload")
         self.save_btn = PrimaryButton("Save")
         self.save_btn.setEnabled(False)
         footer.addWidget(self.scan_btn)
+        footer.addWidget(self.upgrade_btn)
         footer.addWidget(self.defaults_btn)
         footer.addWidget(self.reload_btn)
         footer.addWidget(self.save_btn)
@@ -103,6 +111,10 @@ class VillageView(QWidget):
         note.setWordWrap(True)
         card.add(self.wall_enabled)
         card.add(note)
+        self.builders_label = QLabel("Builders free: unknown — press Scan from game")
+        self.builders_label.setObjectName("cardSub")
+        self.builders_label.setWordWrap(True)
+        card.add(self.builders_label)
         card.add_row("Wall level", self.wall_level)
         card.add_row("Gold threshold", self.wall_gold)
         card.add_row("Elixir threshold", self.wall_elixir)
@@ -168,20 +180,112 @@ class VillageView(QWidget):
         for edit in self.priority_edits.values():
             edit.textChanged.connect(self._apply)
         for targets in self.priority_lists.values():
-            targets.itemChanged.connect(self._apply)
+            targets.itemChanged.connect(self._on_item_changed)
         for flag in self.priority_flags.values():
             flag.toggled.connect(self._apply)
         self.scan_btn.clicked.connect(self._on_scan_clicked)
+        self.upgrade_btn.clicked.connect(self._on_upgrade_clicked)
         self.save_btn.clicked.connect(self._viewmodel.save)
         self.reload_btn.clicked.connect(self._viewmodel.load)
         self.defaults_btn.clicked.connect(self._on_defaults)
         self._viewmodel.targets_scanned.connect(self._on_targets_scanned)
+        self._viewmodel.builders_updated.connect(self._on_builders_updated)
         self._viewmodel.scan_started.connect(self._on_scan_started)
         self._viewmodel.scan_finished.connect(self._on_scan_finished)
+        self._viewmodel.upgrade_started.connect(self._on_upgrade_started)
+        self._viewmodel.upgrade_finished.connect(self._on_upgrade_finished)
+
+    def _allowance(self) -> int | None:
+        """Return how many building targets may be ticked right now."""
+        if self._builders is None:
+            return None
+        reserved = 1 if self.wall_enabled.isChecked() else 0
+        return max(0, self._builders - reserved)
+
+    def _checked_items(self, category: UpgradeCategory) -> list[QListWidgetItem]:
+        """Return the ticked rows of one category."""
+        widget = self.priority_lists[category]
+        return [
+            widget.item(index)
+            for index in range(widget.count())
+            if widget.item(index).checkState() == Qt.Checked
+        ]
+
+    def _on_item_changed(self, _item: QListWidgetItem) -> None:
+        """Apply the builder limit while ticking targets."""
+        if self._loading:
+            return
+        self._apply()
+
+    def _enforce_limit(self) -> None:
+        """Untick building targets beyond the free builder count."""
+        limit = self._allowance()
+        if limit is None:
+            return
+        widget = self.priority_lists[UpgradeCategory.BUILDINGS]
+        checked = self._checked_items(UpgradeCategory.BUILDINGS)
+        if len(checked) <= limit:
+            return
+        widget.blockSignals(True)
+        try:
+            for item in checked[limit:]:
+                item.setCheckState(Qt.Unchecked)
+        finally:
+            widget.blockSignals(False)
+        self.status.show_message(
+            f"Only {limit} builder(s) free — kept the first {limit} target(s)",
+            "warning",
+        )
+
+    def _update_builders_label(self) -> None:
+        """Refresh the free-builder hint above the target list."""
+        if self._builders is None:
+            self.builders_label.setText(
+                "Builders free: unknown — press Scan from game"
+            )
+            return
+        limit = self._allowance() or 0
+        extra = " (1 reserved for walls)" if self.wall_enabled.isChecked() else ""
+        self.builders_label.setText(
+            f"Builders free: {self._builders}{extra} — tick up to {limit} target(s)"
+        )
+
+    def _on_builders_updated(self, value: object) -> None:
+        """Store the builder count reported by the scan."""
+        if isinstance(value, int):
+            self._builders = value
+        self._update_builders_label()
+        self._enforce_limit()
+        self._apply()
 
     def _on_scan_clicked(self) -> None:
         """Ask the view-model to scan the four Build panel tabs."""
         self._viewmodel.scan_targets()
+
+    def _on_upgrade_clicked(self) -> None:
+        """Confirm and start the upgrade run."""
+        answer = QMessageBox.question(
+            self,
+            "Upgrade now",
+            "Upgrade the ticked targets using the free builders?\n"
+            "This spends real resources.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer == QMessageBox.Yes:
+            self._viewmodel.upgrade_now(execute=True)
+
+    def _on_upgrade_started(self) -> None:
+        """Lock the controls while the upgrade runner works."""
+        self.upgrade_btn.setEnabled(False)
+        self.upgrade_btn.setText("Upgrading…")
+        self.scan_btn.setEnabled(False)
+
+    def _on_upgrade_finished(self) -> None:
+        """Restore the controls when the runner exits."""
+        self.upgrade_btn.setText("Upgrade now")
+        self.upgrade_btn.setEnabled(self._scan_allowed)
+        self.scan_btn.setEnabled(self._scan_allowed)
 
     def _on_scan_started(self) -> None:
         """Lock the scan button while the panel scan is running."""
@@ -194,10 +298,12 @@ class VillageView(QWidget):
         self.scan_btn.setText("Scan from game")
 
     def set_bot_running(self, running: bool) -> None:
-        """Disable scanning while the bot drives the game."""
+        """Disable scanning/upgrading while the bot drives the game."""
         self._scan_allowed = not running
         if not self._viewmodel.is_scanning:
             self.scan_btn.setEnabled(self._scan_allowed)
+        if not self._viewmodel.is_upgrading:
+            self.upgrade_btn.setEnabled(self._scan_allowed)
         self.scan_btn.setToolTip(
             "Stop the bot first" if running
             else "Open the in-game Build panel and scan all four tabs"
@@ -244,6 +350,8 @@ class VillageView(QWidget):
         """Push widget values into the view-model draft."""
         if self._loading:
             return
+        self._enforce_limit()
+        self._update_builders_label()
         self._viewmodel.set_wall(
             self.wall_enabled.isChecked(),
             self.wall_level.value(),
@@ -297,6 +405,7 @@ class VillageView(QWidget):
                     flag.setChecked(group.priority)
             self.hero_priority.setChecked(upgrades.hero.priority)
             self.money_priority.setChecked(upgrades.resource.priority)
+            self._update_builders_label()
         finally:
             self._loading = False
         self.save_btn.setEnabled(self._viewmodel.is_dirty)

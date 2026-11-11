@@ -154,6 +154,7 @@ def main() -> int:
         config_store,
         settings_model,
         scanner=HeroDefenseUpgrader(adb, capture, logger=logger),
+        resource_reader=ResourceReader(capture, logger=logger),
     )
     village_viewmodel = VillageViewModel(village_model)
     village_view = VillageView(village_viewmodel)

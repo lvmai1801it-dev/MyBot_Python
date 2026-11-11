@@ -31,6 +31,7 @@ from COCbot.core.ports import (
 )
 from COCbot.core.vision.templates import TemplateMatcher
 from COCbot.features.village.planner import UpgradePlan, plan_upgrades
+from COCbot.features.village.runner import UpgradeRunner, UpgradeRunResult
 from COCbot.features.village.upgrades import (
     HeroDefenseUpgrader,
     UpgradeResult,
@@ -49,6 +50,15 @@ class VillageSnapshot:
     upgrades: UpgradeConfig
 
 
+@dataclass(frozen=True)
+class PanelScan:
+    """One Build-panel scan: rows per tab plus the builder count."""
+
+    rows: dict[str, tuple[str, ...]]
+    builders_available: int | None = None
+    builders_total: int | None = None
+
+
 class VillageModel:
     """Load and persist the upgrade groups."""
 
@@ -57,11 +67,13 @@ class VillageModel:
         store: ConfigStore,
         settings: SettingsPort,
         scanner: HeroDefenseUpgrader | None = None,
+        resource_reader: object | None = None,
     ) -> None:
         """Share the live config, the settings port and the panel scanner."""
         self._store = store
         self._settings = settings
         self._scanner = scanner
+        self._resource_reader = resource_reader
 
     def load(self) -> VillageSnapshot:
         """Return the current upgrade configuration."""
@@ -78,10 +90,10 @@ class VillageModel:
         """Return the default upgrade configuration."""
         return AppConfig().upgrades
 
-    def scan_panel(self) -> dict[str, tuple[str, ...]]:
-        """Open the in-game Build panel and scan all four tabs."""
+    def scan_panel(self) -> PanelScan:
+        """Open the in-game Build panel, scan all tabs, and read builders."""
         if self._scanner is None:
-            return {}
+            return PanelScan(rows={})
         from COCbot.features.village.targets import canonical_name
 
         scanned = self._scanner.scan_panel(execute=True)
@@ -97,18 +109,46 @@ class VillageModel:
                 seen.add(key)
                 names.append(name.strip())
             result[tab] = tuple(names)
-        return result
+        builders = builders_total = None
+        if self._resource_reader is not None:
+            try:
+                snapshot = self._resource_reader.read()  # type: ignore[attr-defined]
+            except Exception:
+                snapshot = None
+            builders = getattr(snapshot, "builders_available", None)
+            builders_total = getattr(snapshot, "builders_total", None)
+        return PanelScan(
+            rows=result,
+            builders_available=builders,
+            builders_total=builders_total,
+        )
 
     def scan_targets(self) -> tuple[str, ...]:
         """Return every scanned row across the Build panel tabs."""
         names: list[str] = []
-        for values in self.scan_panel().values():
+        for values in self.scan_panel().rows.values():
             names.extend(values)
         return tuple(names)
 
     def upgrade_plan(self, builders_available: int) -> UpgradePlan:
         """Return the persisted upgrade queue for the current builder count."""
         return plan_upgrades(self._store.get().upgrades, builders_available)
+
+    def run_upgrades(self, execute: bool = False) -> UpgradeRunResult:
+        """Run the upgrade queue, reading the builder count from the village."""
+        if self._scanner is None:
+            return UpgradeRunResult(False, (), None, "No panel upgrader configured")
+        builders: int | None = None
+        if self._resource_reader is not None:
+            try:
+                snapshot = self._resource_reader.read()  # type: ignore[attr-defined]
+            except Exception:
+                snapshot = None
+            builders = getattr(snapshot, "builders_available", None)
+        if builders is None:
+            return UpgradeRunResult(False, (), None, "Could not read the builder count")
+        runner = UpgradeRunner(self._scanner)
+        return runner.run(self._store.get().upgrades, builders, execute=execute)
 
     @staticmethod
     def set_wall(

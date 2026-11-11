@@ -546,6 +546,118 @@ class HeroDefenseUpgrader:
             self.dismiss(execute=True)
         return results
 
+    def find_in_panel(
+        self,
+        name: str,
+        tab: str = "buildings",
+        execute: bool = True,
+        max_pages: int = MAX_SCAN_PAGES,
+    ) -> UpgradeRow | None:
+        """Find one row in a Build tab, paging the list when needed."""
+        if not self.open_panel(execute=execute):
+            return None
+        if not self.open_tab(tab, execute=execute):
+            return None
+        if execute:
+            self._clock.sleep(1.0)
+        found: UpgradeRow | None = None
+        scrolls = 0
+        for _page in range(max(1, int(max_pages))):
+            frame = self._capture.capture()
+            if frame is None:
+                break
+            found = self.find_row(self.rows(frame, fast=True), name)
+            if found is not None:
+                break
+            if not execute:
+                break
+            self._adb.swipe(
+                PANEL_SCROLL_FROM.x,
+                PANEL_SCROLL_FROM.y,
+                PANEL_SCROLL_TO.x,
+                PANEL_SCROLL_TO.y,
+                duration_ms=PANEL_SCROLL_MS,
+            )
+            scrolls += 1
+            self._clock.sleep(0.5)
+        if execute:
+            for _ in range(scrolls):
+                self._adb.swipe(
+                    PANEL_SCROLL_TO.x,
+                    PANEL_SCROLL_TO.y,
+                    PANEL_SCROLL_FROM.x,
+                    PANEL_SCROLL_FROM.y,
+                    duration_ms=PANEL_SCROLL_MS,
+                )
+                self._clock.sleep(0.25)
+        return found
+
+    def upgrade_listed(
+        self,
+        name: str,
+        tab: str = "buildings",
+        execute: bool = False,
+    ) -> UpgradeResult:
+        """Upgrade *name* once; report ``gone`` once it leaves the panel."""
+        row = self.find_in_panel(name, tab=tab, execute=execute)
+        if row is None:
+            if not execute:
+                return UpgradeResult(
+                    True,
+                    name,
+                    executed=False,
+                    message=f"{name} is not listed (dry run)",
+                )
+            return UpgradeResult(
+                True,
+                name,
+                executed=False,
+                message=f"{name} is no longer listed",
+            )
+        if not execute:
+            return UpgradeResult(
+                True,
+                name,
+                executed=False,
+                message=f"Dry run: would upgrade {name} at ({row.point.x},{row.point.y})",
+            )
+
+        taps = 0
+        self._adb.tap(row.point.x, row.point.y)
+        taps += 1
+        self._clock.sleep(1.2)
+        frame = self._capture.capture()
+        if frame is None:
+            return UpgradeResult(False, name, taps=taps, message="Capture failed")
+        title = self._text_reader(frame, DIALOG_TITLE_REGION)
+        if _normalize(name) not in _normalize(title):
+            self.dismiss(execute=True)
+            return UpgradeResult(
+                False,
+                name,
+                taps=taps,
+                message=f"Upgrade dialog does not mention {name}: {title.strip()!r}",
+            )
+        confirm = self.find(frame, self._buttons["confirm"], DIALOG_REGION)
+        if confirm is None:
+            self.dismiss(execute=True)
+            return UpgradeResult(
+                False,
+                name,
+                taps=taps,
+                message="Confirm button template not found",
+            )
+        self._adb.tap(confirm.x, confirm.y)
+        taps += 1
+        self._clock.sleep(1.0)
+        return UpgradeResult(
+            True,
+            name,
+            executed=True,
+            taps=taps,
+            message=f"Upgraded {name}",
+        )
+
     def find_row(self, rows: Sequence[UpgradeRow], name: str) -> UpgradeRow | None:
         """Return the row whose OCR text matches *name*.
 

@@ -19,6 +19,28 @@ PRIORITY_CATEGORIES = (
 )
 
 
+class UpgradeRunWorker(QThread):
+    """Execute the upgrade queue off the GUI thread."""
+
+    completed = pyqtSignal(object)
+    failed = pyqtSignal(str)
+
+    def __init__(self, model: VillageModel, execute: bool, parent=None) -> None:
+        """Create the worker for *model*."""
+        super().__init__(parent)
+        self._model = model
+        self._execute = execute
+
+    def run(self) -> None:
+        """Run the upgrade queue."""
+        try:
+            result = self._model.run_upgrades(execute=self._execute)
+        except Exception as exc:
+            self.failed.emit(f"{type(exc).__name__}: {exc}")
+            return
+        self.completed.emit(result)
+
+
 class UpgradeScanWorker(QThread):
     """Read the in-game upgrade panel off the GUI thread."""
 
@@ -48,8 +70,12 @@ class VillageViewModel(BaseViewModel):
     dirty_changed = pyqtSignal(bool)
     status_message = pyqtSignal(str, str)
     targets_scanned = pyqtSignal(object)
+    builders_updated = pyqtSignal(object)
     scan_started = pyqtSignal()
     scan_finished = pyqtSignal()
+    upgrade_started = pyqtSignal()
+    upgrade_finished = pyqtSignal()
+    upgrade_completed = pyqtSignal(object)
 
     def __init__(self, model: VillageModel, parent=None) -> None:
         """Create the view-model around a village model."""
@@ -59,6 +85,42 @@ class VillageViewModel(BaseViewModel):
         self._draft = UpgradeConfig()
         self._dirty = False
         self._scan_worker: UpgradeScanWorker | None = None
+        self._run_worker: UpgradeRunWorker | None = None
+
+    @property
+    def is_upgrading(self) -> bool:
+        """Return ``True`` while the upgrade runner is active."""
+        return self._run_worker is not None and self._run_worker.isRunning()
+
+    def upgrade_now(self, execute: bool = True) -> bool:
+        """Run the upgrade queue in the background."""
+        if self.is_upgrading:
+            return False
+        worker = UpgradeRunWorker(self._model, execute=execute, parent=self)
+        worker.completed.connect(self._on_upgrade_completed)
+        worker.failed.connect(self._on_upgrade_failed)
+        worker.finished.connect(self._on_upgrade_done)
+        self._run_worker = worker
+        self.upgrade_started.emit()
+        self._status("Running upgrades…", "info")
+        worker.start()
+        return True
+
+    def _on_upgrade_completed(self, result: object) -> None:
+        """Report the finished run."""
+        self.upgrade_completed.emit(result)
+        message = getattr(result, "message", "Upgrade run finished")
+        ok = bool(getattr(result, "ok", False))
+        self._status(message, "success" if ok else "error")
+
+    def _on_upgrade_failed(self, message: str) -> None:
+        """Report a crashed upgrade run."""
+        self._report_error(f"Upgrade run failed: {message}")
+
+    def _on_upgrade_done(self) -> None:
+        """Clear the runner reference when the thread exits."""
+        self._run_worker = None
+        self.upgrade_finished.emit()
 
     @property
     def is_scanning(self) -> bool:
@@ -80,8 +142,17 @@ class VillageViewModel(BaseViewModel):
         return True
 
     def _on_scanned(self, names: object) -> None:
-        """Relay the scanned rows per Build tab."""
-        if isinstance(names, dict):
+        """Relay the scanned rows per Build tab and the builder count."""
+        from COCbot.features.village.model import PanelScan
+
+        builders = None
+        if isinstance(names, PanelScan):
+            payload = {
+                str(tab): tuple(values)
+                for tab, values in names.rows.items()
+            }
+            builders = names.builders_available
+        elif isinstance(names, dict):
             payload = {
                 str(tab): tuple(str(name) for name in (values or ()))
                 for tab, values in names.items()
@@ -93,7 +164,11 @@ class VillageViewModel(BaseViewModel):
             self._status("No upgrade rows found — open the village first", "warning")
             return
         self.targets_scanned.emit(payload)
-        self._status(f"{total} upgrade rows detected", "success")
+        self.builders_updated.emit(builders)
+        suffix = ""
+        if builders is not None:
+            suffix = f" · {builders} builder(s) free"
+        self._status(f"{total} upgrade rows detected{suffix}", "success")
 
     def _on_scan_failed(self, message: str) -> None:
         """Report a failed scan."""
@@ -222,11 +297,12 @@ class VillageViewModel(BaseViewModel):
         return plan_upgrades(self._draft, builders_available)
 
     def shutdown(self, wait_ms: int = 3000) -> None:
-        """Stop the panel scan thread on exit."""
-        worker = self._scan_worker
-        if worker is None:
-            return
-        if worker.isRunning() and not worker.wait(wait_ms):
-            worker.terminate()
-            worker.wait(1000)
+        """Stop the scan and upgrade threads on exit."""
+        for worker in (self._scan_worker, self._run_worker):
+            if worker is None:
+                continue
+            if worker.isRunning() and not worker.wait(wait_ms):
+                worker.terminate()
+                worker.wait(1000)
         self._scan_worker = None
+        self._run_worker = None

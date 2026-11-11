@@ -30,7 +30,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
                                   engine, resource bar, main view-model tests
-                                  (211 total)
+                                  (218 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -496,6 +496,32 @@ plan_upgrades(config, builders_available=3)
 Without wall upgrading the budget equals the builders available. Zero builders
 plans nothing. The plan is exposed through `VillageViewModel.upgrade_plan()`
 and stays a dry-run until execution is wired into the cycle.
+
+### Builder-limited ticking and the upgrade runner
+
+```text
+COCbot/features/village/runner.py          UpgradeRunner
+COCbot/features/village/upgrades.py        find_in_panel / upgrade_listed
+```
+
+The **Buildings & Heroes** tab shows `Builders free: N — tick up to N target(s)`
+after a scan. Ticking more than the free builders immediately unticks the extra
+rows; enabling walls drops the allowance to `N-1` because one builder is kept
+for walls.
+
+**Upgrade now** asks for confirmation, then the runner:
+
+1. reads the free builder count from the village;
+2. plans the ticked targets (hero/money priorities, wall reserve);
+3. for each target, opens the panel, pages to its row, taps it, verifies the
+   dialog title and the CONFIRM template before confirming;
+4. upgrades the same target again while builders remain, and stops that target
+   as soon as it no longer appears in the panel (maxed);
+5. stops when the builder budget reaches zero or a step fails safely.
+
+`UpgradeRunner.run()` stays a dry-run when `execute=False`; the button passes
+`execute=True` only after the confirmation dialog, and both Scan and Upgrade
+are disabled while the farm bot is running.
 
 
 ### Module 16 — Training quick-train (farm prerequisite)

@@ -79,13 +79,13 @@ class VillageScanTests(unittest.TestCase):
         scanner = FakeScanner(["Barbarian King", "MonolitH"])
         model = VillageModel(self.store, self.settings, scanner=scanner)
         scanned = model.scan_panel()
-        self.assertEqual(scanned["buildings"], ("Barbarian King", "Monolith"))
-        self.assertEqual(scanned["army"], ("Laboratory",))
+        self.assertEqual(scanned.rows["buildings"], ("Barbarian King", "Monolith"))
+        self.assertEqual(scanned.rows["army"], ("Laboratory",))
         self.assertEqual(scanner.calls, 1)
 
     def test_scan_without_scanner_is_empty(self) -> None:
         model = VillageModel(self.store, self.settings)
-        self.assertEqual(model.scan_panel(), {})
+        self.assertEqual(model.scan_panel().rows, {})
 
 
 if __name__ == "__main__":

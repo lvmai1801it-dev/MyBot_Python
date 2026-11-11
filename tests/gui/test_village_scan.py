@@ -40,6 +40,18 @@ class FakeScanner:
         }
 
 
+class FakeReader:
+    """Builder count reported by the village reader."""
+
+    def __init__(self, available: int) -> None:
+        self.available = available
+
+    def read(self):
+        from COCbot.features.village.resources import VillageResources
+
+        return VillageResources(builders_available=self.available, builders_total=6)
+
+
 def labels(widget) -> list[str]:
     """Return the item texts of a list widget."""
     return [widget.item(index).text() for index in range(widget.count())]
@@ -54,7 +66,12 @@ class VillageScanViewTests(unittest.TestCase):
         path = Path(self._temp.name) / "settings.json"
         self.settings = SettingsModel(path)
         self.store = ConfigStore(AppConfig())
-        model = VillageModel(self.store, self.settings, scanner=FakeScanner())
+        model = VillageModel(
+            self.store,
+            self.settings,
+            scanner=FakeScanner(),
+            resource_reader=FakeReader(2),
+        )
         self.vm = VillageViewModel(model)
         self.view = VillageView(self.vm)
         self.view.show()
@@ -142,6 +159,30 @@ class VillageScanViewTests(unittest.TestCase):
         plan = self.vm.upgrade_plan(3)
         self.assertTrue(plan.wall_reserved)
         self.assertEqual(plan.budget, 2)
+
+    def test_builder_limit_caps_ticked_targets(self) -> None:
+        self._scan()
+        widget = self.view.priority_lists[UpgradeCategory.BUILDINGS]
+        for index in range(3):
+            widget.item(index).setCheckState(Qt.Checked)
+        _APP.processEvents()
+        checked = [
+            widget.item(index).text()
+            for index in range(widget.count())
+            if widget.item(index).checkState() == Qt.Checked
+        ]
+        self.assertEqual(len(checked), 2)
+
+    def test_wall_tick_reduces_the_limit(self) -> None:
+        self._scan()
+        widget = self.view.priority_lists[UpgradeCategory.BUILDINGS]
+        for index in range(2):
+            widget.item(index).setCheckState(Qt.Checked)
+        _APP.processEvents()
+        self.assertEqual(len(self.view._checked_items(UpgradeCategory.BUILDINGS)), 2)
+        self.view.wall_enabled.setChecked(True)
+        _APP.processEvents()
+        self.assertEqual(len(self.view._checked_items(UpgradeCategory.BUILDINGS)), 1)
 
 
 if __name__ == "__main__":
