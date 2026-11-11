@@ -21,11 +21,20 @@ from COCbot.core.adb import AdbClient
 from COCbot.core.config import ConfigStore, load_config
 from COCbot.core.config.paths import get_project_paths
 from COCbot.core.logging import build_logger
-from COCbot.core.vision import RedlineDetector, ScreenCapture, TemplateMatcher, YoloDetector
+from COCbot.core.vision import (
+    NumberOcr,
+    RedlineDetector,
+    ScreenCapture,
+    TemplateMatcher,
+    YoloDetector,
+)
 from COCbot.features.accounts.model import AccountsModel
 from COCbot.features.accounts.view import AccountsView
 from COCbot.features.accounts.viewmodel import AccountsViewModel
-from COCbot.features.attack.model import AttackModel, AttackStep
+from COCbot.features.attack.army_bar import ArmyBarScanner
+from COCbot.features.attack.battle import BattleService, FullAttackStep
+from COCbot.features.attack.executor import AttackExecutor
+from COCbot.features.attack.model import AttackModel
 from COCbot.features.attack.view import AttackView
 from COCbot.features.attack.viewmodel import AttackViewModel
 from COCbot.features.clan.model import ClanModel
@@ -136,6 +145,17 @@ def main() -> int:
         logger=logger,
         allow_input=False,
     )
+    ocr = NumberOcr(logger=logger)
+    army_scanner = ArmyBarScanner(ocr=ocr, logger=logger)
+    battle = BattleService(
+        adb,
+        capture,
+        matcher,
+        ocr=ocr,
+        logger=logger,
+        execute=False,
+    )
+    attack_executor = AttackExecutor(adb, logger=logger, execute=False)
     attack_viewmodel = AttackViewModel(attack_model)
     attack_view = AttackView(attack_viewmodel)
 
@@ -170,7 +190,13 @@ def main() -> int:
                     execute=False,
                 )
             ),
-            AttackStep(attack_model, execute=False),
+            FullAttackStep(
+                attack_model,
+                battle,
+                army_scanner,
+                attack_executor,
+                execute=False,
+            ),
         ],
         config=config,
         logger=logger,

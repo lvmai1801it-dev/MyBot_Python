@@ -27,7 +27,8 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
-                                  main view-model tests (155 total)
+                                  attack execution, main view-model tests
+                                  (160 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -266,6 +267,26 @@ VillageStep (dry-run) → AttackStep (scan/dry-run)
 Real-input stages still require device calibration before enabling:
 attack search/drop/battle-end, wall/hero/defense upgrades, Clan actions.
 
+### Module 12 — Clean runtime port, stage 2 (attack execution)
+
+```text
+COCbot/features/attack/army_bar.py   ArmyBarScanner + template normalization
+COCbot/features/attack/executor.py   AttackExecutor + edge point spreading
+COCbot/features/attack/battle.py     search/scout/end/stars/loot + FullAttackStep
+```
+
+`FullAttackStep` now runs the clean attack pipeline:
+
+```text
+return home → search → wait scout → capture/detect redline → scan army bar
+→ deploy along edge → wait battle end → read stars/loot → return home
+```
+
+It remains **dry-run** in the shell (`execute=False`): it captures, scans the
+army bar, plans deploy points, and reports them without tapping. Real input is
+available by constructing `BattleService`, `AttackExecutor`, and `FullAttackStep`
+with `execute=True` after device calibration.
+
 ## Verification commands
 
 ```powershell
@@ -276,7 +297,7 @@ attack search/drop/battle-end, wall/hero/defense upgrades, Clan actions.
 
 ## Remaining work
 
-1. Gameplay parity: port the legacy attack/village/clan execution loops into
-   `CycleStep` adapters, then enable real input in the MVVM shell.
-2. Purge batch 2: archive legacy packages once parity tests pass on the device.
-3. Switch the default launcher from legacy to `COCbot.main` only after parity.
+1. Stage 3: wall/hero/defense upgrade execution, storage detection, zoom.
+2. Stage 4: Clan Games / Clan Capital / Donate execution.
+3. Calibrate attack/village stages on MEmu, then enable `execute=True`.
+4. Purge batch 2 and switch the default launcher only after parity tests pass.
