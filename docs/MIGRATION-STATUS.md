@@ -24,7 +24,7 @@ COCbot/core/config/               AppConfig schema, paths, coordinates, defaults
 COCbot/core/logging/              BotFormatter, rotating logger, SUCCESS level
 COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
-tests/unit/                       Model + config tests (26 total)
+tests/unit/                       Model, config, ADB, vision, emulator tests (55 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -38,6 +38,37 @@ Key contracts:
 - `ProjectPaths` is the only path resolver; new code must not hard-code paths.
 - `NavigationPoints` / `SCREEN` centralize tap targets and screen geometry.
 
+### Module 2 — ADB, capture, YOLO, OCR, templates, emulators
+
+```text
+COCbot/core/adb/
+├── client.py       AdbClient (AdbPort) with retries + injectable runner
+├── commands.py     pure argument builders
+└── tap_guard.py    Shop-zone protection
+
+COCbot/core/vision/
+├── image.py        Unicode-safe imread/imwrite, crop, blank detection
+├── capture.py      ScreenCapture (CapturePort) with retries/blank check
+├── detector.py     YoloDetector (DetectorPort), lazy Ultralytics load
+├── ocr.py          NumberOcr (OcrPort), PaddleOCR → Tesseract fallback
+└── templates.py    TemplateMatcher with cache + path-traversal guard
+
+COCbot/core/emulator/
+├── base.py         shared runner/tool discovery
+├── memu.py         memuc listvms/start/isvmrunning
+├── ldplayer.py     ldconsole list2/launch/isrunning
+├── bluestacks.py   HD-Player instance
+├── setup.py        start → ADB connect → launch CoC
+└── registry.py     create_emulator(type)
+```
+
+Hardware verification (MEmu at `127.0.0.1:21503`):
+
+- ADB connected.
+- Captured a real 860x732 frame in 0.34 s (402,578 bytes PNG).
+- `settings_logo.png` template score **1.00** on the live home screen.
+- `MemuEmulator` discovered `F:\Microvirt\MEmu` and reported instance 0 running.
+
 ## Verification commands
 
 ```powershell
@@ -48,10 +79,8 @@ Key contracts:
 
 ## Next modules
 
-1. `core/vision/` — capture frame decoding, YOLO detector adapter, OCR adapter.
-2. `core/adb/` — subprocess ADB client, tap guard, emulator adapters.
-3. `app/orchestrator.py` + `workers/` — QThread worker, pause/stop protocol.
-4. `features/settings/` — reference vertical slice.
-5. `features/attack/` — reference complex feature (YOLO + worker + live UI).
-6. `COCbot/main.py` — composition root.
-7. Purge batch 2: archive the legacy packages once parity tests pass.
+1. `app/orchestrator.py` + `workers/` — QThread worker, pause/stop protocol.
+2. `features/settings/` — reference vertical slice.
+3. `features/attack/` — reference complex feature (YOLO + worker + live UI).
+4. `COCbot/main.py` — composition root.
+5. Purge batch 2: archive the legacy packages once parity tests pass.

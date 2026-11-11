@@ -26,6 +26,9 @@ ADB_RETRY_DELAY_SEC = 0.5
 SCREEN_WIDTH = 860
 SCREEN_HEIGHT = 732
 DEFAULT_SCREENSHOT_FORMAT = "png"
+DEFAULT_CAPTURE_RETRIES = 4
+DEFAULT_CAPTURE_RETRY_DELAY = 5.0
+DEFAULT_CAPTURE_MIN_STDDEV = 1.0
 
 # --- Vision ---------------------------------------------------------------
 DEFAULT_YOLO_MODEL = "models/redline_seg.pt"
@@ -33,6 +36,9 @@ DEFAULT_YOLO_CONFIDENCE = 0.35
 DEFAULT_YOLO_IOU = 0.45
 DEFAULT_REDLINE_OFFSET_RATIO = 0.35
 DEFAULT_OCR_MIN_CONFIDENCE = 0.40
+DEFAULT_OCR_UPSCALE = 6
+DEFAULT_TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+DEFAULT_OCR_MAX_VALUE = 999_999_999
 
 # --- Bot loop -------------------------------------------------------------
 DEFAULT_CYCLE_DELAY_SEC = 1.0

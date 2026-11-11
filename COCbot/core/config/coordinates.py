@@ -74,6 +74,7 @@ class NavigationPoints:
 NAV = NavigationPoints()
 
 # Regions intentionally kept in one place so vision code and tests agree.
+SHOP_BUTTON_BOX = Rect(760, 315, 98, 105)
 NEXT_BUTTON_REGION = Rect(692, 538, 163, 79)
 SCOUT_SCREEN_REGION = Rect(10, 569, 118, 52)
 BATTLE_REGION = Rect(340, 181, 192, 503)

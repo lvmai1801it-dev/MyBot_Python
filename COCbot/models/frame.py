@@ -20,6 +20,7 @@ class Frame:
     height: int
     captured_at: float = field(default_factory=time.time)
     source: str = "adb"
+    raw: bytes = b""
 
     def is_empty(self) -> bool:
         """Return ``True`` when the frame carries no usable image."""
