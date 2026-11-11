@@ -28,10 +28,15 @@ from COCbot.features.accounts.viewmodel import AccountsViewModel
 from COCbot.features.attack.model import AttackModel, AttackStep
 from COCbot.features.attack.view import AttackView
 from COCbot.features.attack.viewmodel import AttackViewModel
+from COCbot.features.logs.model import LogsModel
+from COCbot.features.logs.view import LogsView
+from COCbot.features.logs.viewmodel import LogsViewModel
 from COCbot.features.settings.model import SettingsModel
 from COCbot.features.settings.view import SettingsView
 from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.game.account.shared_prefs import SharedPrefsManager
+from COCbot.models.bot_state import BotEvent
+from COCbot.models.enums import LogLevel
 from COCbot.ui_components import apply_theme
 from COCbot.viewmodels.main_viewmodel import MainViewModel
 from COCbot.views.main_window import MainWindow
@@ -85,6 +90,23 @@ def main() -> int:
     adb = AdbClient(host=config.emulator.host, logger=logger)
     if not adb.connect(config.emulator.host, timeout=3.0):
         logger.warning("ADB is not connected; attack scans will fail until it is")
+    adb_ready = adb.is_connected()
+
+    logs_viewmodel = LogsViewModel()
+    logs_viewmodel.append_event(
+        BotEvent(level=LogLevel.INFO, message="MVVM shell started")
+    )
+    logs_viewmodel.append_event(
+        BotEvent(
+            level=LogLevel.SUCCESS if adb_ready else LogLevel.WARNING,
+            message=(
+                f"ADB {config.emulator.host} connected"
+                if adb_ready
+                else f"ADB {config.emulator.host} offline"
+            ),
+        )
+    )
+    logs_view = LogsView(logs_viewmodel)
 
     capture = ScreenCapture(adb, logger=logger)
     detector = YoloDetector(logger=logger)
@@ -122,7 +144,14 @@ def main() -> int:
         cycle_delay=1.0,
     )
     main_viewmodel = MainViewModel(orchestrator)
-    window = MainWindow(settings_view, accounts_view, attack_view, main_viewmodel)
+    main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
+    window = MainWindow(
+        logs_view,
+        settings_view,
+        accounts_view,
+        attack_view,
+        main_viewmodel,
+    )
     window.show()
 
     application.aboutToQuit.connect(main_viewmodel.shutdown)

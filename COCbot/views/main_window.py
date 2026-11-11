@@ -41,6 +41,7 @@ class MainWindow(QMainWindow):
 
     def __init__(
         self,
+        logs_view: QWidget,
         settings_view: QWidget,
         accounts_view: QWidget,
         attack_view: QWidget,
@@ -63,7 +64,10 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         root.addWidget(self._build_header())
-        root.addWidget(self._build_tabs(settings_view, accounts_view, attack_view), 1)
+        root.addWidget(
+            self._build_tabs(logs_view, settings_view, accounts_view, attack_view),
+            1,
+        )
         root.addWidget(self._build_footer())
 
         self._viewmodel.running_changed.connect(self._on_running_changed)
@@ -113,6 +117,7 @@ class MainWindow(QMainWindow):
 
     def _build_tabs(
         self,
+        logs_view: QWidget,
         settings_view: QWidget,
         accounts_view: QWidget,
         attack_view: QWidget,
@@ -121,6 +126,7 @@ class MainWindow(QMainWindow):
         tabs = QTabWidget()
         tabs.setObjectName("mainTabs")
         tabs.setDocumentMode(True)
+        tabs.addTab(logs_view, "Logs")
         tabs.addTab(settings_view, "Settings")
         tabs.addTab(accounts_view, "Accounts")
         tabs.addTab(attack_view, "Attack")

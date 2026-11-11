@@ -26,7 +26,7 @@ COCbot/models/                    Enums, geometry, frame, resources, village,
                                   account, attack, bot state, emulator
 tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
-                                  accounts, main view-model tests (124 total)
+                                  accounts, logs, main view-model tests (137 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -194,6 +194,22 @@ each mutation.
 Verified on the real MEmu device: profiles list, root status, ADB operations
 are wired through the worker. Rendered screenshot: `artifacts/accounts_view.png`.
 
+### Module 8 — Logs vertical slice
+
+```text
+COCbot/features/logs/
+├── model.py       LogsModel: bounded buffer + level/search filter + export
+├── viewmodel.py   LogsViewModel: BotEvent ingestion + signals
+└── view.py        LogsView: filterable table, clear, export
+```
+
+The shell subscribes `MainViewModel.event_emitted` to `LogsViewModel.append_event`,
+so every orchestrator event appears in the Logs tab. Rows are coloured by level,
+filterable by exact level or text, and exportable to a UTF-8 text file. Startup
+events (shell ready, ADB connected/offline) are logged before the view is shown.
+
+Rendered screenshot: `artifacts/logs_view.png`.
+
 ## Verification commands
 
 ```powershell
@@ -205,6 +221,6 @@ are wired through the worker. Rendered screenshot: `artifacts/accounts_view.png`
 ## Next modules
 
 1. Migrate remaining features using the same vertical-slice pattern:
-   village/upgrade, clan games/capital, donate, logs, statistics.
+   village/upgrade, clan games/capital, donate, statistics.
 2. Purge batch 2: archive legacy packages once parity tests pass.
 3. Switch `run.py` to `COCbot.main` and remove the legacy GUI tree.
