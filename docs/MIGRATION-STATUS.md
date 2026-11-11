@@ -28,8 +28,8 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   session, orchestrator, worker, settings, attack,
                                   accounts, logs, statistics, village, clan,
                                   attack execution, wall calibration,
-                                  hero/defense framework, training,
-                                  main view-model tests (168 total)
+                                  hero/defense framework, training, legacy
+                                  engine, main view-model tests (170 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -444,6 +444,24 @@ dry-run until its device calibration is approved.
 - A debug frame is saved to `debug/attack_redline_<ts>.png` with the redline
   polygon and deploy-edge points, so out-of-line taps can be inspected.
 
+### Gameplay runtime reverted to legacy farm engine
+
+The clean-port attack path is retained for future work, but the shell **Start**
+button now uses the proven pre-MVVM gameplay loop:
+
+```text
+COCbot/app/legacy_engine.py  LegacyEngine
+  → COCbot.app.bootstrap.bot_loop(cfg)
+      → setup_emulator / prepare_main_village
+      → one_cycle: training, collectors, wall, clan, search, attack,
+        battle result, stats, account switching
+```
+
+`LegacyEngine` snapshots `AppConfig.to_dict()` and bridges the new session
+controls to the legacy `state.stop_event` / `state.pause_event`. This restores
+the old attack logic exactly while keeping the MVVM shell, workers, logs,
+settings, accounts, and statistics UI.
+
 ## Verification commands
 
 ```powershell
@@ -454,9 +472,8 @@ dry-run until its device calibration is approved.
 
 ## Remaining work
 
-1. Live attack calibration: enable `MYBOT_LIVE_ATTACK=1` on a test attack and
-   verify search/army scan/deploy/battle-end/loot.
+1. Clean attack port calibration (retained for future; shell uses legacy engine).
 2. Stage 3c assets: capture hero/defense + upgrade-button templates into
    `Templates/Upgrades/`, then calibrate on MEmu.
-3. Stage 4: Clan Games / Clan Capital / Donate execution.
-4. Purge batch 2 and switch the default launcher only after parity tests pass.
+3. Stage 4 clean port: Clan Games / Clan Capital / Donate execution.
+4. Purge batch 2 only after the clean engine reaches parity with the legacy one.

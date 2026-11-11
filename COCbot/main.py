@@ -15,25 +15,16 @@ import COCbot.qt_startup  # noqa: F401  (torch before PyQt5)
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication
 
-from COCbot.app.orchestrator import BotOrchestrator
 from COCbot.app import state as legacy_state
-from COCbot.core.adb import AdbClient, Uiautomator2MultiTouch
+from COCbot.app.legacy_engine import LegacyEngine
+from COCbot.core.adb import AdbClient
 from COCbot.core.config import ConfigStore, load_config
 from COCbot.core.config.paths import get_project_paths
 from COCbot.core.logging import build_logger
-from COCbot.core.vision import (
-    NumberOcr,
-    RedlineDetector,
-    ScreenCapture,
-    TemplateMatcher,
-    YoloDetector,
-)
+from COCbot.core.vision import RedlineDetector, ScreenCapture, YoloDetector
 from COCbot.features.accounts.model import AccountsModel
 from COCbot.features.accounts.view import AccountsView
 from COCbot.features.accounts.viewmodel import AccountsViewModel
-from COCbot.features.attack.army_bar import ArmyBarScanner
-from COCbot.features.attack.battle import BattleService, FullAttackStep
-from COCbot.features.attack.executor import AttackExecutor
 from COCbot.features.attack.model import AttackModel
 from COCbot.features.attack.view import AttackView
 from COCbot.features.attack.viewmodel import AttackViewModel
@@ -49,11 +40,9 @@ from COCbot.features.settings.viewmodel import SettingsViewModel
 from COCbot.features.statistics.model import StatisticsModel
 from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
-from COCbot.features.training.model import TrainingActions, TrainingStep
-from COCbot.features.village.model import VillageActions, VillageModel, VillageStep
+from COCbot.features.village.model import VillageModel
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
-from COCbot.features.village.wall import WallUpgrader
 from COCbot.game.account.shared_prefs import SharedPrefsManager
 from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import LogLevel
@@ -97,10 +86,6 @@ def main() -> int:
 
     config = load_config()
     config_store = ConfigStore(config)
-    live_village = os.environ.get("MYBOT_LIVE_VILLAGE") == "1"
-    live_attack = os.environ.get("MYBOT_LIVE_ATTACK") == "1"
-    live_wall = os.environ.get("MYBOT_LIVE_WALL") == "1"
-    live_training = os.environ.get("MYBOT_LIVE_TRAINING") == "1"
     paths = get_project_paths()
     paths.ensure_runtime_dirs()
     logger = build_logger("mybot", config.logging)
@@ -131,21 +116,9 @@ def main() -> int:
         )
     )
     logs_view = LogsView(logs_viewmodel)
-    if live_village or live_attack or live_wall or live_training:
-        logs_viewmodel.append_event(
-            BotEvent(
-                level=LogLevel.WARNING,
-                message=(
-                    f"LIVE input: village={live_village} attack={live_attack} "
-                    f"wall={live_wall} training={live_training}"
-                ),
-            )
-        )
 
     capture = ScreenCapture(adb, logger=logger)
     detector = YoloDetector(logger=logger)
-    matcher = TemplateMatcher(logger=logger)
-    multitouch = Uiautomator2MultiTouch(config.emulator.host, logger=logger)
     redline = RedlineDetector(
         model_path=config.vision.redline_model,
         confidence=config.vision.confidence,
@@ -161,31 +134,6 @@ def main() -> int:
         config_store=config_store,
         logger=logger,
         allow_input=False,
-    )
-    ocr = NumberOcr(logger=logger)
-    army_scanner = ArmyBarScanner(ocr=ocr, logger=logger)
-    battle = BattleService(
-        adb,
-        capture,
-        matcher,
-        ocr=ocr,
-        logger=logger,
-        execute=live_attack,
-    )
-    attack_executor = AttackExecutor(adb, logger=logger, execute=live_attack)
-    wall_upgrader = WallUpgrader(
-        adb,
-        capture,
-        logger=logger,
-        execute=live_wall,
-        threshold=0.65,
-    )
-    training_actions = TrainingActions(
-        adb,
-        capture,
-        matcher,
-        logger=logger,
-        execute=live_training,
     )
     attack_viewmodel = AttackViewModel(attack_model)
     attack_view = AttackView(attack_viewmodel)
@@ -210,34 +158,8 @@ def main() -> int:
     statistics_viewmodel = StatisticsViewModel(statistics_model)
     statistics_view = StatisticsView(statistics_viewmodel)
 
-    orchestrator = BotOrchestrator(
-        [
-            TrainingStep(training_actions, slot=config.training.quick_slot),
-            VillageStep(
-                VillageActions(
-                    adb,
-                    capture,
-                    matcher,
-                    ocr=ocr,
-                    logger=logger,
-                    multitouch=multitouch,
-                    wall_upgrader=wall_upgrader,
-                    execute=live_village,
-                )
-            ),
-            FullAttackStep(
-                attack_model,
-                battle,
-                army_scanner,
-                attack_executor,
-                execute=live_attack,
-            ),
-        ],
-        config=config,
-        logger=logger,
-        cycle_delay=1.0,
-    )
-    main_viewmodel = MainViewModel(orchestrator)
+    engine = LegacyEngine(config_store, logger=logger)
+    main_viewmodel = MainViewModel(engine)
     main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
 
     def _reload_config_views(*_args: object) -> None:
