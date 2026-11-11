@@ -115,6 +115,23 @@ QWidget#appHeader {{ background: {TITLE_BG}; }}
 QLabel#appTitle {{ color: #FFFFFF; font-size: 15px; font-weight: 600; }}
 QLabel#appSub {{ color: #BFD3CE; font-size: 10px; }}
 QLabel#appBadge {{ color: #9FB8B1; font-size: 10px; }}
+QWidget#resourceBar {{
+    background: {CARD};
+    border-bottom: 1px solid {BORDER};
+}}
+QLabel#resCaption {{ color: {TEXT_MUTED}; font-size: 9px; }}
+QLabel#resValue {{ font-size: 12px; font-weight: 600; }}
+QFrame#resSeparator {{ background: {BORDER}; }}
+QPushButton#resRefresh {{
+    background: transparent;
+    border: 1px solid {BORDER};
+    border-radius: 4px;
+    padding: 0;
+    min-height: 0;
+    font-size: 13px;
+    color: {TEXT_MUTED};
+}}
+QPushButton#resRefresh:hover {{ border-color: {PRIMARY}; color: {PRIMARY}; }}
 QPushButton#winBtn, QPushButton#winClose {{
     background: transparent;
     color: #E6EFEC;

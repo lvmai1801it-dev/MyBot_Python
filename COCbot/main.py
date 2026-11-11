@@ -41,6 +41,7 @@ from COCbot.features.statistics.model import StatisticsModel
 from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
 from COCbot.features.village.model import VillageModel
+from COCbot.features.village.resources import ResourceReader
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
 from COCbot.game.account.shared_prefs import SharedPrefsManager
@@ -48,7 +49,9 @@ from COCbot.models.bot_state import BotEvent
 from COCbot.models.enums import LogLevel
 from COCbot.ui_components import apply_theme
 from COCbot.viewmodels.main_viewmodel import MainViewModel
+from COCbot.viewmodels.resource_bar import ResourceBarViewModel
 from COCbot.views.main_window import MainWindow
+from COCbot.views.resource_bar import ResourceBar
 
 
 def _enable_dpi_awareness() -> None:
@@ -162,6 +165,11 @@ def main() -> int:
     main_viewmodel = MainViewModel(engine)
     main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
 
+    resource_viewmodel = ResourceBarViewModel(
+        ResourceReader(capture, logger=logger)
+    )
+    resource_bar = ResourceBar(resource_viewmodel)
+
     def _reload_config_views(*_args: object) -> None:
         settings_viewmodel.reload()
         village_viewmodel.load()
@@ -180,10 +188,13 @@ def main() -> int:
         attack_view,
         statistics_view,
         main_viewmodel,
+        resource_bar,
     )
     window.show()
 
+    resource_viewmodel.start()
     application.aboutToQuit.connect(main_viewmodel.shutdown)
+    application.aboutToQuit.connect(resource_viewmodel.stop)
     application.aboutToQuit.connect(accounts_viewmodel.shutdown)
     application.aboutToQuit.connect(attack_viewmodel.shutdown)
 

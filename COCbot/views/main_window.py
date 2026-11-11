@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
         attack_view: QWidget,
         statistics_view: QWidget,
         viewmodel: MainViewModel,
+        resource_bar: QWidget | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Build the shell and connect view-model signals."""
@@ -67,6 +68,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         root.addWidget(self._build_header())
+        self.resource_bar = resource_bar
+        if resource_bar is not None:
+            root.addWidget(resource_bar)
         root.addWidget(
             self._build_tabs(
                 logs_view,

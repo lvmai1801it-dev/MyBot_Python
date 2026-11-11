@@ -29,7 +29,8 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   accounts, logs, statistics, village, clan,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
-                                  engine, main view-model tests (175 total)
+                                  engine, resource bar, main view-model tests
+                                  (182 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -492,6 +493,35 @@ settings, accounts, and statistics UI.
 .venv\Scripts\python.exe -m compileall -q COCbot
 .venv\Scripts\python.exe -m unittest discover -s tests -t .
 .venv\Scripts\python.exe -m COCbot.gui.app   # legacy GUI smoke
+```
+
+### Resource bar (always-on village readout)
+
+```text
+COCbot/features/village/resources.py        ResourceReader + VillageResources
+COCbot/viewmodels/resource_bar.py           ResourcePoller (QThread) + view-model
+COCbot/views/resource_bar.py                ResourceBar widget
+```
+
+The shell shows a bar under the header on every tab with gold, elixir, dark
+elixir, gems, and the builder counter (`available/total`). It reads the 860x732
+frame with the Tesseract white-digit mask used for loot OCR:
+
+```text
+HOME_GOLD_REGION     Rect(660,  12, 168, 34)
+HOME_ELIXIR_REGION   Rect(660,  45, 168, 35)
+HOME_DARK_REGION     Rect(660,  79, 168, 35)
+HOME_GEMS_REGION     Rect(685, 110, 130, 42)
+HOME_BUILDERS_REGION Rect(740, 596,  64, 40)   # "5/5" above the Build button
+```
+
+`ResourcePoller` runs off the GUI thread, refreshes every 15 s (or immediately
+through the ↻ button), keeps the last good values when a field is unreadable,
+and drops out-of-range digits. Live read on MEmu:
+
+```text
+VillageResources(gold=16000000, elixir=13086862, dark_elixir=250000,
+                 gems=1497, builders_available=5, builders_total=5)
 ```
 
 ## Remaining work
