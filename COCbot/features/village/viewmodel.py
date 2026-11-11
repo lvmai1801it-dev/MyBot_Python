@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal
 
 from COCbot.core.config.schema import PriorityUpgradeConfig, UpgradeConfig
 from COCbot.core.errors import StorageError
@@ -19,6 +19,27 @@ PRIORITY_CATEGORIES = (
 )
 
 
+class UpgradeScanWorker(QThread):
+    """Read the in-game upgrade panel off the GUI thread."""
+
+    scanned = pyqtSignal(object)
+    failed = pyqtSignal(str)
+
+    def __init__(self, model: VillageModel, parent=None) -> None:
+        """Create the worker for *model*."""
+        super().__init__(parent)
+        self._model = model
+
+    def run(self) -> None:
+        """Open the panel, read the rows, close it."""
+        try:
+            names = self._model.scan_targets()
+        except Exception as exc:
+            self.failed.emit(f"{type(exc).__name__}: {exc}")
+            return
+        self.scanned.emit(names)
+
+
 class VillageViewModel(BaseViewModel):
     """Own a draft of the upgrade configuration and persist it explicitly."""
 
@@ -26,6 +47,9 @@ class VillageViewModel(BaseViewModel):
     saved = pyqtSignal(object)
     dirty_changed = pyqtSignal(bool)
     status_message = pyqtSignal(str, str)
+    targets_scanned = pyqtSignal(object)
+    scan_started = pyqtSignal()
+    scan_finished = pyqtSignal()
 
     def __init__(self, model: VillageModel, parent=None) -> None:
         """Create the view-model around a village model."""
@@ -34,6 +58,44 @@ class VillageViewModel(BaseViewModel):
         self._saved = UpgradeConfig()
         self._draft = UpgradeConfig()
         self._dirty = False
+        self._scan_worker: UpgradeScanWorker | None = None
+
+    @property
+    def is_scanning(self) -> bool:
+        """Return ``True`` while the panel scan is running."""
+        return self._scan_worker is not None and self._scan_worker.isRunning()
+
+    def scan_targets(self) -> bool:
+        """Start reading the in-game upgrade panel; return ``False`` if busy."""
+        if self.is_scanning:
+            return False
+        worker = UpgradeScanWorker(self._model, parent=self)
+        worker.scanned.connect(self._on_scanned)
+        worker.failed.connect(self._on_scan_failed)
+        worker.finished.connect(self._on_scan_done)
+        self._scan_worker = worker
+        self.scan_started.emit()
+        self._status("Reading the in-game upgrade panel…", "info")
+        worker.start()
+        return True
+
+    def _on_scanned(self, names: object) -> None:
+        """Relay the scanned row names."""
+        values = tuple(str(name) for name in (names or ()))
+        if not values:
+            self._status("No upgrade rows found — open the village first", "warning")
+            return
+        self.targets_scanned.emit(values)
+        self._status(f"{len(values)} upgrade rows detected", "success")
+
+    def _on_scan_failed(self, message: str) -> None:
+        """Report a failed scan."""
+        self._report_error(f"Upgrade scan failed: {message}")
+
+    def _on_scan_done(self) -> None:
+        """Clear the worker reference when the thread exits."""
+        self._scan_worker = None
+        self.scan_finished.emit()
 
     @property
     def config(self) -> UpgradeConfig:
@@ -135,3 +197,13 @@ class VillageViewModel(BaseViewModel):
             UpgradeCategory.OTHER: self._draft.other,
         }
         return mapping.get(category, PriorityUpgradeConfig())
+
+    def shutdown(self, wait_ms: int = 3000) -> None:
+        """Stop the panel scan thread on exit."""
+        worker = self._scan_worker
+        if worker is None:
+            return
+        if worker.isRunning() and not worker.wait(wait_ms):
+            worker.terminate()
+            worker.wait(1000)
+        self._scan_worker = None

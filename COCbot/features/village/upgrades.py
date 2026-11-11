@@ -140,8 +140,8 @@ def _ocr_text(frame_or_image: Frame | np.ndarray, region: Rect) -> str:
         return ""
 
 
-def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
-    """Return the upgrade rows visible in the Buildings & Heroes panel."""
+def _ocr_lines(frame: Frame, threshold: int) -> list[tuple[int, str]]:
+    """Return ``(y, name)`` lines from the panel name column at one threshold."""
     try:
         import pytesseract
     except Exception:
@@ -159,8 +159,8 @@ def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
         blue = crop[:, :, 0].astype(int)
         green = crop[:, :, 1].astype(int)
         red = crop[:, :, 2].astype(int)
-        white = (red > 140) & (green > 140) & (blue > 140)
-        accent = (green > 140) & (green > red + 25) & (green > blue + 25)
+        white = (red > threshold) & (green > threshold) & (blue > threshold)
+        accent = (green > threshold) & (green > red + 25) & (green > blue + 25)
         mask = (white | accent).astype(np.uint8) * 255
     else:
         mask = crop
@@ -191,21 +191,55 @@ def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
         height = float(data["height"][index]) / scale
         lines.setdefault(key, []).append((left, top + height / 2, word))
 
-    rows: list[UpgradeRow] = []
+    results: list[tuple[int, str]] = []
     for words in lines.values():
         words.sort(key=lambda item: item[0])
         name = " ".join(word for _, _, word in words).strip()
         lowered = _normalize(name)
         raw_lower = name.lower()
-        if not name or any(flag in raw_lower for flag in ROW_SKIP_KEYWORDS):
+        if not name or len(lowered) < 4:
+            continue
+        if any(flag in raw_lower for flag in ROW_SKIP_KEYWORDS):
             continue
         if any(
             difflib.SequenceMatcher(None, lowered, _normalize(header)).ratio() >= 0.8
             for header in ROW_HEADERS
         ):
             continue
-        center_y = int(sum(y for _, y, _ in words) / len(words)) + PANEL_ROW_OFFSET
-        rows.append(UpgradeRow(name=name, point=Point(PANEL_TAP_X, center_y)))
+        center_y = int(sum(y for _, y, _ in words) / len(words))
+        results.append((center_y, name))
+    return results
+
+
+def _ocr_rows(frame: Frame) -> list[UpgradeRow]:
+    """Return the upgrade rows visible in the Buildings & Heroes panel.
+
+    Two thresholds are merged because the panel mixes pure white names with
+    green/gold labels: one pass reads the white text, the other rescues the
+    tinted rows (``Gold Mine x 7``) that the first pass loses.
+    """
+    from COCbot.features.village.targets import canonical_name
+
+    merged: list[list] = []  # [y, name]
+    for threshold in (130, 145):
+        for y, name in _ocr_lines(frame, threshold):
+            match = None
+            for entry in merged:
+                if abs(entry[0] - y) <= 12:
+                    match = entry
+                    break
+            if match is None:
+                merged.append([y, name])
+                continue
+            if canonical_name(match[1]) is None and canonical_name(name) is not None:
+                match[1] = name
+            elif len(name) > len(match[1]) and canonical_name(match[1]) is None:
+                match[1] = name
+
+    rows = [
+        UpgradeRow(name=name, point=Point(PANEL_TAP_X, y + PANEL_ROW_OFFSET))
+        for y, name in merged
+    ]
     rows.sort(key=lambda row: row.point.y)
     return rows
 
@@ -296,6 +330,16 @@ class HeroDefenseUpgrader:
     def rows(self, frame: Frame) -> list[UpgradeRow]:
         """Return the upgrade rows visible in *frame*."""
         return list(self._rows_provider(frame))
+
+    def scan_rows(self, execute: bool = True) -> list[UpgradeRow]:
+        """Open the panel, read every row, then close it again."""
+        if not self.open_panel(execute=execute):
+            return []
+        frame = self._capture.capture()
+        rows = self.rows(frame) if frame is not None else []
+        if execute:
+            self.dismiss(execute=True)
+        return rows
 
     def find_row(self, rows: Sequence[UpgradeRow], name: str) -> UpgradeRow | None:
         """Return the row whose OCR text matches *name*.

@@ -30,7 +30,7 @@ tests/unit/                       Model, config, ADB, vision, redline, emulator,
                                   attack execution, wall calibration,
                                   hero/defense framework, training, legacy
                                   engine, resource bar, main view-model tests
-                                  (187 total)
+                                  (196 total)
 tests/architecture/               Qt-free / layering / docstring contracts
 pyproject.toml                     ruff, mypy, pytest, import-linter config
 ```
@@ -428,6 +428,38 @@ ROW Elixir Collector (620,227)
 The only gated step is the CONFIRM tap itself: it runs only when the caller
 passes `execute=True`, which the shell keeps off while the legacy farm engine
 handles gameplay.
+
+### Village tab target picker
+
+```text
+COCbot/features/village/targets.py     catalog + OCR name normalization
+COCbot/features/village/view.py        checkable target lists per category
+COCbot/features/village/viewmodel.py   UpgradeScanWorker (QThread)
+```
+
+Village → Hero/Defense/Army/Resource/Other are no longer free-text only. Each
+tab holds a checkable list, filled by pressing **Scan from game**:
+
+1. the worker opens the Buildings & Heroes panel through the upgrader;
+2. the panel name column is read twice (thresholds 130 and 145) and merged by
+   row, so white names and tinted rows such as `Gold Mine x 7` both survive;
+3. OCR slips are mapped to the catalog (`Monolitn` → `Monolith`,
+   `Minlon Prince` → `Minion Prince`) and grouped by category;
+4. the panel closes, duplicates are dropped, and the rows become unchecked
+   entries the user can tick (an Extra field still accepts custom names).
+
+Live scan on MEmu:
+
+```text
+hero     ['Grand Warden', 'Minion Prince']
+defense  ['Monolith', 'Revenge Tower']
+resource ['Dark Elixir Drill', 'Gold Mine']
+other    ['Crafting Station']
+```
+
+Scanning is disabled while the bot is running so it never interrupts a farm
+cycle. Ticked rows are saved into `hero_priorities` / `defense_priorities` / …
+like before, so the executor can consume them once auto-upgrade is wired in.
 
 
 ### Module 16 — Training quick-train (farm prerequisite)

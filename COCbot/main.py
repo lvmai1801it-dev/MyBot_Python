@@ -42,6 +42,7 @@ from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
 from COCbot.features.village.model import VillageModel
 from COCbot.features.village.resources import ResourceReader
+from COCbot.features.village.upgrades import HeroDefenseUpgrader
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
 from COCbot.game.account.shared_prefs import SharedPrefsManager
@@ -149,7 +150,11 @@ def main() -> int:
     settings_viewmodel = SettingsViewModel(settings_model, store=config_store)
     settings_view = SettingsView(settings_viewmodel)
 
-    village_model = VillageModel(config_store, settings_model)
+    village_model = VillageModel(
+        config_store,
+        settings_model,
+        scanner=HeroDefenseUpgrader(adb, capture, logger=logger),
+    )
     village_viewmodel = VillageViewModel(village_model)
     village_view = VillageView(village_viewmodel)
 
@@ -171,6 +176,7 @@ def main() -> int:
     main_viewmodel = MainViewModel(engine)
     main_viewmodel.event_emitted.connect(logs_viewmodel.append_event)
     main_viewmodel.running_changed.connect(resource_viewmodel.on_running_changed)
+    main_viewmodel.running_changed.connect(village_view.set_bot_running)
 
     resource_bar = ResourceBar(resource_viewmodel)
 
@@ -199,6 +205,7 @@ def main() -> int:
     application.aboutToQuit.connect(main_viewmodel.shutdown)
     application.aboutToQuit.connect(accounts_viewmodel.shutdown)
     application.aboutToQuit.connect(attack_viewmodel.shutdown)
+    application.aboutToQuit.connect(village_viewmodel.shutdown)
 
     if os.environ.get("MYBOT_SMOKE_TEST") == "1":
         from PyQt5.QtCore import QTimer

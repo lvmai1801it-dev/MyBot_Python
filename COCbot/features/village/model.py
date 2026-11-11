@@ -51,10 +51,16 @@ class VillageSnapshot:
 class VillageModel:
     """Load and persist the upgrade groups."""
 
-    def __init__(self, store: ConfigStore, settings: SettingsPort) -> None:
-        """Share the live config and the settings persistence port."""
+    def __init__(
+        self,
+        store: ConfigStore,
+        settings: SettingsPort,
+        scanner: HeroDefenseUpgrader | None = None,
+    ) -> None:
+        """Share the live config, the settings port and the panel scanner."""
         self._store = store
         self._settings = settings
+        self._scanner = scanner
 
     def load(self) -> VillageSnapshot:
         """Return the current upgrade configuration."""
@@ -70,6 +76,13 @@ class VillageModel:
     def reset_defaults(self) -> UpgradeConfig:
         """Return the default upgrade configuration."""
         return AppConfig().upgrades
+
+    def scan_targets(self) -> tuple[str, ...]:
+        """Open the in-game upgrade panel and return every listed row name."""
+        if self._scanner is None:
+            return ()
+        rows = self._scanner.scan_rows(execute=True)
+        return tuple(row.name for row in rows)
 
     @staticmethod
     def set_wall(
