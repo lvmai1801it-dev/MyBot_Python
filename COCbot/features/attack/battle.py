@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import time
 from threading import Event
 
 import cv2
+import numpy as np
 
 from COCbot.app.orchestrator import CycleContext, StepResult
 from COCbot.core.clock import SystemClock
@@ -21,11 +23,12 @@ from COCbot.core.config.coordinates import (
     SCOUT_SCREEN_REGION,
     STAR_REGIONS,
 )
+from COCbot.core.config.paths import get_project_paths
 from COCbot.core.errors import OperationCancelled
 from COCbot.core.ports import AdbPort, CapturePort, ClockPort, LoggerPort, OcrPort
-from COCbot.core.vision.image import frame_image
+from COCbot.core.vision.image import frame_image, imwrite
 from COCbot.core.vision.templates import TemplateMatcher
-from COCbot.features.attack.army_bar import ArmyBarScanner
+from COCbot.features.attack.army_bar import ArmyBarScanner, ArmySlotKind
 from COCbot.features.attack.executor import AttackExecutionResult, AttackExecutor
 from COCbot.features.attack.model import AttackModel, AttackScan
 from COCbot.models.attack import AttackResult, Detection, RedlineResult
@@ -88,6 +91,10 @@ class BattleService:
             return False
         self._adb.tap(point.x, point.y)
         return True
+
+    def capture(self) -> Frame | None:
+        """Capture one frame for a caller that needs the current screen."""
+        return self._capture.capture()
 
     def return_home(self) -> None:
         """Return to the home village."""
@@ -261,6 +268,31 @@ class FullAttackStep:
         """Return the stable step name."""
         return "attack"
 
+    def _save_debug(self, frame: Frame | None, redline: RedlineResult) -> None:
+        """Save an annotated redline frame for visual verification."""
+        if not self._execute or frame is None:
+            return
+        image = frame_image(frame)
+        if image is None:
+            return
+        annotated = image.copy()
+        if redline.polygon:
+            points = [(point.x, point.y) for point in redline.polygon]
+            cv2.polylines(
+                annotated,
+                [np.array(points, dtype=np.int32)],
+                True,
+                (0, 255, 0),
+                2,
+            )
+        for edge in redline.edges:
+            for point in edge:
+                cv2.circle(annotated, (point.x, point.y), 3, (255, 0, 0), -1)
+        path = get_project_paths().debug_dir / f"attack_redline_{int(time.time())}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if imwrite(path, annotated):
+            self._battle.warn(f"Redline debug saved: {path}")
+
     def run(self, context: CycleContext) -> StepResult:
         """Execute one full attack or a dry-run scan."""
         cancel = context.session.stop_event
@@ -280,6 +312,7 @@ class FullAttackStep:
         if scan.plan.target is None:
             self._battle.warn("No YOLO target; using redline default edge")
         slots = self._scanner.scan(scan.frame)
+        self._save_debug(scan.frame, scan.redline)
         result: AttackExecutionResult = self._executor.deploy(
             scan.plan,
             scan.redline,
@@ -289,6 +322,35 @@ class FullAttackStep:
         )
         if not result.ok:
             return StepResult(False, result.message, phase=BotPhase.ATTACKING)
+
+        if self._execute:
+            for _ in range(2):
+                frame = self._battle.capture()
+                if frame is None:
+                    break
+                remaining = [
+                    slot
+                    for slot in self._scanner.scan(frame)
+                    if slot.kind is ArmySlotKind.TROOP and slot.count > 0
+                ]
+                if not remaining:
+                    break
+                extra = self._executor.deploy(
+                    scan.plan,
+                    scan.redline,
+                    remaining,
+                    execute=True,
+                    cancel_event=cancel,
+                    activate_heroes=False,
+                )
+                if not extra.ok:
+                    break
+                result = AttackExecutionResult(
+                    True,
+                    planned=result.planned + extra.planned,
+                    taps=result.taps + extra.taps,
+                    message=result.message + "; troop sweep",
+                )
 
         battle_result = AttackResult(success=True, stars=0)
         if self._execute:

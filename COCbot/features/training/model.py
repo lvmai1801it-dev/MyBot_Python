@@ -113,7 +113,7 @@ class TrainingActions:
         if keyevent is not None:
             keyevent("KEYCODE_BACK")
             self._clock.sleep(0.5)
-        self._log("success", f"Quick-train recipe {slot} applied")
+        self._log("info", f"Quick-train recipe {slot} applied")
         return TrainingResult(True, slot, taps, f"Quick-train recipe {slot} applied")
 
 

@@ -72,6 +72,23 @@ class RedlineResult:
         """Return ``True`` when all four deploy edges are usable."""
         return len(self.edges) >= 4 and all(len(edge) >= 3 for edge in self.edges)
 
+    def contains(self, point: Point) -> bool:
+        """Return ``True`` when *point* is inside the redline polygon."""
+        polygon = self.polygon
+        if len(polygon) < 3:
+            return True
+        inside = False
+        j = len(polygon) - 1
+        for i in range(len(polygon)):
+            xi, yi = polygon[i].x, polygon[i].y
+            xj, yj = polygon[j].x, polygon[j].y
+            if ((yi > point.y) != (yj > point.y)) and (
+                point.x < (xj - xi) * (point.y - yi) / (yj - yi + 1e-12) + xi
+            ):
+                inside = not inside
+            j = i
+        return inside
+
     def edge_midpoint(self, index: int) -> Point:
         """Return a midpoint for edge *index* (``TR, BR, BL, TL`` order)."""
         if not self.edges:

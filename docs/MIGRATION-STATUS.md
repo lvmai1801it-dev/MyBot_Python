@@ -431,6 +431,19 @@ TrainingStep → VillageStep → FullAttackStep
 With live flags, training and village collection are real; attack remains
 dry-run until its device calibration is approved.
 
+### Attack correctness fixes (redline / all troops / hero abilities)
+
+- OpenCV redline edges are now **inset 45 px inside** the red line, and the
+  polygon is returned for point validation.
+- `AttackExecutor` skips any deploy point outside the redline polygon.
+- When the plan side is random, troops are distributed across **all four**
+  inset edges instead of one side.
+- After the first wave, `FullAttackStep` re-scans the army bar and sweeps any
+  remaining troop cards (up to two extra passes).
+- Hero cards are deployed, then re-tapped **15 s later** to trigger abilities.
+- A debug frame is saved to `debug/attack_redline_<ts>.png` with the redline
+  polygon and deploy-edge points, so out-of-line taps can be inspected.
+
 ## Verification commands
 
 ```powershell

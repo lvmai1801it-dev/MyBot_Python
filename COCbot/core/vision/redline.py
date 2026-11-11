@@ -137,8 +137,12 @@ def offset_edges_to_outer(
     return result
 
 
-def get_redline_edges_cv(image: np.ndarray, tolerance: int = 25) -> list[list[PointTuple]]:
-    """Pure OpenCV isometric fallback for the redline boundary."""
+def _redline_cv_geometry(
+    image: np.ndarray,
+    tolerance: int = 25,
+    inset: int = 45,
+) -> tuple[list[list[PointTuple]], list[PointTuple]]:
+    """Pure OpenCV isometric fallback: inset edges + redline polygon."""
     height, width = image.shape[:2]
     center_x, center_y = CENTER
     blue = image[:, :, 0].astype(int)
@@ -208,12 +212,23 @@ def get_redline_edges_cv(image: np.ndarray, tolerance: int = 25) -> list[list[Po
             second,
         ]
 
-    return [
-        parallel_offset(top, right, 40),
-        parallel_offset(right, bottom, 40),
-        parallel_offset(bottom, left, 40),
-        parallel_offset(left, top, 40),
+    edges = [
+        parallel_offset(top, right, -inset),
+        parallel_offset(right, bottom, -inset),
+        parallel_offset(bottom, left, -inset),
+        parallel_offset(left, top, -inset),
     ]
+    return edges, [top, right, bottom, left]
+
+
+def get_redline_edges_cv(
+    image: np.ndarray,
+    tolerance: int = 25,
+    inset: int = 45,
+) -> list[list[PointTuple]]:
+    """Return only the inset redline edges (backward-compatible wrapper)."""
+    edges, _polygon = _redline_cv_geometry(image, tolerance, inset)
+    return edges
 
 
 class RedlineSegmenter:
@@ -343,15 +358,16 @@ class RedlineDetector:
             if polygon:
                 edges = polygon_to_edges(polygon)
                 if edges:
-                    moved = offset_edges_to_outer(edges, ratio=self._offset_ratio)
+                    moved = offset_edges_to_outer(edges, ratio=0.0)
                     return RedlineResult(
                         polygon=tuple(Point(x, y) for x, y in polygon),
                         edges=tuple(tuple(Point(x, y) for x, y in edge) for edge in moved),
                         source="yolo",
                     )
                 self._log("warning", "Redline polygon could not be split into edges")
-        edges = get_redline_edges_cv(image)
+        edges, polygon = _redline_cv_geometry(image)
         return RedlineResult(
+            polygon=tuple(Point(x, y) for x, y in polygon),
             edges=tuple(tuple(Point(x, y) for x, y in edge) for edge in edges),
             source="cv",
         )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 from threading import Event
@@ -62,6 +63,7 @@ class AttackExecutor:
         logger: LoggerPort | None = None,
         execute: bool = False,
         jitter: int = 3,
+        hero_ability_delay: float = 15.0,
     ) -> None:
         """Create the executor; input stays dry-run unless *execute* is true."""
         self._adb = adb
@@ -69,6 +71,7 @@ class AttackExecutor:
         self._logger = logger
         self._execute = execute
         self._jitter = max(0, int(jitter))
+        self._hero_ability_delay = max(0.0, float(hero_ability_delay))
 
     def _log(self, level: str, message: str) -> None:
         """Emit a log line when a logger was supplied."""
@@ -88,11 +91,13 @@ class AttackExecutor:
         return self._adb.tap(x, y)
 
     @staticmethod
-    def _edge_for(plan: AttackPlan, redline: RedlineResult) -> tuple[Point, ...]:
-        """Return the deploy edge selected by the plan."""
+    def _edges_for(plan: AttackPlan, redline: RedlineResult) -> list[tuple[Point, ...]]:
+        """Return one planned edge, or all four when the side is random."""
         if not redline.edges:
-            return ()
-        return redline.edges[_EDGE_INDEX.get(plan.side, 0) % len(redline.edges)]
+            return []
+        if plan.side in _EDGE_INDEX:
+            return [redline.edges[_EDGE_INDEX[plan.side] % len(redline.edges)]]
+        return list(redline.edges)
 
     def deploy(
         self,
@@ -101,28 +106,37 @@ class AttackExecutor:
         slots: list[ArmySlot],
         execute: bool | None = None,
         cancel_event: Event | None = None,
+        activate_heroes: bool = True,
     ) -> AttackExecutionResult:
         """Deploy scanned cards along the plan edge."""
         if not redline.is_valid():
             return AttackExecutionResult(False, message="Redline is not valid")
         if not slots:
             return AttackExecutionResult(False, message="No army cards detected")
-        edge = self._edge_for(plan, redline)
-        if not edge:
+        edges = self._edges_for(plan, redline)
+        if not edges:
             return AttackExecutionResult(False, message="No deploy edge")
 
         should_tap = self._execute if execute is None else bool(execute)
         planned = 0
         taps = 0
-        midpoint = edge[len(edge) // 2]
+        midpoint = edges[0][len(edges[0]) // 2]
+        hero_slots: list[ArmySlot] = []
 
         for slot in slots:
             if cancel_event is not None and cancel_event.is_set():
                 raise OperationCancelled("Attack deployment cancelled")
             if slot.kind is ArmySlotKind.TROOP:
-                points = spread_points(edge, max(1, min(12, slot.count)))
-                planned += len(points)
+                per_edge = max(1, math.ceil(max(1, slot.count) / len(edges)))
+                points = [
+                    point
+                    for edge in edges
+                    for point in spread_points(edge, per_edge)
+                ][: max(1, slot.count)]
                 for point in points:
+                    if not redline.contains(point):
+                        continue
+                    planned += 1
                     if not should_tap:
                         continue
                     self._select(slot)
@@ -130,13 +144,19 @@ class AttackExecutor:
                         taps += 1
                     self._clock.sleep(0.02)
             elif slot.kind in (ArmySlotKind.HERO, ArmySlotKind.SIEGE):
+                if not redline.contains(midpoint):
+                    continue
                 planned += 1
+                if slot.kind is ArmySlotKind.HERO:
+                    hero_slots.append(slot)
                 if should_tap:
                     self._select(slot)
                     if self._tap(midpoint):
                         taps += 1
                     self._clock.sleep(0.2)
             elif slot.kind is ArmySlotKind.SPELL:
+                if not redline.contains(midpoint):
+                    continue
                 planned += max(1, slot.count)
                 for _ in range(max(1, slot.count)):
                     if should_tap:
@@ -144,6 +164,16 @@ class AttackExecutor:
                         if self._tap(midpoint):
                             taps += 1
                         self._clock.sleep(0.25)
+
+        if should_tap and activate_heroes and hero_slots:
+            self._log(
+                "info",
+                f"Waiting {self._hero_ability_delay:.0f}s to activate hero abilities",
+            )
+            self._clock.sleep(self._hero_ability_delay)
+            for slot in hero_slots:
+                self._select(slot)
+                taps += 1
 
         mode = "tapped" if should_tap else "planned (dry run)"
         message = f"{planned} deploy points {mode} on {len(slots)} cards"
