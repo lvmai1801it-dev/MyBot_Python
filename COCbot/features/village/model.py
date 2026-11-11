@@ -57,6 +57,7 @@ class PanelScan:
     rows: dict[str, tuple[str, ...]]
     builders_available: int | None = None
     builders_total: int | None = None
+    wall_detected: bool = False
 
 
 class VillageModel:
@@ -98,11 +99,15 @@ class VillageModel:
 
         scanned = self._scanner.scan_panel(execute=True)
         result: dict[str, tuple[str, ...]] = {}
+        wall_detected = False
         for tab, rows in scanned.items():
             names: list[str] = []
             seen: set[str] = set()
             for row in rows:
                 name = canonical_name(row.name) or row.name
+                if name.strip().lower() == "wall":
+                    wall_detected = True
+                    continue
                 key = name.strip().lower()
                 if not key or key in seen:
                     continue
@@ -121,6 +126,7 @@ class VillageModel:
             rows=result,
             builders_available=builders,
             builders_total=builders_total,
+            wall_detected=wall_detected,
         )
 
     def scan_targets(self) -> tuple[str, ...]:

@@ -205,6 +205,14 @@ class LegacyEngine:
             except Exception:
                 pass
 
+        left = result.builders_left if result.builders_left is not None else builders
+        if upgrades.wall.enabled and left > 0 and self._upgrader is not None:
+            wall_result = self._upgrader.upgrade_walls_via_panel(execute=True)
+            self._emit(
+                LogLevel.INFO if wall_result.ok else LogLevel.WARNING,
+                wall_result.message,
+            )
+
     def request_pause(self) -> None:
         """Clear the legacy pause event."""
         from COCbot.app import state

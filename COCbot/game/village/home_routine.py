@@ -172,7 +172,7 @@ def find_all_wall_coords(threshold: float = 0.9, max_attempts: int = 7):
     host = _get_main().host
     prepare_wall_search()
 
-    template_names = ['wall.png', 'wall_2.png', 'wall_3.png', 'wall_4.png']
+    template_names = ['wall.png', 'wall_2.png', 'wall_3.png', 'wall_4.png', 'wall_5.png', 'wall_6.png', 'wall_7.png', 'wall_8.png']
     template_paths = []
     for name in template_names:
         p = os.path.join(TEMPLATE_DIR, name)
@@ -294,12 +294,10 @@ def validate_wall_tap(wall_level: int) -> bool:
     lowered = [t.lower() for t in texts]
 
     keyword = any('wall' in t or 'level' in t for t in lowered)
-    level_ok = any(
-        (num := re.sub('[^0-9]', '', t)) and num.isdigit() and int(num) == wall_level
-        for t in lowered
-    )
-
-    if keyword and level_ok:
+    # Any wall panel with an upgrade option is valid: the village may already
+    # be above the configured target level, which used to block every attempt.
+    if keyword:
+        print('[INFO] wall panel detected (level-agnostic validation)')
         return True
 
     print('[WARN] validation failed → tapping safe coordinate & retrying')

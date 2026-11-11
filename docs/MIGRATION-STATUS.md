@@ -536,6 +536,13 @@ A tab runs when it is enabled **or** has ticked targets, so ticking rows and
 pressing Save is enough for Start to upgrade them. With no ticks at all the
 cycle logs `No upgrade targets selected — tick targets in Village and Save`.
 
+Walls use the Build panel instead of scanning the map: `upgrade_walls_via_panel`
+opens Buildings & Heroes, pages to a `Wall` row (matched with the
+`Templates/buildings/wall.png` label), taps it to enter wall-select mode, drags
+over a wall line, and only confirms when the dialog title mentions "wall". The
+legacy map-scanning wall routine is skipped while the shell hook is active
+because its wall templates no longer match current wall sprites.
+
 `UpgradeRunner.run()` stays a dry-run when `execute=False`; the button passes
 `execute=True` only after the confirmation dialog, and both Scan and Upgrade
 are disabled while the farm bot is running.

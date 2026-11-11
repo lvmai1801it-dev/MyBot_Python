@@ -148,12 +148,14 @@ class VillageViewModel(BaseViewModel):
         from COCbot.features.village.model import PanelScan
 
         builders = None
+        wall_detected = False
         if isinstance(names, PanelScan):
             payload = {
                 str(tab): tuple(values)
                 for tab, values in names.rows.items()
             }
             builders = names.builders_available
+            wall_detected = names.wall_detected
         elif isinstance(names, dict):
             payload = {
                 str(tab): tuple(str(name) for name in (values or ()))
@@ -170,8 +172,11 @@ class VillageViewModel(BaseViewModel):
         suffix = ""
         if builders is not None:
             suffix = f" · {builders} builder(s) free"
+        wall_note = ""
+        if wall_detected:
+            wall_note = " · tick 'Upgrade walls' to use the reserved builder"
         self._status(
-            f"{total} upgrade rows detected{suffix} — tick targets, then Save",
+            f"{total} upgrade rows detected{suffix}{wall_note}",
             "success",
         )
 

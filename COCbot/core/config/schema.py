@@ -8,7 +8,7 @@ during the migration.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Mapping
 
 from COCbot.core.config import defaults
@@ -402,6 +402,27 @@ class AppConfig:
                 priority=_as_bool(raw.get("other_priority"), False),
             ),
         )
+
+        # "Wall" is a wall upgrade, not a Buildings & Heroes row: move a ticked
+        # Wall entry over to the wall settings so the reserved builder is used.
+        wall_names = [
+            name
+            for name in upgrades.buildings.priorities
+            if name.strip().lower() == "wall"
+        ]
+        if wall_names:
+            upgrades = replace(
+                upgrades,
+                wall=replace(upgrades.wall, enabled=True),
+                buildings=replace(
+                    upgrades.buildings,
+                    priorities=[
+                        name
+                        for name in upgrades.buildings.priorities
+                        if name.strip().lower() != "wall"
+                    ],
+                ),
+            )
 
         recipe_cfg = RecipeConfig(
             name=_as_str(raw.get("recipe_name"), "rongdien"),

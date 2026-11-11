@@ -266,5 +266,59 @@ class HeroDefenseUpgraderTests(unittest.TestCase):
         self.assertEqual(adb.taps, [(824, 30)])
 
 
+class WallPanelFlowTests(unittest.TestCase):
+    """Verify the panel-driven wall upgrade flow."""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._temp.name)
+        rng = np.random.default_rng(77)
+        self.confirm = rng.integers(0, 255, size=(24, 24, 3), dtype=np.uint8)
+        self.close = rng.integers(0, 255, size=(24, 24, 3), dtype=np.uint8)
+        cv2.imwrite(str(self.dir / DEFAULT_BUTTONS["confirm"]), self.confirm)
+        cv2.imwrite(str(self.dir / DEFAULT_BUTTONS["close"]), self.close)
+        self.dialog_frame = frame_with(self.confirm, 300, 300)
+
+    def tearDown(self) -> None:
+        self._temp.cleanup()
+
+    def _stub(self, execute: bool):
+        from COCbot.features.village.upgrades import UpgradeRow
+        from COCbot.models.geometry import Point
+
+        adb = FakeAdb()
+        upgrader = HeroDefenseUpgrader(
+            adb,  # type: ignore[arg-type]
+            SequenceCapture([self.dialog_frame]),  # type: ignore[arg-type]
+            clock=FakeClock(),
+            template_dir=self.dir,
+            execute=execute,
+        )
+        upgrader.open_panel = lambda execute=True: True  # type: ignore[assignment]
+        upgrader.open_tab = lambda tab, execute=True: True  # type: ignore[assignment]
+        upgrader._tap_wall_row = lambda execute=True: UpgradeRow(  # type: ignore[assignment]
+            "Wall", Point(620, 300)
+        )
+        upgrader.dialog_open = lambda frame: True  # type: ignore[assignment]
+        upgrader._text_reader = lambda frame, region: "upgrade wall to level 19?"  # type: ignore[assignment]
+        upgrader.find = lambda frame, name, region=None, threshold=None: Point(612, 548)  # type: ignore[assignment]
+        return upgrader, adb
+
+    def test_dry_run_reports_without_tapping(self) -> None:
+        upgrader, adb = self._stub(False)
+        result = upgrader.upgrade_walls_via_panel(execute=False)
+        self.assertTrue(result.ok)
+        self.assertFalse(result.executed)
+        self.assertEqual(adb.taps, [])
+
+    def test_execute_confirms_a_wall_upgrade(self) -> None:
+        upgrader, adb = self._stub(True)
+        result = upgrader.upgrade_walls_via_panel(execute=True)
+        self.assertTrue(result.ok, result.message)
+        self.assertTrue(result.executed)
+        self.assertIn((612, 548), adb.taps)
+        self.assertTrue(adb.swipes)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -58,6 +58,14 @@ PANEL_SCROLL_FROM = Point(700, 560)
 PANEL_SCROLL_TO = Point(700, 200)
 PANEL_SCROLL_MS = 450
 MAX_SCAN_PAGES = 7
+# Drag lines used in the wall-upgrade mode opened from the panel "Wall" row.
+WALL_DRAGS: tuple[tuple[int, int, int, int], ...] = (
+    (620, 470, 760, 470),
+    (640, 520, 760, 520),
+    (250, 470, 460, 470),
+    (300, 320, 460, 320),
+    (180, 520, 450, 520),
+)
 
 PANEL_TITLE_KEYWORDS = ("buildings", "heroes", "army", "equipment", "pets")
 # Bottom tab buttons of the Build panel (860x732).
@@ -592,6 +600,140 @@ class HeroDefenseUpgrader:
                 )
                 self._clock.sleep(0.25)
         return found
+
+    def upgrade_walls_via_panel(
+        self,
+        execute: bool = False,
+        drags: tuple[tuple[int, int, int, int], ...] = WALL_DRAGS,
+    ) -> UpgradeResult:
+        """Open the panel Wall row, drag over walls, and confirm one upgrade."""
+        if not self.open_panel(execute=execute):
+            return UpgradeResult(False, "Wall", message="Build panel did not open")
+        if not self.open_tab("buildings", execute=execute):
+            self.dismiss(execute=True)
+            return UpgradeResult(False, "Wall", message="Buildings tab did not open")
+        if execute:
+            self._clock.sleep(1.2)
+
+        row = self._tap_wall_row(execute=execute)
+        if row is None:
+            if execute:
+                self.dismiss(execute=True)
+            return UpgradeResult(False, "Wall", message="Wall row not found in the panel")
+        if not execute:
+            return UpgradeResult(
+                True,
+                "Wall",
+                executed=False,
+                message="Dry run: would enter wall mode and upgrade",
+            )
+
+        self._clock.sleep(1.0)
+        for x1, y1, x2, y2 in drags:
+            self._adb.swipe(x1, y1, x2, y2, duration_ms=900)
+            self._clock.sleep(1.2)
+            frame = self._capture.capture()
+            if frame is None:
+                continue
+            if not self.dialog_open(frame):
+                continue
+            title = self._text_reader(frame, DIALOG_TITLE_REGION).lower()
+            if "wall" not in title:
+                self.dismiss(execute=True)
+                continue
+            confirm = self.find(frame, self._buttons["confirm"], DIALOG_REGION)
+            if confirm is None:
+                self.dismiss(execute=True)
+                return UpgradeResult(
+                    False, "Wall", message="Confirm button template not found"
+                )
+            self._adb.tap(confirm.x, confirm.y)
+            self._clock.sleep(1.2)
+            return UpgradeResult(
+                True,
+                "Wall",
+                executed=True,
+                taps=2,
+                message="Upgraded a wall",
+            )
+        self.dismiss(execute=True)
+        return UpgradeResult(
+            False,
+            "Wall",
+            message="Wall selection did not open an upgrade dialog",
+        )
+
+    def _tap_wall_row(self, execute: bool) -> UpgradeRow | None:
+        """Tap a Wall row while its page is visible; the panel closing = wall mode."""
+        from COCbot.features.village.targets import canonical_name
+
+        if not execute:
+            for _page in range(MAX_SCAN_PAGES):
+                frame = self._capture.capture()
+                if frame is None:
+                    return None
+                for name, point in self._label_rows(frame):
+                    if name.strip().lower() == "wall" and point.y < 600:
+                        return UpgradeRow("Wall", point)
+                self._adb.swipe(
+                    PANEL_SCROLL_FROM.x,
+                    PANEL_SCROLL_FROM.y,
+                    PANEL_SCROLL_TO.x,
+                    PANEL_SCROLL_TO.y,
+                    duration_ms=PANEL_SCROLL_MS,
+                )
+                self._clock.sleep(0.5)
+            return None
+
+        scrolls = 0
+        self._clock.sleep(0.6)
+        for _page in range(MAX_SCAN_PAGES):
+            frame = self._capture.capture()
+            if frame is None:
+                break
+            candidates: list[UpgradeRow] = []
+            for name, point in self._label_rows(frame):
+                if name.strip().lower() == "wall" and point.y < 600:
+                    candidates.append(UpgradeRow("Wall", point))
+            for row in self.rows(frame, fast=True):
+                key = _normalize(canonical_name(row.name) or row.name)
+                if (
+                    key.startswith("wall")
+                    and "wrecker" not in key
+                    and row.point.y < 600
+                    and all(abs(row.point.y - other.point.y) > 12 for other in candidates)
+                ):
+                    candidates.append(row)
+            for row in candidates:
+                self._adb.tap(row.point.x, row.point.y)
+                self._clock.sleep(1.5)
+                next_frame = self._capture.capture()
+                if next_frame is None:
+                    continue
+                if self.dialog_open(next_frame):
+                    self.dismiss(execute=True)
+                    continue
+                if not self.panel_open(next_frame):
+                    return row
+            self._adb.swipe(
+                PANEL_SCROLL_FROM.x,
+                PANEL_SCROLL_FROM.y,
+                PANEL_SCROLL_TO.x,
+                PANEL_SCROLL_TO.y,
+                duration_ms=PANEL_SCROLL_MS,
+            )
+            scrolls += 1
+            self._clock.sleep(0.5)
+        for _ in range(scrolls):
+            self._adb.swipe(
+                PANEL_SCROLL_TO.x,
+                PANEL_SCROLL_TO.y,
+                PANEL_SCROLL_FROM.x,
+                PANEL_SCROLL_FROM.y,
+                duration_ms=PANEL_SCROLL_MS,
+            )
+            self._clock.sleep(0.25)
+        return None
 
     def upgrade_listed(
         self,

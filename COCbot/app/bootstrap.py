@@ -373,7 +373,11 @@ def one_cycle(cfg):
     if not _check_stop():
         _notify_upgrades()
 
-    if cfg['upgrade_wall'] and not _check_stop():
+    if (
+        cfg['upgrade_wall']
+        and not _check_stop()
+        and getattr(state, 'upgrade_hook', None) is None
+    ):
         print(f"[INFO] Upgrading walls to level {cfg['wall_level']} if thresholds met…")
         handle_home_resources(
             cfg['wall_level'],

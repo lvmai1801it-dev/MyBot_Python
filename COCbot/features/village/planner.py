@@ -64,6 +64,8 @@ def _building_items(config: UpgradeConfig) -> list[tuple[int, str, str]]:
     """Return ``(index, name, kind)`` for every Buildings & Heroes target."""
     items: list[tuple[int, str, str]] = []
     for index, name in enumerate(config.buildings.priorities):
+        if name.strip().lower() == "wall":
+            continue
         category = category_for(name)
         if category == UpgradeCategory.HERO:
             kind = "hero"
