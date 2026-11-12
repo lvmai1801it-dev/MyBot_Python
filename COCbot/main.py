@@ -163,6 +163,7 @@ def main() -> int:
                 else None
             ),
             regions=regions_from_config(config.vision.ocr_regions),
+            adb=adb,
         ),
     )
     village_viewmodel = VillageViewModel(village_model)
@@ -189,6 +190,7 @@ def main() -> int:
                 else None
             ),
             regions=regions_from_config(config.vision.ocr_regions),
+            adb=adb,
         ),
         on_resources=resource_viewmodel.publish,
         upgrader=HeroDefenseUpgrader(adb, capture, logger=logger),

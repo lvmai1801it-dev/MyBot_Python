@@ -125,6 +125,34 @@ class ResourceReaderTests(unittest.TestCase):
         self.assertEqual(snapshot.gold, 1_000)
         self.assertEqual(snapshot.builders_available, 2)
 
+    def test_capacity_tooltip_is_parsed_and_closed(self) -> None:
+        class FakeAdb:
+            def __init__(self) -> None:
+                self.taps = []
+
+            def tap(self, x, y):
+                self.taps.append((x, y))
+                return True
+
+        adb = FakeAdb()
+        reader = ResourceReader(
+            FakeCapture(blank_frame()),
+            glm_client=lambda image, prompt: (
+                "Max: 7,950,000\nProduction per hour: 31,400\nIn treasury: 0.49M"
+            ),
+            adb=adb,
+        )
+        capacity = reader.read_capacity("gold")
+        self.assertIsNotNone(capacity)
+        self.assertEqual(capacity.maximum, 7_950_000)
+        self.assertEqual(capacity.production, 31_400)
+        self.assertEqual(capacity.treasury, 490_000)
+        self.assertEqual(adb.taps, [(760, 30), (760, 30)])
+
+    def test_capacity_needs_adb_and_glm(self) -> None:
+        reader = ResourceReader(FakeCapture(blank_frame()))
+        self.assertIsNone(reader.read_capacity("gold"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -665,6 +665,20 @@ They can be overridden from `settings.json` without touching code:
 `python tools/calibrate_ocr_regions.py` draws the boxes over a live screenshot
 (`artifacts/ocr_regions_calibration.png`) so they can be verified or moved.
 
+Tapping a bar opens its capacity tooltip (`Max`, `Production per hour`,
+`In treasury`), which only exists while the tooltip is visible. The reader
+supports that too:
+
+```python
+reader.read_capacity("gold")
+# ResourceCapacity(maximum=7950000, production=31400, treasury=...)
+```
+
+It taps the bar, reads the tooltip below it with one GLM request, then taps the
+bar again to close the tooltip. Live values on the test village: gold max
+7,950,000, elixir max 9,250,000, dark max 160,000. `maximum` is exact;
+`treasury` is approximate because the game abbreviates it (`0.49M`).
+
 Live run on MEmu (bar after Start, matching the on-screen HUD):
 
 ```text

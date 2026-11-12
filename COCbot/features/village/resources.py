@@ -17,7 +17,7 @@ import numpy as np
 from COCbot.core.ports import CapturePort, LoggerPort
 from COCbot.core.vision.image import frame_image
 from COCbot.models.frame import Frame
-from COCbot.models.geometry import Rect
+from COCbot.models.geometry import Point, Rect
 
 HOME_GOLD_REGION = Rect(639, 14, 216, 33)
 HOME_ELIXIR_REGION = Rect(641, 49, 210, 35)
@@ -166,6 +166,44 @@ def ocr_fraction(image: np.ndarray) -> tuple[int, int] | None:
     return (int(digits[:half]), int(digits[half:]))
 
 
+@dataclass(frozen=True)
+class ResourceCapacity:
+    """Capacity tooltip of one resource (read after tapping its bar)."""
+
+    resource: str
+    maximum: int | None = None
+    production: int | None = None
+    treasury: int | None = None
+
+
+# Bar centres and the tooltip band that opens right below each bar.
+CAPACITY_TAPS: dict[str, Point] = {
+    "gold": Point(760, 30),
+    "elixir": Point(760, 66),
+    "dark": Point(760, 104),
+}
+CAPACITY_TOOLTIP_X = 620
+CAPACITY_TOOLTIP_WIDTH = 240
+CAPACITY_TOOLTIP_HEIGHT = 84
+
+
+def _parse_amount(text: str) -> int | None:
+    """Parse ``7,950,000`` or ``0.49M`` into an integer."""
+    import re
+
+    cleaned = text.replace(" ", "").replace(",", "").replace("'", "")
+    match = re.search(r"(\d+(?:\.\d+)?)([KM]?)", cleaned)
+    if match is None:
+        return None
+    value = float(match.group(1))
+    suffix = match.group(2).upper()
+    if suffix == "M":
+        value *= 1_000_000
+    elif suffix == "K":
+        value *= 1_000
+    return int(round(value))
+
+
 class ResourceReader:
     """Capture the home village and read its counters."""
 
@@ -178,6 +216,7 @@ class ResourceReader:
         glm_server: str | None = None,
         glm_client: Callable[[np.ndarray, str], str] | None = None,
         regions: Mapping[str, Rect] | None = None,
+        adb: object | None = None,
     ) -> None:
         """Create the reader with optional injected OCR callables."""
         self._capture = capture
@@ -189,6 +228,7 @@ class ResourceReader:
         self._glm_ok: bool | None = None
         self._glm_checked_at = 0.0
         overrides = dict(regions or {})
+        self._adb = adb
         self._regions = {
             "gold": overrides.get("gold", HOME_GOLD_REGION),
             "elixir": overrides.get("elixir", HOME_ELIXIR_REGION),
@@ -366,6 +406,60 @@ class ResourceReader:
             builders_available=available,
             builders_total=total,
         )
+
+    def read_capacity(self, resource: str = "gold") -> ResourceCapacity | None:
+        """Tap a resource bar, read its capacity tooltip, then close it."""
+        tap = CAPACITY_TAPS.get(resource)
+        if tap is None or self._adb is None or not self._glm_ready():
+            return None
+        region = self._regions.get(resource, HOME_GOLD_REGION)
+        tooltip = Rect(
+            CAPACITY_TOOLTIP_X,
+            region.bottom + 2,
+            CAPACITY_TOOLTIP_WIDTH,
+            CAPACITY_TOOLTIP_HEIGHT,
+        )
+        tap_method = getattr(self._adb, "tap", None)
+        if tap_method is None:
+            return None
+        tap_method(tap.x, tap.y)
+        time.sleep(1.0)
+        frame = self._capture.capture()
+        result = None
+        if frame is not None:
+            crop = self._crop(frame, tooltip)
+            if crop is not None:
+                text = self._ask_glm(
+                    crop,
+                    "Read all text exactly as it appears, one line per line. "
+                    "No explanation.",
+                )
+                if text:
+                    maximum = production = treasury = None
+                    for line in str(text).splitlines():
+                        lowered = line.lower()
+                        if "max" in lowered:
+                            maximum = _parse_amount(
+                                line[lowered.index("max") + 3 :]
+                            )
+                        elif "production" in lowered:
+                            tail = line[lowered.index("production") + 10 :]
+                            if "hour" in tail.lower():
+                                tail = tail[tail.lower().index("hour") + 4 :]
+                            production = _parse_amount(tail)
+                        elif "treasury" in lowered:
+                            treasury = _parse_amount(
+                                line[lowered.index("treasury") + 8 :]
+                            )
+                    result = ResourceCapacity(
+                        resource,
+                        maximum=maximum,
+                        production=production,
+                        treasury=treasury,
+                    )
+        tap_method(tap.x, tap.y)
+        time.sleep(0.5)
+        return result
 
     def read(self) -> VillageResources:
         """Return one snapshot; unreadable counters stay ``None``."""
