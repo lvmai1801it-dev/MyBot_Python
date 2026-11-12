@@ -191,6 +191,8 @@ class ResourceReader:
         except Exception:
             self._glm_ok = False
         self._glm_checked_at = now
+        if self._glm_ok:
+            self._log("info", f"GLM-OCR readout active at {self._glm_server}")
         return bool(self._glm_ok)
 
     def _ask_glm(self, image: np.ndarray, prompt: str) -> str:
