@@ -688,7 +688,9 @@ Configuration (`settings.json`):
 ```
 
 `auto` probes `/health` once (retries after 60 s), so the bot keeps working
-with Tesseract when the server is not started. Start it with:
+with Tesseract when the server is not started. Start it with the batch file at
+the project root (double-click, or `Start_GLM_OCR.bat 8080`), or with the
+PowerShell helper:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\start_glm_ocr.ps1
