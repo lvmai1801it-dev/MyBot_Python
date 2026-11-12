@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import cv2
+
 from COCbot.core.clock import SystemClock
 from COCbot.core.config.defaults import (
     DEFAULT_CAPTURE_MIN_STDDEV,
@@ -25,6 +27,37 @@ class CaptureConfig:
     retry_delay: float = DEFAULT_CAPTURE_RETRY_DELAY
     min_stddev: float = DEFAULT_CAPTURE_MIN_STDDEV
     save_raw_dir: Path | None = None
+    prefer_raw: bool = True
+
+
+def decode_framebuffer(payload: bytes) -> "np.ndarray | None":
+    """Decode Android's raw ``screencap`` output into a BGR image."""
+    import struct
+
+    import numpy as np
+
+    if not payload or len(payload) < 12:
+        return None
+    width, height, fmt = struct.unpack("<III", payload[:12])
+    if width <= 0 or height <= 0 or width > 4096 or height > 4096:
+        return None
+    body = np.frombuffer(payload[12:], dtype=np.uint8)
+    if fmt in (1, 2):  # RGBA_8888 / RGBX_8888
+        needed = width * height * 4
+        if body.size < needed:
+            return None
+        rgba = body[:needed].reshape(height, width, 4)
+        return cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
+    if fmt == 3:  # RGB_565
+        needed = width * height * 2
+        if body.size < needed:
+            return None
+        pixels = body[:needed].copy().view(np.uint16).reshape(height, width)
+        red = ((pixels >> 11) & 0x1F).astype(np.uint16) * 255 // 31
+        green = ((pixels >> 5) & 0x3F).astype(np.uint16) * 255 // 63
+        blue = (pixels & 0x1F).astype(np.uint16) * 255 // 31
+        return np.dstack([blue, green, red]).astype(np.uint8)
+    return None
 
 
 class ScreenCapture:
@@ -66,29 +99,42 @@ class ScreenCapture:
         """Capture one validated frame, or ``None`` after all retries."""
         attempts = max(1, int(self._config.max_retries))
         for attempt in range(1, attempts + 1):
-            png = self._adb.screenshot()
-            if not png:
-                self._log("warning", f"Screenshot attempt {attempt}/{attempts} returned no data")
-            else:
-                image = decode_image(png)
-                if image is None:
-                    self._log("warning", f"Screenshot attempt {attempt}/{attempts} could not be decoded")
-                elif is_blank(image, self._config.min_stddev):
+            image = None
+            payload: bytes | None = None
+            if self._config.prefer_raw:
+                reader = getattr(self._adb, "screenshot_raw", None)
+                if reader is not None:
+                    payload = reader()
+                    if payload:
+                        image = decode_framebuffer(payload)
+            if image is None:
+                png = self._adb.screenshot()
+                if not png:
+                    self._log("warning", f"Screenshot attempt {attempt}/{attempts} returned no data")
+                else:
+                    payload = png
+                    image = decode_image(png)
+            if payload and image is None:
+                self._log("warning", f"Screenshot attempt {attempt}/{attempts} could not be decoded")
+            elif image is not None:
+                if is_blank(image, self._config.min_stddev):
                     self._log(
                         "warning",
                         f"Blank screen on attempt {attempt}/{attempts}",
                     )
-                else:
-                    self._save_raw(png)
-                    height, width = image.shape[:2]
-                    return Frame(
-                        image=image,
-                        width=width,
-                        height=height,
-                        captured_at=self._clock.now(),
-                        source="adb",
-                        raw=png,
-                    )
+                    image = None
+            if image is not None:
+                if payload and payload.startswith(b"\x89PNG"):
+                    self._save_raw(payload)
+                height, width = image.shape[:2]
+                return Frame(
+                    image=image,
+                    width=width,
+                    height=height,
+                    captured_at=self._clock.now(),
+                    source="adb",
+                    raw=payload or b"",
+                )
             if attempt < attempts:
                 self._clock.sleep(self._config.retry_delay)
 

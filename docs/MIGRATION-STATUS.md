@@ -686,6 +686,28 @@ VillageResources(gold=10128117, elixir=7822777, dark_elixir=90168,
                  gems=991, builders_available=3, builders_total=6)
 ```
 
+### Capture backend (ADB, no WinAPI)
+
+All screenshots and input go through ADB; nothing uses WinAPI/GDI/mss:
+
+```text
+capture : adb -s HOST exec-out screencap          (raw RGBA, new default)
+fallback: adb -s HOST exec-out screencap -p       (PNG)
+input   : adb -s HOST shell input tap/swipe
+```
+
+`ScreenCapture` now prefers the raw framebuffer and only falls back to PNG when
+the payload cannot be decoded, so the emulator window can stay minimised:
+verified with the MEmu window minimised, captures stayed live (std ≈ 63, frame
+hashes changed) and `input tap` still worked.
+
+Measured on this machine (860x732):
+
+```text
+raw screencap : ~440-560 ms per frame (no PNG encode/decode)
+png screencap :  335-1811 ms, highly variable
+```
+
 ### Local GLM-OCR (optional numeric reader)
 
 ```text

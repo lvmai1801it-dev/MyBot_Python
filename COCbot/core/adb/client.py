@@ -218,6 +218,19 @@ class AdbClient:
             return None
         return result.stdout[index:]
 
+    def screenshot_raw(self) -> bytes | None:
+        """Capture the screen in Android's raw framebuffer format.
+
+        The payload starts with ``width, height, format`` (three little-endian
+        u32 values) followed by the pixels. It is 2-3x faster than PNG because
+        no encode/decode step is involved.
+        """
+        result = self._run(commands.screencap_raw_args(self.adb_path, self.host))
+        if not result.ok or len(result.stdout) < 12:
+            self._log("debug", "ADB raw screencap returned no data")
+            return None
+        return result.stdout
+
     # --------------------------------------------------------------- convenience
     def keyevent(self, keycode: str) -> bool:
         """Send an Android key event such as ``KEYCODE_HOME``."""

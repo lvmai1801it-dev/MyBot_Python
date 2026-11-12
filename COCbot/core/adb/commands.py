@@ -59,6 +59,14 @@ def screenshot_args(adb_path: Path, host: str | None) -> list[str]:
     return args + ["exec-out", "screencap", "-p"]
 
 
+def screencap_raw_args(adb_path: Path, host: str | None) -> list[str]:
+    """Build the raw framebuffer ``exec-out screencap`` command."""
+    args = [str(adb_path)]
+    if host:
+        args += ["-s", host]
+    return args + ["exec-out", "screencap"]
+
+
 def keyevent_args(adb_path: Path, host: str | None, keycode: str) -> list[str]:
     """Build ``input keyevent`` for the selected device."""
     return shell_args(adb_path, host, f"input keyevent {keycode}")
