@@ -55,6 +55,25 @@ def _as_str(value: Any, default: str) -> str:
     return text if text else default
 
 
+def _as_region_map(value: object) -> dict[str, list[int]]:
+    """Return ``{key: [x, y, w, h]}`` from a raw settings mapping."""
+    if not isinstance(value, dict):
+        return {}
+    allowed = ("gold", "elixir", "dark", "gems", "builders")
+    result: dict[str, list[int]] = {}
+    for key in allowed:
+        item = value.get(key)
+        if not isinstance(item, (list, tuple)) or len(item) != 4:
+            continue
+        try:
+            numbers = [int(part) for part in item]
+        except (TypeError, ValueError):
+            continue
+        if numbers[2] > 0 and numbers[3] > 0:
+            result[key] = numbers
+    return result
+
+
 def _as_str_list(value: Any) -> list[str]:
     """Convert *value* to a list of non-empty strings."""
     if not isinstance(value, (list, tuple, set)):
@@ -181,6 +200,7 @@ class VisionConfig:
     iou: float = defaults.DEFAULT_YOLO_IOU
     ocr_engine: str = "auto"
     ocr_server: str = "http://127.0.0.1:8080"
+    ocr_regions: dict[str, list[int]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -284,6 +304,7 @@ _KNOWN_KEYS = frozenset(
         "yolo_iou",
         "ocr_engine",
         "ocr_server",
+        "ocr_regions",
         "auto_capture_dataset",
         "auto_capture_dir",
         "auto_capture_min_interval_sec",
@@ -575,6 +596,7 @@ class AppConfig:
             "yolo_iou": self.vision.iou,
             "ocr_engine": self.vision.ocr_engine,
             "ocr_server": self.vision.ocr_server,
+            "ocr_regions": dict(self.vision.ocr_regions),
             "auto_capture_dataset": self.auto_capture.enabled,
             "auto_capture_dir": self.auto_capture.directory,
             "auto_capture_min_interval_sec": self.auto_capture.min_interval_sec,

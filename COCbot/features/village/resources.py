@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Mapping
 
 import cv2
 import numpy as np
@@ -19,14 +19,14 @@ from COCbot.core.vision.image import frame_image
 from COCbot.models.frame import Frame
 from COCbot.models.geometry import Rect
 
-HOME_GOLD_REGION = Rect(660, 12, 168, 34)
-HOME_ELIXIR_REGION = Rect(660, 45, 168, 35)
-HOME_DARK_REGION = Rect(660, 79, 168, 35)
-HOME_GEMS_REGION = Rect(685, 110, 130, 42)
+HOME_GOLD_REGION = Rect(639, 14, 216, 33)
+HOME_ELIXIR_REGION = Rect(641, 49, 210, 35)
+HOME_DARK_REGION = Rect(693, 87, 160, 35)
+HOME_GEMS_REGION = Rect(692, 123, 160, 37)
 # "5/5" builders and "1/2" researchers, above the Build button.
 HOME_BUILDERS_REGION = Rect(740, 596, 64, 40)
 # Whole currency column, read in one GLM-OCR request.
-HOME_TOP_BAR_REGION = Rect(655, 5, 180, 148)
+HOME_TOP_BAR_REGION = Rect(639, 14, 216, 146)
 
 GLM_NUMBER_PROMPT = (
     "Read every number in this image from top to bottom, one number per line. "
@@ -67,6 +67,25 @@ class VillageResources:
 def _digits(text: str) -> str:
     """Return only the digits of *text*."""
     return "".join(ch for ch in text if ch.isdigit())
+
+
+def regions_from_config(mapping: object) -> dict[str, Rect]:
+    """Convert ``{key: [x, y, w, h]}`` from settings into ``Rect`` values."""
+    allowed = ("gold", "elixir", "dark", "gems", "builders")
+    result: dict[str, Rect] = {}
+    if not isinstance(mapping, dict):
+        return result
+    for key in allowed:
+        value = mapping.get(key)
+        if not isinstance(value, (list, tuple)) or len(value) != 4:
+            continue
+        try:
+            x, y, width, height = (int(part) for part in value)
+        except (TypeError, ValueError):
+            continue
+        if width > 0 and height > 0:
+            result[key] = Rect(x, y, width, height)
+    return result
 
 
 def _prepare(image: np.ndarray) -> np.ndarray:
@@ -158,6 +177,7 @@ class ResourceReader:
         fraction_reader: Callable[[np.ndarray], tuple[int, int] | None] | None = None,
         glm_server: str | None = None,
         glm_client: Callable[[np.ndarray, str], str] | None = None,
+        regions: Mapping[str, Rect] | None = None,
     ) -> None:
         """Create the reader with optional injected OCR callables."""
         self._capture = capture
@@ -168,6 +188,29 @@ class ResourceReader:
         self._glm_client = glm_client
         self._glm_ok: bool | None = None
         self._glm_checked_at = 0.0
+        overrides = dict(regions or {})
+        self._regions = {
+            "gold": overrides.get("gold", HOME_GOLD_REGION),
+            "elixir": overrides.get("elixir", HOME_ELIXIR_REGION),
+            "dark": overrides.get("dark", HOME_DARK_REGION),
+            "gems": overrides.get("gems", HOME_GEMS_REGION),
+            "builders": overrides.get("builders", HOME_BUILDERS_REGION),
+        }
+        self._top_region = self._bounding_region(
+            self._regions["gold"],
+            self._regions["elixir"],
+            self._regions["dark"],
+            self._regions["gems"],
+        )
+
+    @staticmethod
+    def _bounding_region(*regions: Rect) -> Rect:
+        """Return the rectangle that covers every region."""
+        left = min(region.x for region in regions)
+        top = min(region.y for region in regions)
+        right = max(region.right for region in regions)
+        bottom = max(region.bottom for region in regions)
+        return Rect(left, top, right - left, bottom - top)
 
     def _glm_ready(self) -> bool:
         """Return ``True`` when a local GLM-OCR server answers."""
@@ -270,7 +313,7 @@ class ResourceReader:
 
     def _builders(self, frame: Frame) -> tuple[int | None, int | None]:
         """Read the builder counter above the Build button."""
-        crop = self._crop(frame, HOME_BUILDERS_REGION)
+        crop = self._crop(frame, self._regions["builders"])
         if crop is None:
             return (None, None)
         result = self._read_fraction(crop)
@@ -283,8 +326,8 @@ class ResourceReader:
 
     def _read_with_glm(self, frame: Frame) -> VillageResources | None:
         """Read all counters with one GLM-OCR request, or ``None``."""
-        top = self._crop(frame, HOME_TOP_BAR_REGION)
-        builders_crop = self._crop(frame, HOME_BUILDERS_REGION)
+        top = self._crop(frame, self._top_region)
+        builders_crop = self._crop(frame, self._regions["builders"])
         if top is None:
             return None
         text = self._ask_glm(top, GLM_NUMBER_PROMPT)
@@ -339,10 +382,10 @@ class ResourceReader:
                 return snapshot
         builders_available, builders_total = self._builders(frame)
         snapshot = VillageResources(
-            gold=self._number(frame, HOME_GOLD_REGION, MAX_RESOURCE),
-            elixir=self._number(frame, HOME_ELIXIR_REGION, MAX_RESOURCE),
-            dark_elixir=self._number(frame, HOME_DARK_REGION, MAX_RESOURCE),
-            gems=self._number(frame, HOME_GEMS_REGION, MAX_GEMS),
+            gold=self._number(frame, self._regions["gold"], MAX_RESOURCE),
+            elixir=self._number(frame, self._regions["elixir"], MAX_RESOURCE),
+            dark_elixir=self._number(frame, self._regions["dark"], MAX_RESOURCE),
+            gems=self._number(frame, self._regions["gems"], MAX_GEMS),
             builders_available=builders_available,
             builders_total=builders_total,
         )

@@ -642,12 +642,28 @@ the run is active. The same hook fires at the start of every cycle right after
 Currency values come from the farm loop's own readout
 (`read_current_resources()`, `prepare_main_village()`), which is the proven
 reader for the top bar; the shell reader adds gems and the builder/lab counters
-that the legacy code never reads:
+that the legacy code never reads. Regions measured on the 860x732 frame:
 
 ```text
-HOME_GEMS_REGION     Rect(685, 110, 130, 42)
+HOME_GOLD_REGION     Rect(639,  14, 216, 33)
+HOME_ELIXIR_REGION   Rect(641,  49, 210, 35)
+HOME_DARK_REGION     Rect(693,  87, 160, 35)
+HOME_GEMS_REGION     Rect(692, 123, 160, 37)
 HOME_BUILDERS_REGION Rect(740, 596,  64, 40)   # "3/6" above the Build button
 ```
+
+They can be overridden from `settings.json` without touching code:
+
+```json
+"ocr_regions": {
+  "gold": [639, 14, 216, 33], "elixir": [641, 49, 210, 35],
+  "dark": [693, 87, 160, 35], "gems": [692, 123, 160, 37],
+  "builders": [740, 596, 64, 40]
+}
+```
+
+`python tools/calibrate_ocr_regions.py` draws the boxes over a live screenshot
+(`artifacts/ocr_regions_calibration.png`) so they can be verified or moved.
 
 Live run on MEmu (bar after Start, matching the on-screen HUD):
 

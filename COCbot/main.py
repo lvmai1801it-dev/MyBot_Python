@@ -41,7 +41,7 @@ from COCbot.features.statistics.model import StatisticsModel
 from COCbot.features.statistics.view import StatisticsView
 from COCbot.features.statistics.viewmodel import StatisticsViewModel
 from COCbot.features.village.model import VillageModel
-from COCbot.features.village.resources import ResourceReader
+from COCbot.features.village.resources import ResourceReader, regions_from_config
 from COCbot.features.village.upgrades import HeroDefenseUpgrader
 from COCbot.features.village.view import VillageView
 from COCbot.features.village.viewmodel import VillageViewModel
@@ -162,6 +162,7 @@ def main() -> int:
                 if config.vision.ocr_engine in ("auto", "glm")
                 else None
             ),
+            regions=regions_from_config(config.vision.ocr_regions),
         ),
     )
     village_viewmodel = VillageViewModel(village_model)
@@ -187,6 +188,7 @@ def main() -> int:
                 if config.vision.ocr_engine in ("auto", "glm")
                 else None
             ),
+            regions=regions_from_config(config.vision.ocr_regions),
         ),
         on_resources=resource_viewmodel.publish,
         upgrader=HeroDefenseUpgrader(adb, capture, logger=logger),
