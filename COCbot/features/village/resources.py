@@ -7,6 +7,7 @@ builder/lab counters sit just above the Build button.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Callable
 
@@ -24,6 +25,14 @@ HOME_DARK_REGION = Rect(660, 79, 168, 35)
 HOME_GEMS_REGION = Rect(685, 110, 130, 42)
 # "5/5" builders and "1/2" researchers, above the Build button.
 HOME_BUILDERS_REGION = Rect(740, 596, 64, 40)
+# Whole currency column, read in one GLM-OCR request.
+HOME_TOP_BAR_REGION = Rect(655, 5, 180, 148)
+
+GLM_NUMBER_PROMPT = (
+    "Read every number in this image from top to bottom, one number per line. "
+    "Digits only, no explanation."
+)
+GLM_TEXT_PROMPT = "Read the text exactly, characters only, no explanation."
 
 MAX_RESOURCE = 100_000_000
 MAX_GEMS = 10_000_000
@@ -147,12 +156,91 @@ class ResourceReader:
         logger: LoggerPort | None = None,
         number_reader: Callable[[np.ndarray], int | None] | None = None,
         fraction_reader: Callable[[np.ndarray], tuple[int, int] | None] | None = None,
+        glm_server: str | None = None,
+        glm_client: Callable[[np.ndarray, str], str] | None = None,
     ) -> None:
         """Create the reader with optional injected OCR callables."""
         self._capture = capture
         self._logger = logger
         self._read_number = number_reader or ocr_number
         self._read_fraction = fraction_reader or ocr_fraction
+        self._glm_server = glm_server or None
+        self._glm_client = glm_client
+        self._glm_ok: bool | None = None
+        self._glm_checked_at = 0.0
+
+    def _glm_ready(self) -> bool:
+        """Return ``True`` when a local GLM-OCR server answers."""
+        if self._glm_client is not None:
+            return True
+        if not self._glm_server:
+            return False
+        now = time.time()
+        if self._glm_ok is not None:
+            if self._glm_ok:
+                return True
+            if now - self._glm_checked_at < 60.0:
+                return False
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(
+                self._glm_server.rstrip("/") + "/health", timeout=2
+            ) as response:
+                self._glm_ok = response.status == 200
+        except Exception:
+            self._glm_ok = False
+        self._glm_checked_at = now
+        return bool(self._glm_ok)
+
+    def _ask_glm(self, image: np.ndarray, prompt: str) -> str:
+        """Send one crop to GLM-OCR (local llama.cpp server)."""
+        if self._glm_client is not None:
+            return self._glm_client(image, prompt)
+        import base64
+        import json
+        import urllib.request
+
+        ok, buffer = cv2.imencode(".png", image)
+        if not ok:
+            return ""
+        payload = {
+            "model": "glm-ocr",
+            "temperature": 0,
+            "max_tokens": 96,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": "data:image/png;base64,"
+                                + base64.b64encode(buffer.tobytes()).decode("ascii")
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        request = urllib.request.Request(
+            (self._glm_server or "").rstrip("/") + "/v1/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            self._log("warning", f"GLM-OCR request failed: {exc}")
+            self._glm_ok = False
+            return ""
+        choices = body.get("choices") or []
+        if not choices:
+            return ""
+        return str(choices[0].get("message", {}).get("content", ""))
 
     def _log(self, level: str, message: str) -> None:
         """Emit a log line when a logger was supplied."""
@@ -191,11 +279,62 @@ class ResourceReader:
             return (None, None)
         return (available, total)
 
+    def _read_with_glm(self, frame: Frame) -> VillageResources | None:
+        """Read all counters with one GLM-OCR request, or ``None``."""
+        top = self._crop(frame, HOME_TOP_BAR_REGION)
+        builders_crop = self._crop(frame, HOME_BUILDERS_REGION)
+        if top is None:
+            return None
+        text = self._ask_glm(top, GLM_NUMBER_PROMPT)
+        numbers: list[int] = []
+        for line in str(text).splitlines():
+            digits = "".join(ch for ch in line if ch.isdigit())
+            if digits:
+                numbers.append(int(digits))
+        if len(numbers) < 4:
+            return None
+        gold, elixir, dark, gems = numbers[:4]
+        for value, limit in (
+            (gold, MAX_RESOURCE),
+            (elixir, MAX_RESOURCE),
+            (dark, MAX_RESOURCE),
+            (gems, MAX_GEMS),
+        ):
+            if value > limit:
+                return None
+        available = total = None
+        if builders_crop is not None:
+            builder_text = self._ask_glm(builders_crop, GLM_TEXT_PROMPT)
+            digits = [ch for ch in str(builder_text) if ch.isdigit() or ch == "/"]
+            joined = "".join(digits)
+            if "/" in joined:
+                left, right = joined.split("/", 1)
+                if left.isdigit() and right.isdigit():
+                    a, b = int(left), int(right)
+                    if 0 <= a <= b <= MAX_BUILDERS:
+                        available, total = a, b
+        return VillageResources(
+            gold=gold,
+            elixir=elixir,
+            dark_elixir=dark,
+            gems=gems,
+            builders_available=available,
+            builders_total=total,
+        )
+
     def read(self) -> VillageResources:
         """Return one snapshot; unreadable counters stay ``None``."""
         frame = self._capture.capture()
         if frame is None:
             return VillageResources()
+        if self._glm_ready():
+            try:
+                snapshot = self._read_with_glm(frame)
+            except Exception as exc:
+                self._log("warning", f"GLM-OCR read failed: {exc}")
+                snapshot = None
+            if snapshot is not None and snapshot.has_values():
+                return snapshot
         builders_available, builders_total = self._builders(frame)
         snapshot = VillageResources(
             gold=self._number(frame, HOME_GOLD_REGION, MAX_RESOURCE),

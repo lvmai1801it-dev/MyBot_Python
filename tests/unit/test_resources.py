@@ -91,6 +91,40 @@ class ResourceReaderTests(unittest.TestCase):
         self.assertEqual(reader.read(), VillageResources())
         self.assertFalse(reader.read().has_values())
 
+    def test_glm_reads_every_counter_in_two_requests(self) -> None:
+        prompts: list[str] = []
+
+        def client(image, prompt):
+            prompts.append(prompt)
+            if "top to bottom" in prompt:
+                return "\n16 000 000\n13 086 862\n250 000\n1 497"
+            return "\n5/6"
+
+        reader = ResourceReader(
+            FakeCapture(blank_frame()),
+            glm_client=client,
+        )
+        snapshot = reader.read()
+        self.assertEqual(snapshot.gold, 16_000_000)
+        self.assertEqual(snapshot.elixir, 13_086_862)
+        self.assertEqual(snapshot.dark_elixir, 250_000)
+        self.assertEqual(snapshot.gems, 1_497)
+        self.assertEqual(snapshot.builders_available, 5)
+        self.assertEqual(snapshot.builders_total, 6)
+        self.assertEqual(len(prompts), 2)
+
+    def test_glm_garbage_falls_back_to_tesseract(self) -> None:
+        numbers = ScriptedNumbers([1_000, 2_000, 3_000, 40])
+        reader = ResourceReader(
+            FakeCapture(blank_frame()),
+            number_reader=numbers,
+            fraction_reader=lambda _image: (2, 6),
+            glm_client=lambda image, prompt: "no numbers here",
+        )
+        snapshot = reader.read()
+        self.assertEqual(snapshot.gold, 1_000)
+        self.assertEqual(snapshot.builders_available, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

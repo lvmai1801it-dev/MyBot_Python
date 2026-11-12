@@ -656,6 +656,45 @@ VillageResources(gold=10128117, elixir=7822777, dark_elixir=90168,
                  gems=991, builders_available=3, builders_total=6)
 ```
 
+### Local GLM-OCR (optional numeric reader)
+
+```text
+tools/bench_ocr.py           Tesseract vs PaddleOCR vs GLM-OCR benchmark
+tools/start_glm_ocr.ps1      starts llama-server with the GLM-OCR GGUF
+COCbot/features/village/resources.py   GLM path + Tesseract fallback
+```
+
+Benchmark on 12 labeled crops (top bar, builders, wall prices) on this
+machine's Vega 11 / CPU-only llama.cpp (`-ngl 0`):
+
+```text
+tesseract  exact  8/12 ( 66.7%)  avg 1288 ms
+paddle     exact 11/12 ( 91.7%)  avg 4661 ms
+glm        exact 12/12 (100.0%)  avg 1648 ms
+```
+
+Tesseract misread large values (`10 128 117` → `101287`, `90 168` → `50168`,
+`250 000` → `/350000`); GLM-OCR read all of them exactly.
+
+`ResourceReader(glm_server=...)` reads the whole currency column in **one**
+request (top-to-bottom prompt) plus one for the builder fraction, and falls
+back to Tesseract when the server is down or the answer is not four numbers.
+Whole readout is ~3.3 s on this CPU, versus ~4–8 s for four Tesseract crops.
+
+Configuration (`settings.json`):
+
+```json
+{"ocr_engine": "auto", "ocr_server": "http://127.0.0.1:8080"}
+```
+
+`auto` probes `/health` once (retries after 60 s), so the bot keeps working
+with Tesseract when the server is not started. Start it with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\start_glm_ocr.ps1
+# llama-server -hf ggml-org/GLM-OCR-GGUF -c 256 -np 2 -ngl 0 -lm none
+```
+
 ## Remaining work
 
 1. Clean attack port calibration (retained for future; shell uses legacy engine).

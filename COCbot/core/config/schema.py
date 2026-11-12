@@ -179,6 +179,8 @@ class VisionConfig:
     redline_offset_ratio: float = defaults.DEFAULT_REDLINE_OFFSET_RATIO
     confidence: float = defaults.DEFAULT_YOLO_CONFIDENCE
     iou: float = defaults.DEFAULT_YOLO_IOU
+    ocr_engine: str = "auto"
+    ocr_server: str = "http://127.0.0.1:8080"
 
 
 @dataclass(frozen=True)
@@ -280,6 +282,8 @@ _KNOWN_KEYS = frozenset(
         "redline_offset_ratio",
         "yolo_confidence",
         "yolo_iou",
+        "ocr_engine",
+        "ocr_server",
         "auto_capture_dataset",
         "auto_capture_dir",
         "auto_capture_min_interval_sec",
@@ -569,6 +573,8 @@ class AppConfig:
             "redline_offset_ratio": self.vision.redline_offset_ratio,
             "yolo_confidence": self.vision.confidence,
             "yolo_iou": self.vision.iou,
+            "ocr_engine": self.vision.ocr_engine,
+            "ocr_server": self.vision.ocr_server,
             "auto_capture_dataset": self.auto_capture.enabled,
             "auto_capture_dir": self.auto_capture.directory,
             "auto_capture_min_interval_sec": self.auto_capture.min_interval_sec,

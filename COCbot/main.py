@@ -171,7 +171,15 @@ def main() -> int:
     engine = LegacyEngine(
         config_store,
         logger=logger,
-        resource_reader=ResourceReader(capture, logger=logger),
+        resource_reader=ResourceReader(
+            capture,
+            logger=logger,
+            glm_server=(
+                config.vision.ocr_server
+                if config.vision.ocr_engine in ("auto", "glm")
+                else None
+            ),
+        ),
         on_resources=resource_viewmodel.publish,
         upgrader=HeroDefenseUpgrader(adb, capture, logger=logger),
     )
