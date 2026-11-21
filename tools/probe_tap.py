@@ -22,7 +22,6 @@ from COCbot.core.config.coordinates import (  # noqa: E402
     SCOUT_SCREEN_REGION,
 )
 from COCbot.core.config.schema import AppConfig  # noqa: E402
-from COCbot.core.logging import build_logger  # noqa: E402
 from COCbot.core.vision import ScreenCapture, TemplateMatcher  # noqa: E402
 from COCbot.core.vision.image import frame_image  # noqa: E402
 
@@ -43,13 +42,12 @@ def menu_diff(a, b) -> float:
 
 
 def main() -> int:
-    logger = build_logger()
     config = AppConfig()
-    adb = AdbClient(host=config.emulator.host, logger=logger)
+    adb = AdbClient(host=config.emulator.host)
     if not adb.connect(config.emulator.host, timeout=5.0):
         raise SystemExit("ADB connect failed")
-    capture = ScreenCapture(adb, logger=logger)
-    matcher = TemplateMatcher(logger=logger)
+    capture = ScreenCapture(adb)
+    matcher = TemplateMatcher()
 
     # --- 1. get back to the home village -------------------------------
     frame = capture.capture()

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from COCbot.models.attack import AttackPlan, AttackResult, Detection
-from COCbot.models.bot_state import Progress
-from COCbot.models.emulator import EmulatorInstance
+from COCbot.models.attack import Detection
 from COCbot.models.enums import AttackSide, EmulatorType, ResourceKind
 from COCbot.models.frame import Frame
 from COCbot.models.geometry import BoundingBox, Point, Rect
@@ -56,13 +54,7 @@ class ResourceTests(unittest.TestCase):
 
 
 class MiscModelTests(unittest.TestCase):
-    """Verify enums, progress, frames, and attack results."""
-
-    def test_progress_percent(self) -> None:
-        self.assertEqual(Progress(1, 4).percent, 25)
-        self.assertEqual(Progress(10, 4).percent, 100)
-        self.assertEqual(Progress(0, 0).percent, 0)
-        self.assertTrue(Progress(4, 4).is_complete)
+    """Verify enums, frames, and detections."""
 
     def test_enum_aliases(self) -> None:
         self.assertEqual(EmulatorType.from_value("LDPlayer"), EmulatorType.LDPLAYER)
@@ -77,23 +69,9 @@ class MiscModelTests(unittest.TestCase):
         self.assertEqual(frame.age(now=105.0), 5.0)
         self.assertTrue(Frame(image=None, width=0, height=0).is_empty())
 
-    def test_attack_plan_units(self) -> None:
-        plan = AttackPlan(troops={"dragon": 2}, spells={"rage": 1})
-        self.assertEqual(plan.total_units(), 3)
-        self.assertFalse(plan.is_empty())
-
-    def test_attack_result_victory(self) -> None:
-        self.assertTrue(AttackResult(success=True, stars=2).is_victory)
-        self.assertFalse(AttackResult(success=True, stars=0).is_victory)
-
     def test_detection_center(self) -> None:
         detection = Detection("town_hall", 0.9, BoundingBox(0, 0, 10, 20))
         self.assertEqual(detection.center(), Point(5, 10))
-
-    def test_emulator_instance_fallback(self) -> None:
-        instance = EmulatorInstance(index=2, name="")
-        self.assertEqual(instance.display_name(), "Instance 2")
-        self.assertEqual(instance.connect_host(), "127.0.0.1:5557")
 
 
 if __name__ == "__main__":

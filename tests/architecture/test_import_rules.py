@@ -1,4 +1,4 @@
-﻿"""Architecture contracts: the domain and core layers must stay Qt-free."""
+"""Architecture contracts: the domain and core layers must stay Qt-free."""
 
 from __future__ import annotations
 

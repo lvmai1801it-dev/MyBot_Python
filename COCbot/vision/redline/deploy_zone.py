@@ -1,4 +1,4 @@
-﻿"""Deploy-zone ONNX segmentation: the primary redline source.
+"""Deploy-zone ONNX segmentation: the primary redline source.
 
 Port of the external ``deploy_zone_sdk`` (U-Net efficientnet-b4, 3 classes,
 IoU ~0.99 vs hand labels). The model file lives at

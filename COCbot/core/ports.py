@@ -1,24 +1,21 @@
 """Port definitions (interfaces) for dependency inversion.
 
 Only the standard library and the pure ``COCbot.models`` package may be
-imported here. Adapters live in ``COCbot.core.*``, ``COCbot.workers``, and the
-feature packages. This keeps the contracts free of PyQt5 and easy to fake in
-tests.
+imported here. Adapters live in ``COCbot.core.*`` and the village/upgrade
+feature. This keeps the contracts free of PyQt5 and easy to fake in tests.
+
+The five protocols below are the ones the legacy runtime still exercises:
+``AdbClient`` implements AdbPort, ``ScreenCapture`` implements CapturePort,
+``NumberOcr`` implements OcrPort, ``SystemClock`` implements ClockPort, and
+the village/upgrade services consume LoggerPort.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-from COCbot.models.attack import Detection
-from COCbot.models.bot_state import BotEvent, CycleResult
-from COCbot.models.emulator import EmulatorInstance
-from COCbot.models.enums import EmulatorType
 from COCbot.models.frame import Frame
 from COCbot.models.geometry import Rect
-
-if TYPE_CHECKING:
-    from COCbot.core.config.schema import AppConfig
 
 
 @runtime_checkable
@@ -75,28 +72,6 @@ class AdbPort(Protocol):
 
 
 @runtime_checkable
-class EmulatorPort(Protocol):
-    """Discovery and lifecycle operations for one emulator family."""
-
-    @property
-    def emulator_type(self) -> EmulatorType:
-        """Return the emulator family handled by this adapter."""
-
-    @property
-    def default_host(self) -> str:
-        """Return the default ADB host for this emulator."""
-
-    def list_instances(self) -> Sequence[EmulatorInstance]:
-        """Return every discovered instance for this emulator."""
-
-    def start_instance(self, index: int) -> bool:
-        """Start the instance identified by *index*."""
-
-    def is_instance_running(self, index: int) -> bool:
-        """Return ``True`` when the instance is running."""
-
-
-@runtime_checkable
 class CapturePort(Protocol):
     """Screen-capture adapter."""
 
@@ -105,33 +80,11 @@ class CapturePort(Protocol):
 
 
 @runtime_checkable
-class DetectorPort(Protocol):
-    """Object detector adapter (YOLO or OpenCV fallback)."""
-
-    def detect(self, frame: Frame, confidence: float | None = None) -> Sequence[Detection]:
-        """Return detections for *frame*."""
-
-
-@runtime_checkable
 class OcrPort(Protocol):
     """Number/text OCR adapter."""
 
     def read_number(self, frame: Frame, region: Rect | None = None) -> int | None:
         """Read an integer from *region* of *frame*."""
-
-
-@runtime_checkable
-class SettingsPort(Protocol):
-    """Persistent application settings store."""
-
-    def load(self) -> "AppConfig":
-        """Load settings from disk, returning defaults on first run."""
-
-    def save(self, config: "AppConfig") -> None:
-        """Persist the complete settings object."""
-
-    def reload(self) -> "AppConfig":
-        """Discard the in-memory copy and load from disk again."""
 
 
 @runtime_checkable
@@ -146,70 +99,3 @@ class ClockPort(Protocol):
 
     def sleep(self, seconds: float) -> None:
         """Sleep for *seconds* without importing ``time`` at call sites."""
-
-
-@runtime_checkable
-class EventSinkPort(Protocol):
-    """Consumer for structured bot events."""
-
-    def emit(self, event: BotEvent) -> None:
-        """Publish one event to the sink."""
-
-
-@runtime_checkable
-class AccountStorePort(Protocol):
-    """shared_prefs profile storage used by the accounts feature."""
-
-    def list_profiles(self) -> Sequence[Mapping[str, object]]:
-        """Return profiles as mappings with name/saved_at/files/exists keys."""
-
-    def root_label(self) -> str:
-        """Return a human-readable ADB root status."""
-
-    def pull_profile(self, name: str, close_game: bool = True) -> None:
-        """Save the current game account into profile *name*."""
-
-    def push_profile(
-        self,
-        name: str,
-        current_profile: str = "",
-        close_game: bool = True,
-    ) -> None:
-        """Restore profile *name* into the game."""
-
-    def switch_profile(self, current_profile: str, target_profile: str) -> None:
-        """Pull the current account, then push the target account."""
-
-    def delete_profile(self, name: str) -> None:
-        """Delete the stored profile."""
-
-
-@runtime_checkable
-class MultiTouchPort(Protocol):
-    """Multi-finger gestures used for map zoom."""
-
-    def pinch_in(self, percent: int = 100, steps: int = 20) -> bool:
-        """Perform a pinch-in (zoom-out) gesture."""
-
-
-class BotEnginePort(Protocol):
-    """Long-running bot engine started by a background worker."""
-
-    @property
-    def is_running(self) -> bool:
-        """Return ``True`` while the engine loop is active."""
-
-    def run_forever(self, sink: EventSinkPort | None = None) -> None:
-        """Run until stopped, forwarding events to *sink*."""
-
-    def run_cycle(self) -> CycleResult:
-        """Execute one complete bot cycle and return its result."""
-
-    def request_stop(self) -> None:
-        """Ask the engine to stop after the current step."""
-
-    def request_pause(self) -> None:
-        """Ask the engine to pause at the next safe point."""
-
-    def request_resume(self) -> None:
-        """Resume a paused engine."""

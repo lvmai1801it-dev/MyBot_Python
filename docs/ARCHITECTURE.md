@@ -5,75 +5,61 @@ dễ test từng phần, giữ nguyên hành vi bot.
 
 ## 1. Cây thư mục
 
+> Cập nhật sau purge MVVM (2026-11-21). `python run.py` là entry point duy
+> nhất; toàn bộ shell MVVM nằm trong `_archive_old_code/mvvm_purge_20261121/`.
+
 ```text
 src/
-├── run.py                  # entry point chính (GUI)
-├── settings.json           # cấu hình runtime (gitignored)
+├── run.py                     # entry point GUI (duy nhất)
+├── settings.json              # cấu hình runtime (gitignored)
 ├── COCbot/
-│   ├── app/                # lõi ứng dụng: config, state, paths, coords, stats
-│   │   ├── bootstrap.py    # vòng lặp chính (trước là core/main.py)
-│   │   ├── config.py
-│   │   ├── controls.py     # start/stop/pause
-│   │   ├── coords.py
-│   │   ├── paths.py
-│   │   ├── state.py        # host, emulator_key, ld_index, events
-│   │   ├── stats.py
-│   │   ├── army_presets.py
-│   │   ├── troop_registry.py
-│   │   ├── updater.py
-│   │   └── version.py
-│   ├── platform/           # tương tác nền tảng
-│   │   ├── adb_config.py
-│   │   ├── adb_utils.py
-│   │   ├── ahk.py
-│   │   └── unicode.py
-│   ├── emulator/           # quản lý giả lập
-│   │   ├── setup.py
-│   │   ├── memu.py
-│   │   ├── ldplayer.py
-│   │   └── bluestacks.py
-│   ├── vision/             # thị giác máy tính
-│   │   ├── capture.py      # screenshot + ScreenshotArray
-│   │   ├── ocr.py          # EasyOCR lazy reader
-│   │   ├── templates.py    # template matching
-│   │   ├── read_text/      # đọc tài nguyên (gold/elixir/dark)
-│   │   └── redline/        # redline detection
-│   │       ├── detector.py       # YOLO-seg + OpenCV fallback
-│   │       ├── geometry.py       # chia 4 cạnh, offset
-│   │       ├── yolo.py           # RedlineSegmenter
-│   │       └── dataset_capture.py
-│   ├── game/               # logic trò chơi
-│   │   ├── battle/         # helpers, target, home base
-│   │   ├── village/        # home routine, collectors, zoom
-│   │   ├── clan/           # capital, games, requests
-│   │   ├── training/       # quick_train, smart_train, OCR
-│   │   └── account/        # boot recovery, shared_prefs, switch config
-│   ├── attack/             # pipeline tấn công
-│   │   ├── api.py          # điểm vào run_attack / init_device
-│   │   ├── cycle.py        # một chu kỳ attack
-│   │   ├── device.py       # tap / chọn quân
-│   │   ├── dropper.py      # thả quân
-│   │   ├── planner.py      # lập kế hoạch thả
-│   │   └── army.py         # chuẩn bị quân
-│   └── gui/
-│       ├── app.py          # entry: MainWindow, main_gui
-│       ├── accounts.py     # AccountsMixin (shared_prefs)
-│       ├── logs.py         # LogsMixin (bot log / attack log)
-│       ├── dialogs.py      # emulator / LDPlayer dialogs
-│       ├── widgets.py      # TitleBar, TimestampStream
-│       ├── settings_store.py
-│       ├── constants.py
-│       ├── theme.py
-│       ├── services/       # qt_thread
-│       └── tabs/           # log_tab, village_tabs, clan_tabs, about_tab,
-│                           # army_recipe, debug, stats
-├── tools/                  # script hỗ trợ (dataset, YOLO, icon)
-├── datasets/redline/       # dataset YOLO (images/labels/runs)
-├── models/                 # redline_seg.pt / .onnx
-├── Templates/              # template ảnh runtime
-├── profiles/               # cấu hình làng
-├── walls/                  # ảnh wall
-├── docs/                   # tài liệu
+│   ├── app/                   # lõi runtime legacy
+│   │   ├── bootstrap.py       # bot_loop + one_cycle
+│   │   ├── upgrade_hook.py    # auto-upgrade mỗi cycle (cài từ GUI on_start)
+│   │   ├── config.py, coords.py, paths.py, state.py
+│   │   ├── army_presets.py, troop_registry.py, stats.py
+│   │   └── controls.py, updater.py, version.py
+│   ├── attack/                # pipeline tấn công (đường thật)
+│   │   ├── cycle.py           # run_attack: ONNX redline + sanitize
+│   │   │                      # + verify-redrop + final sweep
+│   │   ├── planner.py         # chọn 1/2/3/4 hướng + offset
+│   │   ├── dropper.py         # thả quân/hero/CC/spell (opt-in)
+│   │   ├── device.py           # tap qua adb input (u2 chỉ là fallback)
+│   │   ├── army.py            # quét thanh quân (prepare_attack)
+│   │   └── api.py              # re-export công khai
+│   ├── emulator/              # MEmu / LDPlayer / BlueStacks (legacy)
+│   ├── game/
+│   │   ├── account/           # boot recovery, shared_prefs, switch config
+│   │   ├── battle/            # home detect, scout, battle helpers, loot OCR
+│   │   ├── clan/              # capital, games, request troops
+│   │   ├── training/          # quick/smart train, validators, OCR
+│   │   └── village/            # main village, collectors, walls, zoom, UI state
+│   ├── gui/                   # MainWindow + tabs + theme + Qt thread
+│   ├── platform/              # adb_utils, tap_guard, unicode (adb.exe tại
+│   │                          # COCbot/adb/)
+│   ├── vision/                # capture, OCR số, templates
+│   │   └── redline/
+│   │       ├── detector.py    # ưu tiên: deploy_zone.onnx -> YOLO -> OpenCV
+│   │       ├── deploy_zone.py # SDK ONNX: mask 3 lớp + sanitize theo mask
+│   │       └── geometry.py, yolo.py, dataset_capture.py
+│   ├── core/                  # thư viện cho features/village (pure, no Qt)
+│   │   ├── adb/               # AdbClient + TapGuard
+│   │   ├── vision/            # ScreenCapture, NumberOcr, TemplateMatcher
+│   │   ├── config/            # schema settings.json, paths, coordinates
+│   │   ├── ports.py           # 5 protocol đang dùng (Adb/Capture/Ocr/Clock/Logger)
+│   │   └── clock.py, errors.py
+│   ├── models/                # dataclass pure: Detection, Frame, geometry,
+│   │                          # resources, enums
+│   └── features/village/      # auto-upgrade (giữ lại sau purge)
+│       ├── upgrades.py        # HeroDefenseUpgrader + wall qua Build panel
+│       ├── runner.py          # UpgradeRunner theo số builder free
+│       ├── planner.py, targets.py
+│       └── resources.py       # ResourceReader (GLM-OCR + Tesseract)
+├── tools/                     # dataset/YOLO, crop, probe tap, test side
+│                              # modes, audit structure, smoke GUI
+├── models/                    # deploy_zone.onnx (gitignored)
+├── datasets/redline/          # ảnh + label (gitignored)
+├── Templates/, profiles/, walls/, docs/
 ```
 
 ## 2. Quy tắc import

@@ -36,35 +36,6 @@ class EmulatorType(str, Enum):
         return aliases.get(text, cls.MEMU)
 
 
-class BotPhase(str, Enum):
-    """High-level phase of the bot state machine."""
-
-    IDLE = "idle"
-    STARTING = "starting"
-    RUNNING = "running"
-    SEARCHING = "searching"
-    ATTACKING = "attacking"
-    RETURNING = "returning"
-    UPGRADING = "upgrading"
-    DONATING = "donating"
-    SWITCHING_ACCOUNT = "switching_account"
-    PAUSED = "paused"
-    STOPPING = "stopping"
-    STOPPED = "stopped"
-    ERROR = "error"
-
-
-class LogLevel(str, Enum):
-    """Log severities understood by the UI and the logger."""
-
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    SUCCESS = "SUCCESS"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    CRITICAL = "CRITICAL"
-
-
 class ResourceKind(str, Enum):
     """Clash of Clans resource kinds."""
 
@@ -86,14 +57,6 @@ class UpgradeCategory(str, Enum):
     DEFENSE = "defense"
     RESOURCE = "resource"
     OTHER = "other"
-
-
-class AccountSwitchMode(str, Enum):
-    """Account rotation strategies."""
-
-    OFF = "off"
-    ROTATE = "rotate"
-    FULL_STORAGE = "full_storage"
 
 
 class AttackSide(str, Enum):

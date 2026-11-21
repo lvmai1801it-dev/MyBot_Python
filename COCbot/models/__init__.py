@@ -1,58 +1,24 @@
-"""Pure domain models shared by core, features, and workers.
+"""Pure domain models shared by core and the village/upgrade feature.
 
 This package must never import PyQt5.
 """
 
-from COCbot.models.account import (
-    AccountProfile,
-    AccountProfileInfo,
-    AccountSwitchState,
-    AccountsSnapshot,
-)
-from COCbot.models.attack import AttackPlan, AttackResult, Detection, RedlineResult
-from COCbot.models.bot_state import BotEvent, BotStatus, CycleResult, Progress
-from COCbot.models.emulator import EmulatorInstance
-from COCbot.models.enums import (
-    AccountSwitchMode,
-    AttackSide,
-    BotPhase,
-    EmulatorType,
-    LogLevel,
-    ResourceKind,
-    UpgradeCategory,
-)
+from COCbot.models.attack import Detection
+from COCbot.models.enums import AttackSide, EmulatorType, ResourceKind, UpgradeCategory
 from COCbot.models.frame import Frame
 from COCbot.models.geometry import BoundingBox, Point, Rect, Size
 from COCbot.models.resources import ResourceSnapshot
-from COCbot.models.village import UpgradeTask, VillageState
 
 __all__ = [
-    "AccountProfile",
-    "AccountSwitchMode",
-    "AccountSwitchState",
-    "AccountsSnapshot",
-    "AccountProfileInfo",
-    "AttackPlan",
-    "AttackResult",
     "AttackSide",
-    "BotEvent",
-    "BotPhase",
-    "BotStatus",
     "BoundingBox",
-    "CycleResult",
     "Detection",
-    "EmulatorInstance",
     "EmulatorType",
     "Frame",
-    "LogLevel",
     "Point",
-    "Progress",
     "Rect",
-    "RedlineResult",
     "ResourceKind",
     "ResourceSnapshot",
     "Size",
     "UpgradeCategory",
-    "UpgradeTask",
-    "VillageState",
 ]

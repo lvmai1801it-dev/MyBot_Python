@@ -18,6 +18,20 @@ là legacy. Sau purge, `python run.py` (GUI legacy) là entry point duy nhất.
 | `tests/gui/`, 17 file `tests/unit/` | test của các module trên |
 | `tools/smoke_mvvm_attack.py`, `tools/rehearse_mvvm_attack.py` | smoke tool của shell |
 
+## Đợt 2 (audit cấu trúc, cùng ngày)
+
+Các module còn lại mà không còn ai dùng sau purge (đối chiếu bằng
+`tools/audit_structure.py` — 0 import gãy, 0 mồ côi sau đợt này):
+
+| Vị trí | Ghi chú |
+|---|---|
+| `COCbot/features/village/wall.py` + `tests/unit/test_wall.py` | WallUpgrader quét map theo level — đã bị `HeroDefenseUpgrader.upgrade_walls_via_panel` thay thế |
+| `COCbot/core/adb/mititouch.py` | adapter pinch u2 — chỉ shell cũ dùng |
+| `COCbot/core/config/store.py` | ConfigStore — chỉ features MVVM dùng |
+| `COCbot/core/logging/` | rotating logger — runtime legacy dùng stdout/GUI log |
+| `COCbot/models/{account,bot_state,emulator,village}.py` | dataclass MVVM-era; `models/attack.py` thu về chỉ còn `Detection`; enums bỏ `BotPhase/LogLevel/AccountSwitchMode` |
+| `COCbot/core/ports.py` | thu về 5 protocol còn dùng: Adb/Capture/Ocr/Clock/Logger |
+
 ## ĐÃ GIỮ (vì farm bot legacy đang dùng thật)
 
 - `COCbot/features/village/`: `upgrades.py`, `runner.py`, `wall.py`,
