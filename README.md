@@ -16,6 +16,9 @@ fallback; engine chính là PaddleOCR cài qua pip).
 
 ## Tính năng
 
+- Start tự dò MEmu: đang online → dùng ngay; có cài mà chưa mở → bot tự
+  khởi động; không cần chọn giả lập mỗi lần (dialog thủ công chỉ hiện khi
+  không tìm thấy MEmu — các giả lập khác để sau).
 - Farm tự động: tìm trận → đọc loot → đạt ngưỡng mới đánh → thả theo
   redline → chờ kết thúc → stats → về nhà.
 - Redline: model ONNX deploy-zone (3 lớp deployable / no_deploy /

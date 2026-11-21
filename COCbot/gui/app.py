@@ -207,8 +207,63 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
     def _on_tab_changed(self, idx: int):
         if hasattr(self, "accounts_tab_index") and idx == self.accounts_tab_index:
             self._refresh_accounts(silent=True)
+    def auto_detect_memu(self):
+        """Auto-select MEmu when it is online or installed on this machine.
+
+        Only MEmu is auto-detected for now; LDPlayer/BlueStacks keep the
+        manual dialog for later. When detected, this sets the exact state
+        a manual "MEmu" pick would (host, emulator key, lock handled by
+        on_start).
+        """
+        import subprocess as _sp
+
+        from COCbot.emulator.memu import find_memu_tools
+        from COCbot.platform.adb_config import ADB_BIN
+
+        creation = _sp.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
+        # 1) Online probe: can ADB see MEmu's default host?
+        online = False
+        try:
+            out = _sp.check_output(
+                [ADB_BIN, "connect", MEMU],
+                stderr=_sp.DEVNULL, creationflags=creation, timeout=10,
+            ).decode(errors="replace")
+            if "connected" in out.lower():
+                devices = _sp.check_output(
+                    [ADB_BIN, "devices"],
+                    stderr=_sp.DEVNULL, creationflags=creation, timeout=10,
+                ).decode(errors="replace")
+                online = any(
+                    MEMU in line and "device" in line
+                    for line in devices.splitlines()
+                )
+        except Exception as e:
+            print(f"[AUTO] ADB probe failed: {e}")
+
+        # 2) Installed probe: MEmu.exe + memuc.exe on disk (running or not).
+        exe, memuc, _ = find_memu_tools()
+
+        if online:
+            print("[AUTO] MEmu dang chay (ADB online) - dung ngay khong can chon.")
+        elif exe:
+            print("[AUTO] Phat hien MEmu tren may (chua chay) - bot se tu mo no.")
+        else:
+            print("[AUTO] Khong thay MEmu online hay cai san - chon thu cong.")
+            return False
+
+        self.host = MEMU
+        main.emulator_key = "memu"
+        main.ld_index = 0
+        main.ld_name = None
+        self.no_host = True
+        main.host = self.host
+        return True
+
     def choose_emulator(self):
         if self.no_host:
+            return self.host
+        if self.auto_detect_memu():
             return self.host
         dlg = EmulatorSelectionDialog(self)
         if dlg.exec_() == QDialog.Accepted:
@@ -265,7 +320,7 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.active_village_idx = None
-        self.setWindowTitle("MyBot PHMOD v15.9")
+        self.setWindowTitle("MRB VM BOT MOD")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.resize(480, 670)
         self.setMinimumSize(480, 670)
@@ -313,7 +368,7 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
         title_lbl.setStyleSheet("color:#FFFFFF; font-size:16px; font-weight:600;")
         header_layout.addWidget(title_lbl)
 
-        version_lbl = QLabel("PHMOD v15.9")
+        version_lbl = QLabel("MRB VM BOT MOD")
         version_lbl.setObjectName("appSub")
         version_lbl.setStyleSheet("color:#BFD3CE; font-size:10px;")
         header_layout.addWidget(version_lbl)
