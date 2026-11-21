@@ -109,7 +109,10 @@ class AttackExecutor:
         activate_heroes: bool = True,
     ) -> AttackExecutionResult:
         """Deploy scanned cards along the plan edge."""
-        if not redline.is_valid():
+        # A partially sanitized redline (one side emptied by the mask) is
+        # still usable: deploy along whatever edges remain.
+        usable = [edge for edge in redline.edges if edge]
+        if not usable:
             return AttackExecutionResult(False, message="Redline is not valid")
         if not slots:
             return AttackExecutionResult(False, message="No army cards detected")
@@ -134,7 +137,9 @@ class AttackExecutor:
                     for point in spread_points(edge, per_edge)
                 ][: max(1, slot.count)]
                 for point in points:
-                    if not redline.contains(point):
+                    # ``contains`` means "inside the no-deploy zone": never
+                    # tap a point the game would refuse.
+                    if redline.contains(point):
                         continue
                     planned += 1
                     if not should_tap:
@@ -144,7 +149,7 @@ class AttackExecutor:
                         taps += 1
                     self._clock.sleep(0.02)
             elif slot.kind in (ArmySlotKind.HERO, ArmySlotKind.SIEGE):
-                if not redline.contains(midpoint):
+                if redline.contains(midpoint):
                     continue
                 planned += 1
                 if slot.kind is ArmySlotKind.HERO:
@@ -155,7 +160,7 @@ class AttackExecutor:
                         taps += 1
                     self._clock.sleep(0.2)
             elif slot.kind is ArmySlotKind.SPELL:
-                if not redline.contains(midpoint):
+                if redline.contains(midpoint):
                     continue
                 planned += max(1, slot.count)
                 for _ in range(max(1, slot.count)):

@@ -213,6 +213,9 @@ class AttackModel:
             raise AttackError("No ADB transport configured for deployment")
         taps = 0
         for point in points:
+            # ``contains`` means "inside the no-deploy zone": skip unsafe taps.
+            if redline.contains(point):
+                continue
             if self._adb.tap(point.x, point.y):
                 taps += 1
         return taps

@@ -91,6 +91,13 @@ GAIN_GOLD_RIGHT = Rect(544, 361, 88, 38)
 GAIN_ELIXIR_RIGHT = Rect(546, 401, 86, 36)
 GAIN_DARK_RIGHT = Rect(557, 440, 75, 35)
 
+# Scout-screen "Available Loot" readouts (top-left). The left 30 px of each
+# region hold the resource icon and are skipped before OCR.
+SCOUT_GOLD_REGION = Rect(21, 65, 102, 29)
+SCOUT_ELIXIR_REGION = Rect(20, 92, 107, 33)
+SCOUT_DARK_REGION = Rect(21, 121, 97, 30)
+SCOUT_LOOT_ICON_PX = 30
+
 # Home-village resource readouts and wall search ROI.
 HR_GOLD_REGION = Rect(660, 12, 168, 34)
 HR_ELIXIR_REGION = Rect(660, 45, 168, 35)

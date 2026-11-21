@@ -794,15 +794,81 @@ was already gitignored. The YOLO path stays as the second source (set
 `deploy_zone_model` to "" to use it once `redline_seg.pt` is trained), and
 OpenCV remains the final fallback.
 
+### MVVM attack completion (clean engine reachability + safety)
+
+The clean attack path was dead code with two inverted-safety bugs; it now
+runs end to end and is reachable from the shell:
+
+```text
+COCbot/main.py                    MYBOT_ENGINE=clean -> BotOrchestrator(
+                                    TrainingStep -> VillageStep -> FullAttackStep)
+                                  MYBOT_LIVE_VILLAGE / MYBOT_LIVE_ATTACK gates
+COCbot/core/vision/redline.py     detect(): offset edges by the configured
+                                  ratio + duck-typed sanitize_edges hook
+COCbot/features/attack/executor.py  inverted no-deploy filter fixed; partial
+                                  redlines deploy on their usable edges
+COCbot/features/attack/battle.py  read_loot_offer + legacy-parity threshold
+                                  gate (gold AND elixir AND dark >= config,
+                                  max 30 nexts, then attack anyway)
+COCbot/vision/redline/deploy_zone.py  DeployZonePolygonSource.sanitize_edges
+```
+
+Bugs found and fixed:
+
+1. ``RedlineDetector`` stored ``offset_ratio`` but hardcoded ``ratio=0.0``:
+   deploy edges sat ON the no-deploy boundary. They now move into the
+   deploy band, and the ONNX adapter's mask-based ``sanitize_edges`` hook
+   nudges/drops any remaining unsafe points (spread bases that hug the map
+   border).
+2. ``AttackExecutor`` skipped points NOT inside the no-deploy polygon — the
+   exact inversion of the intended rule — so every tapped point was one
+   the game refuses. All three filters (troops, heroes/siege, spells) are
+   now ``contains -> skip``.
+3. ``FullAttackStep``/``AttackView`` required ``is_valid`` (all four edges);
+   a partially sanitized redline is now usable on its remaining edges.
+4. ``FullAttackStep`` attacked the first scouted base with no loot gate.
+   ``read_loot_offer`` OCRs the scout screen (icon column skipped, same
+   crop as the legacy reader) and the step nexts until the thresholds pass
+   (legacy AND semantics), capped at 30 nexts.
+
+Verification:
+
+```text
+unit suite                     264 tests OK (incl. gate, inversion, offset regressions)
+frame suite                    6/6 real scout frames, mask-verified 0 unsafe deploy points
+live rehearsal (MEmu)          search -> scout -> loot OCR (gold 376,553 /
+                                elixir 444,439 / dark 3,465) -> ONNX redline
+                                edges [20,25,22,26] 0/93 unsafe -> army scan
+                                (electro_titan 9, dragon 2, King, hog_rider 3,
+                                bats) -> 16 dry-run points -> return home,
+                                no troops spent
+shell boot                      MYBOT_SMOKE_TEST=1 exits 0 for both the legacy
+                                engine and MYBOT_ENGINE=clean
+```
+
+Run the clean engine (dry-run by default):
+
+```powershell
+$env:MYBOT_ENGINE='clean'; python run.py --mvvm
+$env:MYBOT_LIVE_VILLAGE='1'   # real training + collector taps
+$env:MYBOT_LIVE_ATTACK='1'    # real search/deploy/battle chain
+```
+
+With both live flags the clean pipeline can now run the full farm attack
+loop; the legacy engine remains the default until the clean port proves
+itself over a longer session.
+
 ## Remaining work
 
 1. Clean attack port calibration (retained for future; shell uses legacy
-   engine). The redline half is solved by the deploy-zone ONNX model; the
-   remaining calibration is search/scout/battle-end timing.
+   engine). The redline half is solved by the deploy-zone ONNX model and the
+   MVVM attack chain is live-verified; remaining calibration is battle-end
+   timing and clan/training parity under the clean engine.
 2. Stage 3c is done: templates captured in `Templates/upgrade/`, rows read by
    OCR, and the confirm step gated on `execute=True`. Next step is wiring it
    into the farm cycle once hero/defense priorities are enabled in settings.
 3. Stage 4 clean port: Clan Games / Clan Capital / Donate execution.
 4. Optional: train `redline_seg.pt` from the 279 labelled scout frames for a
    faster (20-60 ms) second source; the ONNX model already covers this need.
-5. Purge batch 2 only after the clean engine reaches parity with the legacy one.
+5. Purge batch 2 (legacy engine removal) once `MYBOT_ENGINE=clean +
+   MYBOT_LIVE_ATTACK=1` has survived a real farming session.

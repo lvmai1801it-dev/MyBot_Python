@@ -380,7 +380,9 @@ class DeployZonePolygonSource:
 
     Exposes ``predict_polygon(image) -> List[Point]`` and a ``source``
     attribute so ``core.vision.redline.RedlineDetector`` can consume the
-    ONNX model without importing this legacy package itself.
+    ONNX model without importing this legacy package itself. The optional
+    ``sanitize_edges`` hook lets the same detector validate its offset
+    edges against the predicted mask (nudge or drop unsafe points).
     """
 
     source = "onnx"
@@ -390,6 +392,7 @@ class DeployZonePolygonSource:
         self.ok = False
         self.error = ""
         self._model = get_deploy_zone_model(model_path, device=device)
+        self._last_prediction: Optional[DeployZonePrediction] = None
         if self._model is None:
             self.error = f"model not found or unusable: {model_path}"
             return
@@ -403,8 +406,18 @@ class DeployZonePolygonSource:
             cls = self._model.predict_cls(img_bgr)
         except Exception as e:
             self.error = f"inference failed: {e}"
+            self._last_prediction = None
             return []
-        return resample_polygon(mask_to_polygon(cls))
+        polygon = mask_to_polygon(cls)
+        self._last_prediction = DeployZonePrediction(cls, polygon, [])
+        return resample_polygon(polygon)
+
+    def sanitize_edges(self, edges: Sequence[Sequence[Point]]) -> List[List[Point]]:
+        """Nudge or drop deploy-edge points the mask marks unsafe."""
+        prediction = self._last_prediction
+        if prediction is None or prediction.cls.size == 0:
+            return [list(edge) for edge in edges]
+        return [_safe_points(list(edge), prediction) for edge in edges]
 
 
 def try_load_polygon_source(model_path: str, device: str = "auto") -> Optional[Any]:

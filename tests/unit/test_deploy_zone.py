@@ -14,6 +14,7 @@ import numpy as np
 
 from COCbot.core.vision.redline import RedlineDetector
 from COCbot.models.frame import Frame
+from COCbot.models.geometry import Point
 from COCbot.vision.redline.deploy_zone import (
     DeployZonePolygonSource,
     DeployZonePrediction,
@@ -169,6 +170,26 @@ class DetectorFallbackTests(unittest.TestCase):
         result = detector.detect(synthetic_frame())
         self.assertEqual(result.source, "onnx")
         self.assertTrue(result.is_valid())
+
+    def test_injected_source_offsets_edges_into_the_deploy_band(self) -> None:
+        # Regression: edges must move off the no-deploy boundary by the
+        # configured offset ratio so taps land on legal ground.
+        class OnnxSource:
+            source = "onnx"
+
+            def predict_polygon(self, image):
+                return resample_polygon(mask_to_polygon(synthetic_cls()))
+
+        detector = RedlineDetector(
+            use_yolo=True, segmenter=OnnxSource(), offset_ratio=0.35
+        )
+        result = detector.detect(synthetic_frame())
+        self.assertEqual(result.source, "onnx")
+        self.assertTrue(result.is_valid())
+        for edge in result.edges:
+            self.assertGreaterEqual(len(edge), 3)
+            for point in edge:
+                self.assertFalse(result.contains(Point(point.x, point.y)))
 
     def test_clean_detector_still_falls_back_to_cv(self) -> None:
         detector = RedlineDetector(

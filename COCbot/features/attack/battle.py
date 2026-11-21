@@ -20,6 +20,10 @@ from COCbot.core.config.coordinates import (
     GAIN_GOLD_RIGHT,
     NAV,
     NEXT_BUTTON_REGION,
+    SCOUT_DARK_REGION,
+    SCOUT_ELIXIR_REGION,
+    SCOUT_GOLD_REGION,
+    SCOUT_LOOT_ICON_PX,
     SCOUT_SCREEN_REGION,
     STAR_REGIONS,
 )
@@ -127,6 +131,33 @@ class BattleService:
             "next_button.png",
             region=NEXT_BUTTON_REGION,
             threshold=0.35,
+        )
+
+    def read_loot_offer(self) -> ResourceSnapshot | None:
+        """Read the ``Available Loot`` offer from the scout screen.
+
+        The scout ROIs include the resource icon on their left edge; the
+        icon columns are skipped before OCR (same crop as the legacy
+        ``extract_resources``). Returns ``None`` when OCR is unavailable.
+        """
+        frame = self._capture.capture()
+        if frame is None or self._ocr is None:
+            return None
+
+        def amount(region: Rect) -> int:
+            shifted = Rect(
+                region.x + SCOUT_LOOT_ICON_PX,
+                region.y,
+                max(1, region.width - SCOUT_LOOT_ICON_PX),
+                region.height,
+            )
+            value = self._ocr.read_number(frame, shifted)
+            return int(value or 0)
+
+        return ResourceSnapshot(
+            gold=amount(SCOUT_GOLD_REGION),
+            elixir=amount(SCOUT_ELIXIR_REGION),
+            dark_elixir=amount(SCOUT_DARK_REGION),
         )
 
     def search_next(self) -> bool:
@@ -280,7 +311,7 @@ class BattleService:
 
 
 class FullAttackStep:
-    """CycleStep that runs search → scan → deploy → result → home."""
+    """CycleStep that runs search → scout → deploy → result → home."""
 
     def __init__(
         self,
@@ -289,6 +320,7 @@ class FullAttackStep:
         scanner: ArmyBarScanner,
         executor: AttackExecutor,
         execute: bool = False,
+        max_nexts: int = 30,
     ) -> None:
         """Compose the attack pipeline; input is dry-run by default."""
         self._attack = attack
@@ -296,6 +328,7 @@ class FullAttackStep:
         self._scanner = scanner
         self._executor = executor
         self._execute = execute
+        self._max_nexts = max(1, int(max_nexts))
 
     @property
     def name(self) -> str:
@@ -327,17 +360,63 @@ class FullAttackStep:
         if imwrite(path, annotated):
             self._battle.warn(f"Redline debug saved: {path}")
 
+    def _scout_for_offer(
+        self,
+        context: CycleContext,
+        cancel_event: Event | None,
+    ) -> ResourceSnapshot | None:
+        """Next through scout screens until the loot meets the thresholds.
+
+        Mirrors the legacy gate: a base is good when gold, elixir, AND dark
+        elixir all reach their configured thresholds. After ``max_nexts``
+        skips the current base is attacked anyway (avoids a soft lock).
+        """
+        thresholds = context.config.resources
+        nexts = 0
+        while True:
+            if cancel_event is not None and cancel_event.is_set():
+                raise OperationCancelled("Scout loop cancelled")
+            offer = self._battle.read_loot_offer()
+            if offer is None:
+                self._battle.warn("Loot OCR unavailable; attacking current base")
+                return None
+            meets = (
+                offer.gold >= thresholds.gold
+                and offer.elixir >= thresholds.elixir
+                and offer.dark_elixir >= thresholds.dark_elixir
+            )
+            if meets:
+                self._battle.warn(
+                    f"Good base: {offer.gold}/{offer.elixir}/{offer.dark_elixir}"
+                )
+                return offer
+            if nexts >= self._max_nexts:
+                self._battle.warn(
+                    f"Max nexts ({nexts}) reached; attacking current base"
+                )
+                return offer
+            self._battle.warn(
+                f"Loot {offer.gold}/{offer.elixir}/{offer.dark_elixir} "
+                "below threshold -> next"
+            )
+            if not self._battle.search_next():
+                self._battle.warn("Next button not found; attacking current base")
+                return offer
+            nexts += 1
+
     def run(self, context: CycleContext) -> StepResult:
         """Execute one full attack or a dry-run scan."""
         cancel = context.session.stop_event
+        offer: ResourceSnapshot | None = None
         if self._execute:
             self._battle.return_home()
             self._battle.search_attack()
             if not self._battle.wait_for_scout(cancel):
                 return StepResult(False, "Scout screen not detected")
+            offer = self._scout_for_offer(context, cancel)
 
         scan: AttackScan = self._attack.scan(cancel_event=cancel)
-        if scan.plan.target is None and not scan.redline.is_valid():
+        if scan.plan.target is None and not any(scan.redline.edges):
             return StepResult(
                 False,
                 "No attack target or valid redline detected",
@@ -403,5 +482,6 @@ class FullAttackStep:
                 "taps": result.taps,
                 "stars": battle_result.stars,
                 "loot": battle_result.loot.as_dict(),
+                "offer": offer.as_dict() if offer is not None else None,
             },
         )

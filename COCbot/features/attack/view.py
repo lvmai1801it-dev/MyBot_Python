@@ -126,7 +126,8 @@ class AttackView(QWidget):
         if scan.plan.siege:
             recipe.append("siege " + ", ".join(f"{k}×{v}" for k, v in scan.plan.siege.items()))
         self.troops_label.setText(" · ".join(recipe) if recipe else "No recipe configured")
-        self.deploy_btn.setEnabled(scan.redline.is_valid())
+        # A partially sanitized redline is still deployable on its usable edges.
+        self.deploy_btn.setEnabled(bool(scan.redline.edges))
         self._append_log(
             f"Plan: {target.label} conf={target.confidence:.2f} "
             f"side={scan.plan.side} source={scan.source}"

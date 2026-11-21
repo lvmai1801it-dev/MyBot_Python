@@ -365,7 +365,14 @@ class RedlineDetector:
             if polygon:
                 edges = polygon_to_edges(polygon)
                 if edges:
-                    moved = offset_edges_to_outer(edges, ratio=0.0)
+                    # Move the boundary edges into the deploy band between the
+                    # redline and the map edge so taps land on legal ground.
+                    moved = offset_edges_to_outer(edges, ratio=self._offset_ratio)
+                    # Injected sources may expose a mask-based safety hook;
+                    # use it when present (duck-typed, no legacy import).
+                    sanitize = getattr(self._segmenter, "sanitize_edges", None)
+                    if callable(sanitize):
+                        moved = sanitize(moved)
                     return RedlineResult(
                         polygon=tuple(Point(x, y) for x, y in polygon),
                         edges=tuple(tuple(Point(x, y) for x, y in edge) for edge in moved),

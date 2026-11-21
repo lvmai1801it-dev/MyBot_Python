@@ -17,11 +17,20 @@ from PyQt5.QtWidgets import QApplication
 
 from COCbot.app import state as legacy_state
 from COCbot.app.legacy_engine import LegacyEngine
+from COCbot.app.orchestrator import BotOrchestrator
 from COCbot.core.adb import AdbClient
+from COCbot.core.adb.multitouch import Uiautomator2MultiTouch
 from COCbot.core.config import ConfigStore, load_config
 from COCbot.core.config.paths import get_project_paths
 from COCbot.core.logging import build_logger
-from COCbot.core.vision import RedlineDetector, ScreenCapture, YoloDetector
+from COCbot.core.ports import AdbPort, CapturePort, DetectorPort, LoggerPort
+from COCbot.core.vision import (
+    NumberOcr,
+    RedlineDetector,
+    ScreenCapture,
+    TemplateMatcher,
+    YoloDetector,
+)
 from COCbot.features.accounts.model import AccountsModel
 from COCbot.features.accounts.view import AccountsView
 from COCbot.features.accounts.viewmodel import AccountsViewModel
@@ -77,6 +86,60 @@ def _configure_ssl() -> None:
         os.environ.setdefault("REQUESTS_CA_BUNDLE", ca_bundle)
     except Exception:
         pass
+
+
+def _build_clean_orchestrator(
+    adb: AdbPort,
+    capture: CapturePort,
+    attack_model,
+    config,
+    logger: LoggerPort,
+) -> BotOrchestrator:
+    """Compose the clean MVVM cycle: training -> village -> full attack.
+
+    ``MYBOT_LIVE_VILLAGE=1`` makes training/collector taps real;
+    ``MYBOT_LIVE_ATTACK=1`` enables the full search/deploy/battle chain.
+    Both default to dry-run so the shell never touches the game uninvited.
+    """
+    from COCbot.features.attack.army_bar import ArmyBarScanner
+    from COCbot.features.attack.battle import BattleService, FullAttackStep
+    from COCbot.features.attack.executor import AttackExecutor
+    from COCbot.features.training.model import TrainingActions, TrainingStep
+    from COCbot.features.village.model import VillageActions, VillageStep
+
+    live_village = os.environ.get("MYBOT_LIVE_VILLAGE") == "1"
+    live_attack = os.environ.get("MYBOT_LIVE_ATTACK") == "1"
+
+    matcher = TemplateMatcher(logger=logger)
+    ocr = NumberOcr(logger=logger)
+    training = TrainingStep(
+        TrainingActions(adb, capture, matcher, logger=logger, execute=live_village)
+    )
+    village = VillageStep(
+        VillageActions(
+            adb,
+            capture,
+            matcher,
+            ocr=ocr,
+            logger=logger,
+            multitouch=Uiautomator2MultiTouch(config.emulator.host, logger=logger),
+            read_resources=False,
+            execute=live_village,
+        )
+    )
+    battle = BattleService(
+        adb, capture, matcher, ocr=ocr, logger=logger, execute=live_attack
+    )
+    executor = AttackExecutor(adb, logger=logger, execute=live_attack)
+    scanner = ArmyBarScanner(ocr=ocr, logger=logger)
+    full_attack = FullAttackStep(
+        attack_model, battle, scanner, executor, execute=live_attack
+    )
+    return BotOrchestrator(
+        [training, village, full_attack],
+        config=config,
+        logger=logger,
+    )
 
 
 def main() -> int:
@@ -180,7 +243,19 @@ def main() -> int:
     statistics_view = StatisticsView(statistics_viewmodel)
 
     resource_viewmodel = ResourceBarViewModel()
-    engine = LegacyEngine(
+
+    use_clean_engine = os.environ.get("MYBOT_ENGINE", "").strip().lower() == "clean"
+    if use_clean_engine:
+        engine = _build_clean_orchestrator(
+            adb=adb,
+            capture=capture,
+            attack_model=attack_model,
+            config=config,
+            logger=logger,
+        )
+        logger.info("Clean MVVM engine active (MYBOT_ENGINE=clean)")
+    else:
+        engine = LegacyEngine(
         config_store,
         logger=logger,
         resource_reader=ResourceReader(
