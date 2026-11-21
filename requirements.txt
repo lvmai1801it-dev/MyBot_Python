@@ -33,6 +33,7 @@ onnxruntime==1.32.0
 
 # === Web UI shell (python run_web.py) ===
 pywebview==6.2.1
+python-dotenv==1.2.4
 
 # === OCR (PaddleOCR reads CoC digits best) ===
 paddleocr==3.7.0

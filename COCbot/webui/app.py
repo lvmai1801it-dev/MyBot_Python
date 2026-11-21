@@ -213,15 +213,31 @@ def run() -> None:
     (Named ``run`` because ``main`` is bound to ``COCbot.app.state`` -
     the same convention as gui/app.py.)
 
+    Environment (loaded from ``COCbot/webui/.env`` if present; a real
+    environment variable always wins over the file):
+
+    - ``WEBUI_DEV_URL`` - load the Vite dev server instead of a build
+      (hot reload while coding the UI).
+    - ``WEBUI_WIDTH`` / ``WEBUI_HEIGHT`` - window size (default 480x670).
+
     Resolution order for the page:
-    1. ``WEBUI_DEV_URL`` env var - e.g. the Vite dev server
-       (``set WEBUI_DEV_URL=http://localhost:5173``) for hot reload.
+    1. ``WEBUI_DEV_URL``
     2. ``frontend/dist/index.html`` - the built React app
        (``npm run build`` inside COCbot/webui/frontend).
     3. ``webui/index.html`` - the zero-dependency fallback page.
     """
     import os
     from pathlib import Path
+
+    # Optional .env workflow file next to this module.
+    env_file = Path(__file__).with_name(".env")
+    if env_file.is_file():
+        try:
+            from dotenv import load_dotenv
+
+            load_dotenv(env_file, override=False)
+        except ImportError:
+            pass
 
     api = BotApi()
     dev_url = os.environ.get("WEBUI_DEV_URL")
@@ -234,13 +250,18 @@ def run() -> None:
         url = str(react_index)
     else:
         url = str(fallback)
+    try:
+        width = int(os.environ.get("WEBUI_WIDTH", "480"))
+        height = int(os.environ.get("WEBUI_HEIGHT", "670"))
+    except ValueError:
+        width, height = 480, 670
     webview.create_window(
         "MRB VM BOT MOD",
         url=url,
         js_api=api,
-        width=480,
-        height=670,
-        min_size=(480, 670),
+        width=width,
+        height=height,
+        min_size=(width, height),
         frameless=True,
         easy_drag=True,
     )

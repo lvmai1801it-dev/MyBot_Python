@@ -6,14 +6,32 @@ WebView2/EdgeChromium). Backend Python giữ nguyên toàn bộ runtime của bo
 
 ## Lệnh chạy
 
+**Một click** (convention giống `Start_GLM_OCR.bat`):
+
+- `Start_WebUI_Dev.bat` — Vite dev server + pywebview trỏ vào nó
+  (hot reload khi bạn đang code UI). Không cần gõ biến môi trường.
+- `Start_WebUI.bat` — `npm run build` + mở pywebview bằng bản dist.
+
+Hoặc thủ công:
+
 ```powershell
-# từ src/
 .\.venv\Scripts\python.exe run_web.py      # mở cửa sổ web UI
+```
+
+## Workflow env
+
+`COCbot/webui/.env` (copy từ `.env.example`; file thật nằm trong
+.gitignore, biến shell luôn thắng giá trị trong file):
+
+```ini
+WEBUI_DEV_URL=              # trống = dùng bản build; đặt http://localhost:5173 khi dev
+WEBUI_WIDTH=480
+WEBUI_HEIGHT=670
 ```
 
 Trang được chọn theo thứ tự:
 
-1. `WEBUI_DEV_URL` (env) — ví dụ Vite dev server khi đang code UI
+1. `WEBUI_DEV_URL` (env / .env) — Vite dev server
 2. `frontend/dist/index.html` — bản build React (`npm run build`)
 3. `webui/index.html` — trang fallback không cần build (được viết sẵn,
    chỉ để dự phòng khi chưa có dist)
@@ -21,11 +39,10 @@ Trang được chọn theo thứ tự:
 ## Dev loop (cho bạn code UI)
 
 ```powershell
-# terminal 1 — Vite dev server (hot reload)
-cd COCbot\webui\frontend
-npm run dev
-
-# terminal 2 — pywebview trỏ vào dev server
+Start_WebUI_Dev.bat
+# hoặc tay:
+cd COCbot\webui\frontend ; npm run dev
+# terminal 2:
 $env:WEBUI_DEV_URL='http://localhost:5173'
 .\.venv\Scripts\python.exe run_web.py
 ```
