@@ -2,7 +2,7 @@
 
 The tests synthesize class maps (0/1/2) so they run without the 78 MB
 model file or onnxruntime installed; only the pure numpy/opencv helpers
-and the detector fallback chain are exercised.
+and the legacy detector fallback chain are exercised.
 """
 
 from __future__ import annotations
@@ -12,11 +12,8 @@ import unittest
 import cv2
 import numpy as np
 
-from COCbot.core.vision.redline import RedlineDetector
 from COCbot.models.frame import Frame
-from COCbot.models.geometry import Point
 from COCbot.vision.redline.deploy_zone import (
-    DeployZonePolygonSource,
     DeployZonePrediction,
     mask_to_polygon,
     pick_deploy_points,
@@ -159,55 +156,6 @@ class DetectorFallbackTests(unittest.TestCase):
         edges, source = get_redline_edges_ex(None, deploy_model_path="x.onnx")
         self.assertEqual((edges, source), (None, "none"))
 
-    def test_injected_source_is_used_by_the_clean_detector(self) -> None:
-        class FakeSource:
-            source = "onnx"
-
-            def predict_polygon(self, image):
-                return mask_to_polygon(synthetic_cls())
-
-        detector = RedlineDetector(use_yolo=True, segmenter=FakeSource())
-        result = detector.detect(synthetic_frame())
-        self.assertEqual(result.source, "onnx")
-        self.assertTrue(result.is_valid())
-
-    def test_injected_source_offsets_edges_into_the_deploy_band(self) -> None:
-        # Regression: edges must move off the no-deploy boundary by the
-        # configured offset ratio so taps land on legal ground.
-        class OnnxSource:
-            source = "onnx"
-
-            def predict_polygon(self, image):
-                return resample_polygon(mask_to_polygon(synthetic_cls()))
-
-        detector = RedlineDetector(
-            use_yolo=True, segmenter=OnnxSource(), offset_ratio=0.35
-        )
-        result = detector.detect(synthetic_frame())
-        self.assertEqual(result.source, "onnx")
-        self.assertTrue(result.is_valid())
-        for edge in result.edges:
-            self.assertGreaterEqual(len(edge), 3)
-            for point in edge:
-                self.assertFalse(result.contains(Point(point.x, point.y)))
-
-    def test_clean_detector_still_falls_back_to_cv(self) -> None:
-        detector = RedlineDetector(
-            model_path="__missing_redline__.pt", use_yolo=True
-        )
-        result = detector.detect(synthetic_frame())
-        self.assertEqual(result.source, "cv")
-        self.assertTrue(result.is_valid())
-
-
-class PolygonSourceTests(unittest.TestCase):
-    """The adapter must degrade gracefully without the ONNX file."""
-
-    def test_missing_model_is_not_ok(self) -> None:
-        source = DeployZonePolygonSource("__missing_deploy__.onnx")
-        self.assertFalse(source.ok)
-        self.assertEqual(source.predict_polygon(synthetic_frame().image), [])
-
 
 class SanitizePlanTests(unittest.TestCase):
     """Unsafe offset points must be nudged out or dropped before dropping."""
@@ -217,7 +165,6 @@ class SanitizePlanTests(unittest.TestCase):
         self.prediction = DeployZonePrediction(
             self.cls, mask_to_polygon(self.cls), []
         )
-        from COCbot.vision import redline  # noqa: F401  (module under test)
         from COCbot.vision.redline import deploy_zone
         self.deploy_zone = deploy_zone
         self._saved = deploy_zone._LAST_PREDICTION

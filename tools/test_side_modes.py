@@ -1,25 +1,25 @@
-"""Side-mode tests for the attack dropper (offline matrix + live battles).
+"""Side-mode tests for the legacy attack dropper (offline matrix + live).
 
 Offline (--offline):
     Capture ONE real scout frame (search -> screenshot -> return home, no
     troops spent), then for every GUI mode build the legacy attack plan and
-    show which edges/points get chosen. Runs the "Nga^~u nhie^n" RANDOM pick
+    show which edges/points get chosen. Runs the "Ngẫu nhiên" RANDOM pick
     200 times to show its distribution.
 
 Live (--live):
     Fight 5 short battles through the REAL legacy deployment path
-    (build_attack_plan -> select_drop_troop -> drop_on_active_edges), one
-    per mode, spending a few troops each time:
+    (build_attack_plan -> select_drop_troop -> drop_on_active_edges),
+    one per mode, spending a few troops each time:
 
-        B0  Nga^~u nhie^n (RANDOM, planner picks 1 random side) - hog_rider x3
-        B1  1 huong  TR  (Trên Phải)                          - dragon x2
-        B2  2 huong  BL+BR (Nửa Dưới)                         - titan x2
-        B3  3 huong  TR+BR+BL (nb_sides=3 fallback)           - titan x3
-        B4  Ca? 4 huong (+)                                   - everything left
-                                                             + King + bats
+        B0  Ngẫu nhiên (RANDOM, planner picks 1 random side)
+        B1  1 hướng  TR
+        B2  2 hướng  BL+BR (Nửa Dưới)
+        B3  3 hướng  TR+BR+BL (nb_sides=3 fallback)
+        B4  Cả 4 hướng - production dump (verify-and-redrop + sweep)
 
-Each battle saves a planned-points overlay and a mid-battle screenshot to
-artifacts/ so the drop locations can be inspected afterwards.
+--cleanup fights ONE battle dumping everything left with the production
+logic. Each battle saves a planned-points overlay and a mid-battle
+screenshot to artifacts/.
 """
 
 import argparse
@@ -36,22 +36,27 @@ import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 
 from COCbot.app import state  # noqa: E402
-from COCbot.app.army_presets import attack_sides_for_label  # noqa: E402
 from COCbot.attack.army import prepare_attack  # noqa: E402
-from COCbot.attack.device import init_device, tap  # noqa: E402
+from COCbot.attack.device import (  # noqa: E402
+    check_slot_has_troops,
+    init_device,
+    select_drop_troop,
+    tap,
+)
 from COCbot.attack.dropper import (  # noqa: E402
     drop_heroes_v2,
     drop_on_active_edges,
     edge_midpoint,
 )
-from COCbot.attack.device import check_slot_has_troops, select_drop_troop  # noqa: E402
 from COCbot.attack.planner import build_attack_plan  # noqa: E402
-from COCbot.core.adb import AdbClient  # noqa: E402
 from COCbot.core.config.schema import AppConfig  # noqa: E402
-from COCbot.core.logging import build_logger  # noqa: E402
-from COCbot.core.vision import ScreenCapture, TemplateMatcher  # noqa: E402
-from COCbot.core.vision.image import frame_image  # noqa: E402
-from COCbot.features.attack.battle import BattleService  # noqa: E402
+from COCbot.game.battle.helpers import (  # noqa: E402
+    search_attack,
+    wait_battle_end,
+    wait_for_scout_screen,
+)
+from COCbot.platform.adb_utils import return_home  # noqa: E402
+from COCbot.vision.capture import take_screenshot  # noqa: E402
 from COCbot.vision.redline import deploy_zone  # noqa: E402
 from COCbot.vision.redline.detector import get_redline_edges_ex  # noqa: E402
 
@@ -76,42 +81,26 @@ MODES = [
 
 
 def build_services(config: AppConfig):
-    """ADB + capture + battle service with real taps."""
-    logger = build_logger()
-    adb = AdbClient(host=config.emulator.host, logger=logger)
-    if not adb.connect(config.emulator.host, timeout=5.0):
-        raise SystemExit("ADB connect failed - is the emulator running?")
-    capture = ScreenCapture(adb, logger=logger)
-    matcher = TemplateMatcher(logger=logger)
-    battle = BattleService(
-        adb,
-        capture,
-        matcher,
-        logger=logger,
-        execute=True,
-        scout_timeout=90.0,
-        max_battle_wait=240.0,
-    )
+    """Bridge the legacy module state; taps go through adb input."""
     state.host = config.emulator.host
     state.stop_event.clear()
     state.pause_event.set()
     init_device(config.emulator.host)
-    return capture, battle
 
 
-def capture_scout_frame(battle: BattleService):
+def capture_scout_frame():
     """Search a base, wait for the scout screen, capture, return home."""
     print("[SCOUT] return home + search ...")
-    battle.return_home()
-    battle.search_attack()
-    if not battle.wait_for_scout():
-        battle.return_home()
+    return_home()
+    search_attack()
+    if not wait_for_scout_screen():
+        return_home()
         raise SystemExit("scout screen not detected")
-    frame = battle.capture()
-    battle.return_home()
-    if frame is None:
+    img = take_screenshot()
+    return_home()
+    if img is None:
         raise SystemExit("capture failed")
-    return frame
+    return img
 
 
 def redline_and_plan(img_bgr, sides, cfg_extra=None):
@@ -149,9 +138,8 @@ def save_overlay(img_bgr, plan, name):
 
 def offline_matrix(config: AppConfig) -> None:
     """Part 1: every mode on one real scout frame + RANDOM distribution."""
-    capture, battle = build_services(config)
-    frame = capture_scout_frame(battle)
-    img = frame_image(frame)
+    build_services(config)
+    img = capture_scout_frame()
     cv2.imwrite(str(ART / "side_mode_frame.png"), img)
     print(f"[FRAME] scout frame saved -> artifacts/side_mode_frame.png\n")
 
@@ -167,29 +155,22 @@ def offline_matrix(config: AppConfig) -> None:
         save_overlay(img, plan, f"side_mode_{label.split(' ')[0]}_{side}.png")
 
     print("\n[RANDOM] planner pick distribution (200 runs, one side each):")
-    _, _, plan = redline_and_plan(img, ["RANDOM"])  # edges for nothing
+    edges, _src = get_redline_edges_ex(
+        img, model_path="", deploy_model_path="models/deploy_zone.onnx"
+    )
     picks = Counter()
     for _ in range(200):
-        edges, _src = get_redline_edges_ex(
-            img, model_path="", deploy_model_path="models/deploy_zone.onnx"
-        )
         plan = build_attack_plan(edges, {"attack_sides": ["RANDOM"]})
         picks[plan.get("target_side") or "-"] += 1
     for side, count in sorted(picks.items()):
-        bar = "#" * count
-        print(f"    {side:4s} {count:3d}/200 {bar}")
+        print(f"    {side:4s} {count:3d}/200 {'#' * count}")
 
     print("\n[FIXED] determinism check (10 runs per fixed mode):")
     for label, sides in MODES[1:]:
         results = set()
         for _ in range(10):
-            edges, _src = get_redline_edges_ex(
-                img, model_path="", deploy_model_path="models/deploy_zone.onnx"
-            )
             plan = build_attack_plan(edges, {"attack_sides": list(sides)})
-            results.add(
-                tuple(tuple(e) for e in plan["active_edges"])
-            )
+            results.add(tuple(tuple(e) for e in plan["active_edges"]))
         verdict = "FIXED (same edges every run)" if len(results) == 1 else "VARIES!"
         print(f"    {label:24s} -> {verdict}")
 
@@ -204,7 +185,7 @@ LIVE_BATTLES = [
 
 
 def find_troop_slot(troops, wanted, min_count):
-    """Return (name, slot, count) for *wanted* or the first big-enough troop."""
+    """Return the info dict for *wanted* or the first big-enough troop."""
     candidates = [
         info
         for info in troops.values()
@@ -216,52 +197,45 @@ def find_troop_slot(troops, wanted, min_count):
     return candidates[0] if candidates else None
 
 
-def wait_home_ready(battle, capture, timeout: float = 30.0) -> bool:
+def wait_home_ready(timeout: float = 30.0) -> bool:
     """Wait for a stable, non-blank frame after returning home.
 
-    The 3s post-battle sleep is not always enough for the game to load the
+    The post-battle sleep is not always enough for the game to load the
     home village; taps fired into a loading screen are lost and the next
-    search never starts (this is what skipped B2/B3 in the first live run).
+    search never starts.
     """
-    import time as _time
-
-    from COCbot.core.vision.image import frame_image
-
-    deadline = _time.monotonic() + timeout
+    deadline = time.monotonic() + timeout
     stable = 0
-    while _time.monotonic() < deadline:
-        frame = capture.capture()
-        if frame is not None and not frame.is_empty():
-            image = frame_image(frame)
-            if image is not None and image.std() > 4.0:
-                stable += 1
-                if stable >= 2:
-                    return True
+    while time.monotonic() < deadline:
+        img = take_screenshot()
+        if img is not None and img.size and float(img.std()) > 4.0:
+            stable += 1
+            if stable >= 2:
+                return True
         else:
             stable = 0
-        _time.sleep(1.5)
+        time.sleep(1.5)
     return False
 
 
 def live_battles(config: AppConfig) -> None:
     """Part 2: one real mini-battle per side mode."""
-    capture, battle = build_services(config)
+    build_services(config)
 
     for tag, sides, troop, count, pts in LIVE_BATTLES:
         print(f"\n===== {tag} sides={sides} =====")
         try:
-            battle.return_home()
-            if not wait_home_ready(battle, capture):
+            return_home()
+            if not wait_home_ready():
                 print("  home screen not ready - skipping")
                 continue
-            battle.search_attack()
-            if not battle.wait_for_scout():
+            search_attack()
+            if not wait_for_scout_screen():
                 print("  scout screen not detected - skipping")
-                battle.return_home()
+                return_home()
                 continue
 
-            frame = battle.capture()
-            img = frame_image(frame)
+            img = take_screenshot()
             edges, source, plan = redline_and_plan(img, sides)
             active = plan["active_edges"]
             print(f"  redline={source} target_side={plan.get('target_side')}")
@@ -296,11 +270,11 @@ def live_battles(config: AppConfig) -> None:
                         time.sleep(0.15)
                         drop_on_active_edges(active, current, slots_per_edge=pts)
                         time.sleep(0.5)
-                        verify = battle.capture()
+                        verify = take_screenshot()
                         if verify is None:
                             break
                         has_left, remaining = check_slot_has_troops(
-                            frame_image(verify), info["slot"]
+                            verify, info["slot"]
                         )
                         if not has_left or remaining <= 0:
                             print(f"  slot {info['slot']} empty")
@@ -334,9 +308,8 @@ def live_battles(config: AppConfig) -> None:
                 # Final sweep: any TROOP slot that still shows a badge gets
                 # dumped; spell slots stay untouched when spells are off.
                 time.sleep(1.0)
-                sweep_img = battle.capture()
+                sweep_img = take_screenshot()
                 if sweep_img is not None:
-                    simg = frame_image(sweep_img)
                     spell_slots = {
                         int(i.get("slot", -1))
                         for i in troops.values()
@@ -345,7 +318,7 @@ def live_battles(config: AppConfig) -> None:
                     for slot_idx in range(11):
                         if slot_idx in spell_slots and not DROP_SPELLS:
                             continue
-                        has_left, rem = check_slot_has_troops(simg, slot_idx)
+                        has_left, rem = check_slot_has_troops(sweep_img, slot_idx)
                         if has_left and rem > 0:
                             print(
                                 f"  sweep: slot {slot_idx} still has {rem} "
@@ -358,7 +331,7 @@ def live_battles(config: AppConfig) -> None:
                 info = find_troop_slot(troops, troop, count or 1)
                 if info is None:
                     print("  no troop slot available - skipping battle")
-                    battle.return_home()
+                    return_home()
                     continue
                 n = min(count, int(info.get("count", 0) or 0))
                 print(
@@ -372,46 +345,28 @@ def live_battles(config: AppConfig) -> None:
 
             # Verify the drop actually spent troops: re-read the slot badge.
             time.sleep(2.0)
-            verify_img = battle.capture()
+            verify_img = take_screenshot()
             if verify_img is not None and deployed_slot is not None:
-                vimg = frame_image(verify_img)
-                has_left, remaining = check_slot_has_troops(vimg, deployed_slot)
+                has_left, remaining = check_slot_has_troops(verify_img, deployed_slot)
                 print(
                     f"  slot {deployed_slot} after drop: "
                     f"{'still has ' + str(remaining) if has_left else 'EMPTY'}"
                 )
 
             time.sleep(5.0)
-            proof = battle.capture()
+            proof = take_screenshot()
             if proof is not None:
                 name = ART / f"live_{tag}_midbattle.png"
-                cv2.imwrite(str(name), frame_image(proof))
+                cv2.imwrite(str(name), proof)
                 print(f"  mid-battle screenshot -> {name.name}")
 
-            # Double-check the end screen: the scout frame can produce one
-            # template hit, so require a second consecutive match.
-            ended = battle.wait_for_battle_end()
-            if ended:
-                time.sleep(3.0)
-                confirm = battle.capture()
-                if confirm is not None:
-                    from COCbot.core.config.coordinates import BATTLE_REGION
-
-                    second = battle._matcher.match(
-                        confirm,
-                        "end_battle.png",
-                        region=BATTLE_REGION,
-                        threshold=0.65,
-                    )
-                    if second is None:
-                        print("  first end-detection was a fluke; waiting again")
-                        ended = battle.wait_for_battle_end()
-            print(f"  battle ended detected: {ended}")
+            wait_battle_end()
+            print("  battle wait finished")
         except Exception as exc:
             print(f"  ERROR: {type(exc).__name__}: {exc}")
         finally:
             try:
-                battle.return_home()
+                return_home()
             except Exception as exc:
                 print(f"  return home failed: {exc}")
 
@@ -432,7 +387,6 @@ def main() -> int:
     random.seed()  # planner randomness should be live, not reproducible
     config = AppConfig()
     if args.cleanup:
-        global LIVE_BATTLES
         LIVE_BATTLES[:] = [("cleanup-all4", ["TR", "BR", "BL", "TL"], None, None, 2)]
         live_battles(config)
         return 0

@@ -35,7 +35,6 @@ from COCbot.attack.dropper import (
 from COCbot.attack.planner import build_attack_plan, legacy_edge_selection
 from COCbot.vision.redline.deploy_zone import (
     DeployZoneModel,
-    DeployZonePolygonSource,
     get_redline_from_deploy_zone,
     pick_deploy_points,
 )
@@ -55,7 +54,6 @@ from COCbot.vision.redline.yolo import (
 __all__ = [
     "TARGET_HEX_COLORS",
     "DeployZoneModel",
-    "DeployZonePolygonSource",
     "RedlineSegmenter",
     "build_attack_plan",
     "check_slot_has_troops",

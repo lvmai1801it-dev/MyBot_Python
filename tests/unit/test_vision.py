@@ -9,7 +9,6 @@ from pathlib import Path
 import numpy as np
 
 from COCbot.core.errors import VisionError
-from COCbot.core.vision.detector import DetectorConfig, YoloDetector
 from COCbot.core.vision.image import imwrite
 from COCbot.core.vision.ocr import NumberOcr, OcrConfig, normalize_digits
 from COCbot.core.vision.templates import TemplateMatcher
@@ -83,16 +82,6 @@ class OcrTests(unittest.TestCase):
         )
         self.assertIsNone(ocr.read_number(image))
         self.assertIsNone(ocr.read_number(Frame(image=image, width=80, height=30)))
-
-
-class DetectorTests(unittest.TestCase):
-    """Verify a missing YOLO model degrades gracefully."""
-
-    def test_missing_model_returns_no_detections(self) -> None:
-        detector = YoloDetector(DetectorConfig(model_path="__missing_model__.pt"))
-        self.assertFalse(detector.is_available)
-        frame = Frame(image=np.zeros((10, 10, 3), dtype=np.uint8), width=10, height=10)
-        self.assertEqual(list(detector.detect(frame)), [])
 
 
 if __name__ == "__main__":

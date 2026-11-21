@@ -1,5 +1,25 @@
 # Migration status — MVVM + Feature-Driven
 
+> **Cập nhật 2026-11-21: toàn bộ shell MVVM đã bị GỠ** (purge batch 3) —
+> lưu tại `_archive_old_code/mvvm_purge_20261121/`. `python run.py` (GUI
+> legacy) là entry point duy nhất. Các module "Completed" bên dưới là
+> lịch sử; phần thực sự còn sống trong runtime hiện tại:
+>
+> - `COCbot/features/village/{upgrades,runner,wall,planner,targets,resources}.py`
+>   — auto-upgrade nhà/tường + ResourceReader (GLM-OCR), gọi mỗi cycle qua
+>   `COCbot/app/upgrade_hook.py` (MainWindow.on_start cài vào
+>   `state.upgrade_hook`, `one_cycle` gọi trước bước tường).
+> - `COCbot/core/` (adb, vision, config, logging, clock, errors, ports) +
+>   `COCbot/models/` — thư viện cho features/village ở trên.
+> - Toàn bộ legacy: `gui/`, `app/bootstrap`, `attack/` (ONNX deploy-zone
+>   redline + sanitize + verify-redrop), `game/`, `vision/`, `platform/`,
+>   `emulator/`.
+>
+> Đã gỡ: main.py, views/, viewmodels/, workers/, ui_components/,
+> features/{settings,attack,accounts,logs,statistics,clan,training}/,
+> app/{session,orchestrator,legacy_engine}.py, core/emulator/,
+> core/vision/{detector,redline}.py + toàn bộ test tương ứng.
+
 ## Completed
 
 ### Purge batch 1 (dead code archived)
@@ -889,6 +909,9 @@ an adb tap, ``tools/probe_tap.py``), which previously sent every drop tap
 into the void while reporting success.
 
 ## Remaining work
+
+> **Purge batch 3 đã thực hiện (2026-11-21)**: shell MVVM gỡ hoàn toàn —
+> xem ghi chú đầu file. Danh sách dưới đây là lịch sử trước purge.
 
 1. Clean attack port calibration (retained for future; shell uses legacy
    engine). The redline half is solved by the deploy-zone ONNX model and the

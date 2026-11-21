@@ -545,6 +545,12 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
             save_settings(cfg)
             cfg["stats"] = {}
             main.stop_event.clear()
+            # Auto-upgrade hook: one_cycle runs the ticked Build-panel
+            # targets every cycle while a builder is free (ported from the
+            # retired MVVM shell so the feature survives in this GUI).
+            from COCbot.app import upgrade_hook
+
+            upgrade_hook.install()
             self._worker = QtThreadCompat(
                 target=bot_loop, args=(cfg,), parent=self
             )
@@ -593,6 +599,9 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
         print("[STOP] Đang dừng bot...")
         main.stop_event.set()
         main.pause_event.set()
+        from COCbot.app import upgrade_hook
+
+        upgrade_hook.uninstall()
 
         if getattr(self, "_worker", None) is not None:
             print("[STOP] Đang chờ worker dừng...")
@@ -739,6 +748,13 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
 
     def closeEvent(self, event):
         print("\n[SHUTDOWN] Closing application...")
+
+        try:
+            from COCbot.app import upgrade_hook
+
+            upgrade_hook.uninstall()
+        except Exception:
+            pass
 
         try:
             if hasattr(self, "stream"):

@@ -1,4 +1,4 @@
-"""Deploy-zone ONNX segmentation: the primary redline source.
+﻿"""Deploy-zone ONNX segmentation: the primary redline source.
 
 Port of the external ``deploy_zone_sdk`` (U-Net efficientnet-b4, 3 classes,
 IoU ~0.99 vs hand labels). The model file lives at
@@ -373,61 +373,3 @@ def pick_deploy_points(cls: np.ndarray, n: int = 12, near_px: int = 40,
         if len(kept) >= n:
             break
     return kept
-
-
-class DeployZonePolygonSource:
-    """Adapter that mimics ``RedlineSegmenter`` for the clean MVVM port.
-
-    Exposes ``predict_polygon(image) -> List[Point]`` and a ``source``
-    attribute so ``core.vision.redline.RedlineDetector`` can consume the
-    ONNX model without importing this legacy package itself. The optional
-    ``sanitize_edges`` hook lets the same detector validate its offset
-    edges against the predicted mask (nudge or drop unsafe points).
-    """
-
-    source = "onnx"
-
-    def __init__(self, model_path: str, device: str = "auto") -> None:
-        self.model_path = model_path
-        self.ok = False
-        self.error = ""
-        self._model = get_deploy_zone_model(model_path, device=device)
-        self._last_prediction: Optional[DeployZonePrediction] = None
-        if self._model is None:
-            self.error = f"model not found or unusable: {model_path}"
-            return
-        self.ok = True
-
-    def predict_polygon(self, img_bgr: np.ndarray) -> List[Point]:
-        """Return the no-deploy boundary polygon for an attack frame."""
-        if not self.ok or self._model is None or img_bgr is None:
-            return []
-        try:
-            cls = self._model.predict_cls(img_bgr)
-        except Exception as e:
-            self.error = f"inference failed: {e}"
-            self._last_prediction = None
-            return []
-        polygon = mask_to_polygon(cls)
-        self._last_prediction = DeployZonePrediction(cls, polygon, [])
-        return resample_polygon(polygon)
-
-    def sanitize_edges(self, edges: Sequence[Sequence[Point]]) -> List[List[Point]]:
-        """Nudge or drop deploy-edge points the mask marks unsafe."""
-        prediction = self._last_prediction
-        if prediction is None or prediction.cls.size == 0:
-            return [list(edge) for edge in edges]
-        return [_safe_points(list(edge), prediction) for edge in edges]
-
-
-def try_load_polygon_source(model_path: str, device: str = "auto") -> Optional[Any]:
-    """Return a polygon source when the ONNX model is usable, else None."""
-    if not model_path:
-        return None
-    source = DeployZonePolygonSource(model_path, device=device)
-    if source.ok:
-        print(f"[DEPLOY-ZONE] active: {source._model.model_path} "
-              f"({', '.join(source._model.providers)})")
-        return source
-    print(f"[DEPLOY-ZONE] inactive: {source.error}")
-    return None

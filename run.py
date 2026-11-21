@@ -1,24 +1,19 @@
 # src/run.py
 """Simplicity Bot launcher.
 
-Default: legacy GUI (full farming runtime).
-``--mvvm``: new MVVM shell with the migrated settings/accounts/logs/attack/
-statistics features.
+Runs the legacy GUI (the full farming runtime: training, collectors,
+auto-upgrades via the Build panel, ONNX redline attacks, account
+switching). The experimental MVVM shell was removed; its code is archived
+under ``_archive_old_code/mvvm_purge_20261121/``.
 """
 
 from __future__ import annotations
 
-import sys
+from COCbot.gui.app import main_gui
 
 
 def main() -> None:
-    """Launch the requested GUI."""
-    if "--mvvm" in sys.argv:
-        from COCbot.main import main as mvvm_main
-
-        raise SystemExit(mvvm_main())
-    from COCbot.gui.app import main_gui
-
+    """Launch the GUI."""
     main_gui()
 
 
