@@ -33,6 +33,12 @@ from COCbot.attack.dropper import (
     get_spread_points_along_edge,
 )
 from COCbot.attack.planner import build_attack_plan, legacy_edge_selection
+from COCbot.vision.redline.deploy_zone import (
+    DeployZoneModel,
+    DeployZonePolygonSource,
+    get_redline_from_deploy_zone,
+    pick_deploy_points,
+)
 from COCbot.vision.redline.detector import (
     TARGET_HEX_COLORS,
     get_redline_edges,
@@ -48,6 +54,8 @@ from COCbot.vision.redline.yolo import (
 
 __all__ = [
     "TARGET_HEX_COLORS",
+    "DeployZoneModel",
+    "DeployZonePolygonSource",
     "RedlineSegmenter",
     "build_attack_plan",
     "check_slot_has_troops",
@@ -62,11 +70,13 @@ __all__ = [
     "get_redline_edges",
     "get_redline_edges_cv",
     "get_redline_edges_ex",
+    "get_redline_from_deploy_zone",
     "get_redline_from_yolo",
     "get_spread_points_along_edge",
     "hex_to_bgr",
     "init_device",
     "legacy_edge_selection",
+    "pick_deploy_points",
     "polygon_to_edges",
     "prepare_attack",
     "reset_device",

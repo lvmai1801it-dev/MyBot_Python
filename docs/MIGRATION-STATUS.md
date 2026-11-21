@@ -749,11 +749,60 @@ powershell -ExecutionPolicy Bypass -File tools\start_glm_ocr.ps1
 # llama-server -hf ggml-org/GLM-OCR-GGUF -c 256 -np 2 -ngl 0 -lm none
 ```
 
+### Deploy-zone ONNX redline (primary attack source)
+
+```text
+deploy_zone_sdk/model.onnx         -> models/deploy_zone.onnx (gitignored, 78 MB)
+COCbot/vision/redline/deploy_zone.py   DeployZoneModel + mask -> polygon -> edges
+                                      + sanitize_plan_edges + pick_deploy_points
+COCbot/vision/redline/detector.py      get_redline_edges_ex: onnx -> yolo -> cv
+COCbot/attack/cycle.py                 run_attack: sanitize offset points per mask
+COCbot/core/vision/redline.py          RedlineDetector(segmenter=...) injection
+COCbot/main.py                         composition root wires the ONNX adapter
+settings.json                          "deploy_zone_model": "models/deploy_zone.onnx"
+```
+
+The external deploy-zone U-Net (3 classes: deployable / no_deploy /
+interface, IoU 0.9897 vs hand labels) replaces the never-trained YOLO as the
+primary redline source. The `no_deploy` boundary is the redline: mask ->
+largest contour -> `approxPolyDP` -> resample every 35 px -> the existing
+`polygon_to_edges` [TR, BR, BL, TL] split, so the planner and dropper are
+unchanged. Two real-data bugs were found and fixed while verifying:
+
+1. `approxPolyDP` keeps only the endpoints of long straight sides, so a
+   TH18 spread base left one quadrant with a single vertex and the whole
+   detection was discarded (cv fallback). The resample step repopulates
+   every quadrant.
+2. The planner's fixed 35% outward offset can push a few points back into
+   the red zone, into the troop bar, or off the map when a base hugs the
+   deployable boundary. `sanitize_plan_edges` nudges such points outward
+   from the base centroid or drops them (the SDK's "check cls==0 before
+   clicking" rule), mutating `plan["edges"]` in place so `active_edges` and
+   `primary_edge` stay in sync.
+
+Verified over 12 real scout frames with the exact attack chain
+(`get_redline_edges_ex -> build_attack_plan -> sanitize -> spread points`):
+
+```text
+ONNX source wins:   12/12 frames
+unsafe drop points: 0/96 (was 10/96 before sanitize)
+latency:            ~1.6-3.2 s/frame on CPU, loaded once and cached
+```
+
+Model file + onnxruntime==1.32.0 added to requirements; `models/*.onnx`
+was already gitignored. The YOLO path stays as the second source (set
+`deploy_zone_model` to "" to use it once `redline_seg.pt` is trained), and
+OpenCV remains the final fallback.
+
 ## Remaining work
 
-1. Clean attack port calibration (retained for future; shell uses legacy engine).
+1. Clean attack port calibration (retained for future; shell uses legacy
+   engine). The redline half is solved by the deploy-zone ONNX model; the
+   remaining calibration is search/scout/battle-end timing.
 2. Stage 3c is done: templates captured in `Templates/upgrade/`, rows read by
    OCR, and the confirm step gated on `execute=True`. Next step is wiring it
    into the farm cycle once hero/defense priorities are enabled in settings.
 3. Stage 4 clean port: Clan Games / Clan Capital / Donate execution.
-4. Purge batch 2 only after the clean engine reaches parity with the legacy one.
+4. Optional: train `redline_seg.pt` from the 279 labelled scout frames for a
+   faster (20-60 ms) second source; the ONNX model already covers this need.
+5. Purge batch 2 only after the clean engine reaches parity with the legacy one.

@@ -1,7 +1,10 @@
-"""Redline detection: YOLO segmentation first, OpenCV isometric fallback.
+"""Redline detection: deploy-zone ONNX, YOLO segmentation, OpenCV fallback.
 
-YOLO-seg (`base_area` mask) is the primary path when a model is configured.
-The pure OpenCV fallback is always available.
+Priority when a frame is analysed:
+1. Deploy-zone ONNX (`deploy_model_path`, 3-class U-Net, IoU ~0.99) — the
+   ``no_deploy`` boundary is the redline.
+2. YOLO-seg (`model_path`, `base_area` mask).
+3. Pure OpenCV isometric fallback (always available).
 """
 
 import math
@@ -10,6 +13,7 @@ import os
 import cv2
 import numpy as np
 
+from COCbot.vision.redline.deploy_zone import get_redline_from_deploy_zone
 from COCbot.vision.redline.yolo import get_redline_from_yolo, resolve_model_path
 
 
@@ -96,14 +100,22 @@ def get_redline_edges_cv(img_bgr, tolerance=25):
     ]
 
 
-def get_redline_edges_ex(img_bgr, tolerance=25, model_path=""):
+def get_redline_edges_ex(img_bgr, tolerance=25, model_path="", deploy_model_path=""):
     """
     Redline detection with source information.
 
-    Returns (edges, source) where source is "yolo", "cv" or "none".
+    Returns (edges, source) where source is "onnx", "yolo", "cv" or "none".
     """
     if img_bgr is None or not hasattr(img_bgr, 'size') or img_bgr.size == 0:
         return None, "none"
+
+    if deploy_model_path:
+        resolved_dz = resolve_model_path(deploy_model_path)
+        if os.path.exists(resolved_dz):
+            dz_edges = get_redline_from_deploy_zone(img_bgr, resolved_dz)
+            if dz_edges:
+                return dz_edges, "onnx"
+        # Missing/unusable model is normal: fall back to YOLO/OpenCV.
 
     if model_path:
         resolved = resolve_model_path(model_path)

@@ -28,6 +28,9 @@ certifi==2024.8.30
 # === YOLO Segmentation (redline dataset) ===
 ultralytics==8.4.208
 
+# === Deploy-zone ONNX (primary redline source, IoU ~0.99) ===
+onnxruntime==1.32.0
+
 # === OCR (PaddleOCR reads CoC digits best) ===
 paddleocr==3.7.0
 paddlepaddle==3.3.0

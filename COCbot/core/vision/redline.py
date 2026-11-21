@@ -331,12 +331,19 @@ class RedlineDetector:
         offset_ratio: float = defaults.DEFAULT_REDLINE_OFFSET_RATIO,
         use_yolo: bool = True,
         logger: LoggerPort | None = None,
+        segmenter: Any | None = None,
     ) -> None:
-        """Create the detector; OpenCV remains the guaranteed fallback."""
+        """Create the detector; OpenCV remains the guaranteed fallback.
+
+        ``segmenter`` may override the built-in YOLO wrapper with any object
+        exposing ``predict_polygon(image) -> list[(x, y)]`` and a ``source``
+        attribute (e.g. the deploy-zone ONNX adapter from the composition
+        root), keeping this layer free of legacy-vision imports.
+        """
         self._offset_ratio = offset_ratio
         self._use_yolo = use_yolo
         self._logger = logger
-        self._segmenter = RedlineSegmenter(
+        self._segmenter: Any = segmenter or RedlineSegmenter(
             model_path,
             image_size=image_size,
             confidence=confidence,
@@ -349,7 +356,7 @@ class RedlineDetector:
             getattr(self._logger, level)(message)
 
     def detect(self, frame: Frame) -> RedlineResult:
-        """Return a redline result using YOLO when available, else OpenCV."""
+        """Return a redline result using the model source, else OpenCV."""
         image = frame_image(frame)
         if image is None:
             return RedlineResult()
@@ -362,7 +369,7 @@ class RedlineDetector:
                     return RedlineResult(
                         polygon=tuple(Point(x, y) for x, y in polygon),
                         edges=tuple(tuple(Point(x, y) for x, y in edge) for edge in moved),
-                        source="yolo",
+                        source=getattr(self._segmenter, "source", "yolo"),
                     )
                 self._log("warning", "Redline polygon could not be split into edges")
         edges, polygon = _redline_cv_geometry(image)

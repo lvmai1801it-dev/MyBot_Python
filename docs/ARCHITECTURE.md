@@ -107,12 +107,22 @@ run.py
 
 ## 4. Redline
 
-- `vision/redline/detector.py`:
-  - Có `redline_model` và file tồn tại → YOLO-seg `base_area`.
-  - Không có / lỗi → OpenCV fallback.
-  - Trả `(edges, source)` qua `get_redline_edges_ex()`.
+- `vision/redline/detector.py` — `get_redline_edges_ex()` trả `(edges, source)`
+  với 3 tầng ưu tiên:
+  1. `models/deploy_zone.onnx` (mặc định, `deploy_zone_model` trong
+     `settings.json`): U-Net 3 lớp của `deploy_zone_sdk` — mask `no_deploy`
+     (IoU ~0.99) → polygon → resample 35px → 4 cạnh. Đây là nguồn chính.
+  2. `models/redline_seg.pt` (`redline_model`): YOLO-seg `base_area` nếu
+     đã train.
+  3. OpenCV fallback (hình thoi ước lượng) — luôn có sẵn.
+- Sau khi planner offset cạnh ra ngoài, `attack/cycle.py` gọi
+  `deploy_zone.sanitize_plan_edges()`: điểm rơi vào red-zone / UI / ngoài
+  map sẽ được **nudge ra ngoài** hoặc **loại bỏ** theo mask ONNX — không tap
+  điểm nào model chấm là không thả được.
 - `attack/cycle.py` tự lưu ảnh vào dataset khi bật `auto_capture_dataset`.
-- Không dùng DLL ngoài; toàn bộ redline chạy Python/OpenCV/YOLO.
+- Không dùng DLL ngoài; toàn bộ redline chạy Python/OpenCV/ONNX/YOLO.
+- Smoke chạy thật trên 12 ảnh scout: `tools/smoke_deploy_zone.py`
+  (ONNX thắng 12/12, mọi điểm thả đều deployable, ~1.6–3.2s/frame CPU).
 
 ### Công cụ YOLO
 

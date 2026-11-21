@@ -192,9 +192,10 @@ class ClanConfig:
 
 @dataclass(frozen=True)
 class VisionConfig:
-    """YOLO and redline detector settings."""
+    """YOLO, deploy-zone ONNX and redline detector settings."""
 
     redline_model: str = defaults.DEFAULT_YOLO_MODEL
+    deploy_zone_model: str = defaults.DEFAULT_DEPLOY_ZONE_MODEL
     redline_offset_ratio: float = defaults.DEFAULT_REDLINE_OFFSET_RATIO
     confidence: float = defaults.DEFAULT_YOLO_CONFIDENCE
     iou: float = defaults.DEFAULT_YOLO_IOU
@@ -299,6 +300,7 @@ _KNOWN_KEYS = frozenset(
         "capital_hall_level",
         "enable_stats",
         "redline_model",
+        "deploy_zone_model",
         "redline_offset_ratio",
         "yolo_confidence",
         "yolo_iou",
@@ -484,6 +486,9 @@ class AppConfig:
             ),
             vision=VisionConfig(
                 redline_model=_as_str(raw.get("redline_model"), defaults.DEFAULT_YOLO_MODEL),
+                deploy_zone_model=_as_str(
+                    raw.get("deploy_zone_model"), defaults.DEFAULT_DEPLOY_ZONE_MODEL
+                ),
                 redline_offset_ratio=_as_float(
                     raw.get("redline_offset_ratio"), defaults.DEFAULT_REDLINE_OFFSET_RATIO
                 ),
@@ -591,6 +596,7 @@ class AppConfig:
             "capital_hall_level": self.clan.capital_hall_level,
             "enable_stats": self.enable_stats,
             "redline_model": self.vision.redline_model,
+            "deploy_zone_model": self.vision.deploy_zone_model,
             "redline_offset_ratio": self.vision.redline_offset_ratio,
             "yolo_confidence": self.vision.confidence,
             "yolo_iou": self.vision.iou,

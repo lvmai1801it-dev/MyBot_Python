@@ -48,6 +48,7 @@ LEGACY_SAMPLE = {
     "capital_hall_level": 10,
     "enable_stats": True,
     "redline_model": "models/custom.pt",
+    "deploy_zone_model": "models/custom_dz.onnx",
     "redline_offset_ratio": 0.5,
     "auto_capture_dataset": False,
     "auto_capture_dir": "datasets/custom",
@@ -65,6 +66,7 @@ class ConfigSchemaTests(unittest.TestCase):
         self.assertEqual(config.emulator.host, "127.0.0.1:21503")
         self.assertEqual(config.training.quick_slot, 1)
         self.assertTrue(config.clan.request_troops)
+        self.assertEqual(config.vision.deploy_zone_model, "models/deploy_zone.onnx")
 
     def test_from_legacy_mapping(self) -> None:
         config = AppConfig.from_legacy_dict(LEGACY_SAMPLE)
@@ -83,6 +85,7 @@ class ConfigSchemaTests(unittest.TestCase):
         self.assertTrue(config.attack.check_troops)
         self.assertEqual(config.training.mode, "quick")
         self.assertEqual(config.vision.redline_model, "models/custom.pt")
+        self.assertEqual(config.vision.deploy_zone_model, "models/custom_dz.onnx")
         self.assertFalse(config.auto_capture.enabled)
         self.assertEqual(config.auto_capture.max_files, 50)
         self.assertEqual(config.attack.sides, ["Trên Trái (TL)", "Ngẫu nhiên"])

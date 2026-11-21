@@ -701,6 +701,8 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
         settings = getattr(self, "settings", {}) or {}
         cfg.update({
             "redline_model": settings.get("redline_model", "models/redline_seg.pt"),
+            "deploy_zone_model": settings.get(
+                "deploy_zone_model", "models/deploy_zone.onnx"),
             "redline_offset_ratio": float(settings.get("redline_offset_ratio", 0.35)),
             "auto_capture_dataset": bool(settings.get("auto_capture_dataset", True)),
             "auto_capture_dir": settings.get(

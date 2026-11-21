@@ -32,6 +32,7 @@ DEFAULT_CAPTURE_MIN_STDDEV = 1.0
 
 # --- Vision ---------------------------------------------------------------
 DEFAULT_YOLO_MODEL = "models/redline_seg.pt"
+DEFAULT_DEPLOY_ZONE_MODEL = "models/deploy_zone.onnx"
 DEFAULT_YOLO_CONFIDENCE = 0.35
 DEFAULT_YOLO_IOU = 0.45
 DEFAULT_REDLINE_OFFSET_RATIO = 0.35

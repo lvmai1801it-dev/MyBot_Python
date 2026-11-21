@@ -169,12 +169,14 @@ Ghi chú:
 run_attack(cfg)
 ├── _capture_attack_image()          # chụp tối đa 5 lần, tránh mây trắng
 ├── get_redline_edges_ex(img)
-│   ├── có models/redline_seg.pt     -> YOLO-seg (mask -> polygon -> 4 edges)
-│   └── không có                     -> OpenCV fallback
+│   ├── có models/deploy_zone.onnx  -> U-Net 3 lớp (no_deploy -> polygon -> 4 edges)
+│   ├── có models/redline_seg.pt    -> YOLO-seg (mask -> polygon -> 4 edges)
+│   └── không có cả hai             -> OpenCV fallback
 │       ├── red pixel mask trong ROI làng
 │       ├── percentile dx/dy quanh tâm (433,353)
 │       ├── 4 đỉnh hình thoi
 │       └── offset ra ngoài 40px, chia mỗi cạnh 5 điểm
+├── sanitize_plan_edges(plan)        # ONNX: nudge/loại điểm rơi red-zone/UI (nếu source=onnx)
 ├── get_capture(cfg).maybe_capture() # lưu dataset nếu bật
 ├── build_attack_plan(edges, cfg)
 │   ├── offset_edges_to_outer(ECD, ratio=0.35)
@@ -441,8 +443,10 @@ Redline OpenCV dùng các hằng trong `app/coords.py` và `vision/redline/geome
 - **Wall upgrade**: hoạt động tự động.
 - **Hero / Defense / Army / Resource / Other upgrade**: mới là UI + lưu cấu
   hình, chưa có logic tự động nâng.
-- **Redline**: ưu tiên YOLO-seg nếu có `models/redline_seg.pt`; chưa có thì
-  dùng OpenCV fallback (hình thoi ước lượng).
+- **Redline**: ưu tiên deploy-zone ONNX (`models/deploy_zone.onnx`, IoU
+  ~0.99); tier 2 là YOLO-seg nếu có `models/redline_seg.pt`; cuối cùng mới
+  là OpenCV fallback (hình thoi ước lượng). Điểm thả sau offset được
+  sanitize theo mask ONNX trước khi tap.
 - **Dataset**: đã tự thu ảnh scout/attack; **chưa có label** nên chưa train
   được YOLO.
 - **Account switching**: chỉ shared_prefs; cần adbd root. Khi start không tự

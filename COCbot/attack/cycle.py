@@ -20,6 +20,7 @@ from COCbot.attack.dropper import (
 )
 from COCbot.attack.planner import build_attack_plan
 from COCbot.vision.capture import take_screenshot
+from COCbot.vision.redline import deploy_zone
 from COCbot.vision.redline.dataset_capture import get_capture
 from COCbot.vision.redline.detector import get_redline_edges_ex
 
@@ -87,7 +88,9 @@ def run_attack(cfg):
         return
 
     model_path = (cfg or {}).get("redline_model", "")
-    edges, redline_source = get_redline_edges_ex(img, model_path=model_path)
+    deploy_model_path = (cfg or {}).get("deploy_zone_model", "")
+    edges, redline_source = get_redline_edges_ex(
+        img, model_path=model_path, deploy_model_path=deploy_model_path)
 
     # Active learning: save hard (fallback) frames automatically while attacking.
     try:
@@ -100,6 +103,7 @@ def run_attack(cfg):
                 "target_xy": (cfg or {}).get("target_xy"),
                 "edge_counts": [len(e) for e in edges] if edges else None,
                 "redline_model": model_path,
+                "deploy_zone_model": deploy_model_path,
             },
         )
     except Exception as e:
@@ -117,6 +121,10 @@ def run_attack(cfg):
     if not plan:
         print("[ERROR] Khong tao duoc attack plan!")
         return
+
+    if redline_source == "onnx":
+        # Final safety pass: nudge/drop offset points the model marks unsafe.
+        deploy_zone.sanitize_plan_edges(plan)
 
     active_edges = plan["active_edges"]
     print(

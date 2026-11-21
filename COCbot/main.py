@@ -53,6 +53,7 @@ from COCbot.viewmodels.main_viewmodel import MainViewModel
 from COCbot.viewmodels.resource_bar import ResourceBarViewModel
 from COCbot.views.main_window import MainWindow
 from COCbot.views.resource_bar import ResourceBar
+from COCbot.vision.redline.deploy_zone import try_load_polygon_source
 
 
 def _enable_dpi_awareness() -> None:
@@ -128,6 +129,7 @@ def main() -> int:
         confidence=config.vision.confidence,
         offset_ratio=config.vision.redline_offset_ratio,
         logger=logger,
+        segmenter=try_load_polygon_source(config.vision.deploy_zone_model),
     )
     attack_model = AttackModel(
         capture=capture,
