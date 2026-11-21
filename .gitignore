@@ -30,6 +30,7 @@ my_screenshot.png
 debug_*.png
 test_*.png
 screenshots/
+_archive_old_code/
 screen.png
 battle.png
 conn.png
