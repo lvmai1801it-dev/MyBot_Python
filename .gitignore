@@ -77,6 +77,12 @@ datasets/
 docs/
 walls/
 
+# ==========================================
+# WEB UI FRONTEND (React + Tailwind + shadcn)
+# ==========================================
+COCbot/webui/frontend/node_modules/
+COCbot/webui/frontend/dist/
+
 # Scratch dirs (none exist yet; anchored so future nested "tool"/"test"
 # folders elsewhere are not accidentally ignored).
 /tool/

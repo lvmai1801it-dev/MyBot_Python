@@ -31,6 +31,9 @@ ultralytics==8.4.208
 # === Deploy-zone ONNX (primary redline source, IoU ~0.99) ===
 onnxruntime==1.32.0
 
+# === Web UI shell (python run_web.py) ===
+pywebview==6.2.1
+
 # === OCR (PaddleOCR reads CoC digits best) ===
 paddleocr==3.7.0
 paddlepaddle==3.3.0

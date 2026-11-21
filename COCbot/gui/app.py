@@ -215,41 +215,10 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
         a manual "MEmu" pick would (host, emulator key, lock handled by
         on_start).
         """
-        import subprocess as _sp
+        from COCbot.app.emulator_detect import MEMU_HOST, detect_memu
 
-        from COCbot.emulator.memu import find_memu_tools
-        from COCbot.platform.adb_config import ADB_BIN
-
-        creation = _sp.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-
-        # 1) Online probe: can ADB see MEmu's default host?
-        online = False
-        try:
-            out = _sp.check_output(
-                [ADB_BIN, "connect", MEMU],
-                stderr=_sp.DEVNULL, creationflags=creation, timeout=10,
-            ).decode(errors="replace")
-            if "connected" in out.lower():
-                devices = _sp.check_output(
-                    [ADB_BIN, "devices"],
-                    stderr=_sp.DEVNULL, creationflags=creation, timeout=10,
-                ).decode(errors="replace")
-                online = any(
-                    MEMU in line and "device" in line
-                    for line in devices.splitlines()
-                )
-        except Exception as e:
-            print(f"[AUTO] ADB probe failed: {e}")
-
-        # 2) Installed probe: MEmu.exe + memuc.exe on disk (running or not).
-        exe, memuc, _ = find_memu_tools()
-
-        if online:
-            print("[AUTO] MEmu dang chay (ADB online) - dung ngay khong can chon.")
-        elif exe:
-            print("[AUTO] Phat hien MEmu tren may (chua chay) - bot se tu mo no.")
-        else:
-            print("[AUTO] Khong thay MEmu online hay cai san - chon thu cong.")
+        detected, _reason = detect_memu(MEMU_HOST)
+        if not detected:
             return False
 
         self.host = MEMU
@@ -498,7 +467,7 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
         bottom_bar.setFixedHeight(54)
         bottom_bar.setStyleSheet("QFrame { background: #F2F5F3; border: none; }")
         bottom_layout = QHBoxLayout(bottom_bar)
-        bottom_layout.setContentsMargins(12, 0, 12, 12)
+        bottom_layout.setContentsMargins(12, 12, 12, 12)
         bottom_layout.setSpacing(12)
 
         self.start_btn = QPushButton("Start bot")
