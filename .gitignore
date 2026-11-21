@@ -22,7 +22,10 @@ __pycache__/
 # ==========================================
 artifacts/
 debug/
+debug_match/
+ImgLocDebugData/
 local_test/
+logs/
 my_screenshot.png
 debug_*.png
 test_*.png
@@ -61,10 +64,21 @@ profiles/
 # ==========================================
 # DATASETS (large binaries)
 # ==========================================
-datasets/redline/images/
-datasets/redline/labels/
-datasets/redline/runs/
-datasets/redline/redline.local.yaml
+datasets/
+
+# ==========================================
+# LOCAL-ONLY DIRECTORIES (user request)
+# docs/ and walls/ are currently TRACKED; the patterns only stop NEW
+# files from being added. Untrack with `git rm -r --cached <dir>` if the
+# repo should no longer carry them.
+# ==========================================
+docs/
+walls/
+
+# Scratch dirs (none exist yet; anchored so future nested "tool"/"test"
+# folders elsewhere are not accidentally ignored).
+/tool/
+/test/
 models/*.pt
 models/*.onnx
 runs/
