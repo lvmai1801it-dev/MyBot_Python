@@ -41,6 +41,7 @@ LEGACY_SAMPLE = {
     },
     "attack_side": "Trên Trái (TL)",
     "check_troops": True,
+    "drop_spells": True,
     "train_mode": "quick",
     "quick_slot": 3,
     "enable_clan_games": True,
@@ -83,6 +84,7 @@ class ConfigSchemaTests(unittest.TestCase):
         self.assertEqual(config.attack.recipe.name, "edrag")
         self.assertEqual(config.attack.recipe.troops, {"electro_dragon": 6, "balloon": 2})
         self.assertTrue(config.attack.check_troops)
+        self.assertTrue(config.attack.drop_spells)
         self.assertEqual(config.training.mode, "quick")
         self.assertEqual(config.vision.redline_model, "models/custom.pt")
         self.assertEqual(config.vision.deploy_zone_model, "models/custom_dz.onnx")

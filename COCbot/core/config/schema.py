@@ -164,6 +164,7 @@ class AttackConfig:
     side: str = "Ngẫu nhiên"
     sides: list[str] = field(default_factory=lambda: ["Ngẫu nhiên"])
     check_troops: bool = False
+    drop_spells: bool = False
     recipe: RecipeConfig = field(default_factory=RecipeConfig)
 
     @property
@@ -293,6 +294,7 @@ _KNOWN_KEYS = frozenset(
         "recipe",
         "attack_side",
         "check_troops",
+        "drop_spells",
         "train_mode",
         "quick_slot",
         "enable_clan_games",
@@ -463,6 +465,7 @@ class AppConfig:
             side=_as_str(raw.get("attack_side"), recipe_cfg.side),
             sides=_as_str_list(raw.get("attack_sides")) or ["Ngẫu nhiên"],
             check_troops=_as_bool(raw.get("check_troops"), False),
+            drop_spells=_as_bool(raw.get("drop_spells"), False),
             recipe=recipe_cfg,
         )
 
@@ -589,6 +592,7 @@ class AppConfig:
             },
             "attack_side": self.attack.side,
             "check_troops": self.attack.check_troops,
+            "drop_spells": self.attack.drop_spells,
             "train_mode": self.training.mode,
             "quick_slot": self.training.quick_slot,
             "enable_clan_games": self.clan.enable_clan_games,

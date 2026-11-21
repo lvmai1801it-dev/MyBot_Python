@@ -195,12 +195,32 @@ def run_attack(cfg):
     if cc_slot is not None and cc_slot >= 0:
         drop_cc(cc_slot, plan["primary_edge"])
 
-    drop_spells(sorted_troops, active_edges, plan["edges"])
+    # Spells are opt-in: many farm strategies never cast them, and the
+    # spell-slot card art is the least reliable template match on the bar.
+    if (cfg or {}).get("drop_spells", False):
+        drop_spells(sorted_troops, active_edges, plan["edges"])
+    else:
+        spell_names = [
+            info.get("name", "?")
+            for info in sorted_troops
+            if info.get("is_spell", False)
+        ]
+        if spell_names:
+            print(f"[ATTACK] Bo qua spell ({', '.join(spell_names)}) "
+                  "- drop_spells=False")
 
-    # Final sweep: catch any troop slot that still has a badge.
+    # Final sweep: catch any troop slot that still has a badge. Spell slots
+    # are excluded when drop_spells is off so the sweep never casts them.
+    spell_slots = {
+        int(info.get("slot", -1))
+        for info in atk_troops.values()
+        if info.get("is_spell", False)
+    }
     final_img = take_screenshot()
     if final_img is not None:
         for slot_idx in range(11):
+            if slot_idx in spell_slots and not (cfg or {}).get("drop_spells", False):
+                continue
             has_left, rem = check_slot_has_troops(final_img, slot_idx)
             if has_left and rem > 0:
                 print(

@@ -366,6 +366,9 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
         self.army_tab.check_troops_chk.setChecked(
             bool(self.settings.get("check_troops", False))
         )
+        self.army_tab.drop_spells_chk.setChecked(
+            bool(self.settings.get("drop_spells", False))
+        )
         self.army_tab.recipe_changed.connect(self._on_army_recipe_changed)
 
         # ===== TAB 3.5: Accounts / Switch Accounts =====
@@ -687,6 +690,7 @@ class MainWindow(AccountsMixin, LogsMixin, QMainWindow):
             "recipe": self.army_tab.get_active_recipe(),
             "attack_side": self.army_tab.get_attack_side(),
             "check_troops": self.army_tab.get_check_troops(),
+            "drop_spells": self.army_tab.get_drop_spells(),
             "train_mode": "smart",
             "quick_slot": 1,
             "enable_clan_games": self.clan_games_toggle.isChecked(),

@@ -232,6 +232,14 @@ class ArmyRecipeTab(QWidget):
             "Tắt (mặc định): bỏ qua kiểm tra, cứ tìm trận đủ điều kiện rồi đánh."
         )
         side_row.addWidget(self.check_troops_chk)
+
+        self.drop_spells_chk = QCheckBox("Thả spell")
+        self.drop_spells_chk.setChecked(False)
+        self.drop_spells_chk.setToolTip(
+            "Bật: thả spell trong lúc đánh (theo recipe).\n"
+            "Tắt (mặc định): không thả spell, chỉ thả quân và hero."
+        )
+        side_row.addWidget(self.drop_spells_chk)
         side_row.addStretch()
 
         toolbar_card = QFrame()
@@ -474,3 +482,6 @@ class ArmyRecipeTab(QWidget):
 
     def get_check_troops(self):
         return self.check_troops_chk.isChecked()
+
+    def get_drop_spells(self):
+        return self.drop_spells_chk.isChecked()
