@@ -40,10 +40,6 @@ def build_logs_tab(win):
     win.log_filter.setFixedWidth(96)
     win.log_filter.currentTextChanged.connect(win._on_log_filter_changed)
     bot_head.addWidget(win.log_filter)
-    export_btn = QPushButton("Export")
-    export_btn.setFixedHeight(24)
-    export_btn.clicked.connect(win._export_log)
-    bot_head.addWidget(export_btn)
     bot_card_v.addLayout(bot_head)
 
     win.log_table = QTableWidget(0, 3)

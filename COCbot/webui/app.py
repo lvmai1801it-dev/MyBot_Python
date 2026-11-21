@@ -252,9 +252,9 @@ def run() -> None:
         url = str(fallback)
     try:
         width = int(os.environ.get("WEBUI_WIDTH", "480"))
-        height = int(os.environ.get("WEBUI_HEIGHT", "670"))
+        height = int(os.environ.get("WEBUI_HEIGHT", "860"))
     except ValueError:
-        width, height = 480, 670
+        width, height = 480, 860
     webview.create_window(
         "MRB VM BOT MOD",
         url=url,

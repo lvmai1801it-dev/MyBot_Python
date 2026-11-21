@@ -12,7 +12,7 @@ start "vite-dev" cmd /k "cd /d COCbot\webui\frontend && npm run dev"
 timeout /t 4 /nobreak >nul
 
 echo [2/2] Dang mo pywebview (WEBUI_DEV_URL tu dong)...
-set WEBUI_DEV_URL=http://localhost:5173
+set WEBUI_DEV_URL=http://localhost:5174
 ".venv\Scripts\python.exe" run_web.py
 
 endlocal

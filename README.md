@@ -1,4 +1,4 @@
-# MyBot PHMOD (Python)
+# MRB (Python)
 
 Bot tự động Clash of Clans chạy qua ADB, giao diện PyQt5 (480×670, 6 tab).
 
@@ -15,7 +15,6 @@ MEmu / LDPlayer / BlueStacks. Tùy chọn: Tesseract-OCR (một số đường O
 fallback; engine chính là PaddleOCR cài qua pip).
 
 ## Tính năng
-
 - Start tự dò MEmu: đang online → dùng ngay; có cài mà chưa mở → bot tự
   khởi động; không cần chọn giả lập mỗi lần (dialog thủ công chỉ hiện khi
   không tìm thấy MEmu — các giả lập khác để sau).

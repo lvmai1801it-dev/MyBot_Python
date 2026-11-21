@@ -24,7 +24,7 @@ def build_about_tab(win):
     cv.setContentsMargins(16, 16, 16, 16)
     cv.setSpacing(8)
 
-    title = QLabel("MyBot PHMOD v15.9")
+    title = QLabel("MRB VM BOT MOD")
     title.setStyleSheet("font-size:16px; font-weight:600; color:#193431;")
     cv.addWidget(title)
 
