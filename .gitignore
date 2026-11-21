@@ -10,10 +10,11 @@ __pycache__/
 *.so
 
 # ==========================================
-# IDE / EDITOR
+# IDE / EDITOR / TOOLING STATE
 # ==========================================
 .vscode/
 .idea/
+.gitnexus/
 *.sublime-project
 *.sublime-workspace
 

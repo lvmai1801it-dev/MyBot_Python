@@ -7,7 +7,6 @@ addopts = "-q"
 target-version = "py310"
 line-length = 100
 include = ["COCbot/core", "COCbot/models", "tests", "run.py"]
-extend-exclude = ["_archive_old_code"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
