@@ -858,6 +858,36 @@ With both live flags the clean pipeline can now run the full farm attack
 loop; the legacy engine remains the default until the clean port proves
 itself over a longer session.
 
+### Attack step ported from the legacy engine (no parallel rewrite)
+
+The experimental ``FullAttackStep`` was a ground-up rewrite of a pipeline
+the legacy engine had already proven; it re-created every piece with fresh
+bugs (inverted no-deploy filter, zero offset, missing loot gate, flaky
+battle-end detection) while offering less (single side string, no
+verify-and-redrop loop). The clean orchestrator now runs a faithful port
+instead:
+
+```text
+COCbot/features/attack/legacy_step.py  LegacyAttackStep
+  search_attack -> wait_for_scout_screen -> extract_resources ->
+  threshold gate (search_next) -> run_attack (ONNX redline + mask
+  sanitize + per-slot verify-and-redrop + final sweep) ->
+  wait_battle_end -> stars/loot stats -> return_home
+```
+
+The body mirrors ``app/bootstrap.one_cycle``'s attack section (scout
+retry, connection recovery, loot log, stats bookkeeping); only the
+stop/pause plumbing bridges to the orchestrator session. Account
+switching stays with the legacy engine. ``FullAttackStep`` /
+``BattleService`` / ``AttackExecutor`` remain for the Scan view and are
+purge candidates once the port soaks live.
+
+Also fixed while testing live: ``device.tap()`` now taps through
+``adb shell input`` first — uiautomator2 clicks were measured as silent
+no-ops on this MEmu (attack-menu diff 1.25 after a u2 click vs 60.6 after
+an adb tap, ``tools/probe_tap.py``), which previously sent every drop tap
+into the void while reporting success.
+
 ## Remaining work
 
 1. Clean attack port calibration (retained for future; shell uses legacy

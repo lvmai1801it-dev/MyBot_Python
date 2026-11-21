@@ -92,18 +92,22 @@ def _build_clean_orchestrator(
     adb: AdbPort,
     capture: CapturePort,
     attack_model,
+    config_store,
     config,
     logger: LoggerPort,
 ) -> BotOrchestrator:
-    """Compose the clean MVVM cycle: training -> village -> full attack.
+    """Compose the clean MVVM cycle: training -> village -> legacy attack.
 
     ``MYBOT_LIVE_VILLAGE=1`` makes training/collector taps real;
-    ``MYBOT_LIVE_ATTACK=1`` enables the full search/deploy/battle chain.
-    Both default to dry-run so the shell never touches the game uninvited.
+    ``MYBOT_LIVE_ATTACK=1`` enables the real attack step. Both default to
+    dry-run so the shell never touches the game uninvited.
+
+    The attack step is a port of the proven legacy pipeline (search ->
+    loot threshold -> run_attack with the ONNX redline + verify-and-redrop
+    -> battle end -> stats -> return home) rather than the experimental
+    FullAttackStep rewrite, which stays available for the Scan view only.
     """
-    from COCbot.features.attack.army_bar import ArmyBarScanner
-    from COCbot.features.attack.battle import BattleService, FullAttackStep
-    from COCbot.features.attack.executor import AttackExecutor
+    from COCbot.features.attack.legacy_step import LegacyAttackStep
     from COCbot.features.training.model import TrainingActions, TrainingStep
     from COCbot.features.village.model import VillageActions, VillageStep
 
@@ -127,16 +131,13 @@ def _build_clean_orchestrator(
             execute=live_village,
         )
     )
-    battle = BattleService(
-        adb, capture, matcher, ocr=ocr, logger=logger, execute=live_attack
-    )
-    executor = AttackExecutor(adb, logger=logger, execute=live_attack)
-    scanner = ArmyBarScanner(ocr=ocr, logger=logger)
-    full_attack = FullAttackStep(
-        attack_model, battle, scanner, executor, execute=live_attack
+    attack = LegacyAttackStep(
+        config_store,
+        host=config.emulator.host,
+        execute=live_attack,
     )
     return BotOrchestrator(
-        [training, village, full_attack],
+        [training, village, attack],
         config=config,
         logger=logger,
     )
@@ -250,6 +251,7 @@ def main() -> int:
             adb=adb,
             capture=capture,
             attack_model=attack_model,
+            config_store=config_store,
             config=config,
             logger=logger,
         )
