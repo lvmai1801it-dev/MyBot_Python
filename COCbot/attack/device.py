@@ -67,25 +67,32 @@ def reset_device():
 
 
 def tap(x, y, delay=0.02):
-    """Tap via uiautomator2 when available, else adb_tap."""
+    """Tap through adb input; uiautomator2 only as a last resort.
+
+    u2 clicks were measured as silent no-ops on this MEmu + CoC setup
+    (tools/probe_tap.py: attack-menu diff 1.25 after a u2 click vs 60.6
+    after `adb shell input tap`), while tap() reported success either
+    way. adb is therefore the primary path; u2 stays only for setups
+    where adb input is unavailable.
+    """
     global _device
     x, y = int(x), int(y)
-    if _device is not None:
-        try:
-            _device.click(x, y)
-            if delay:
-                time.sleep(delay)
-            return True
-        except Exception:
-            pass
     try:
         adb_tap(x, y)
         if delay:
             time.sleep(delay)
         return True
     except Exception as e:
-        print(f"[TAP ERROR] {e}")
-        return False
+        print(f"[TAP ERROR] adb_tap: {e}")
+    if _device is not None:
+        try:
+            _device.click(x, y)
+            if delay:
+                time.sleep(delay)
+            return True
+        except Exception as e:
+            print(f"[TAP ERROR] u2 click: {e}")
+    return False
 
 
 def set_sleep(sleep_type):
