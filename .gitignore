@@ -78,10 +78,8 @@ docs/
 walls/
 
 # ==========================================
-# WEB UI FRONTEND (React + Tailwind + shadcn)
+# WEB UI (pywebview)
 # ==========================================
-COCbot/webui/frontend/node_modules/
-COCbot/webui/frontend/dist/
 COCbot/webui/.env
 
 # Scratch dirs (none exist yet; anchored so future nested "tool"/"test"

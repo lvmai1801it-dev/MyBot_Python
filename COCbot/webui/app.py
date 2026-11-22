@@ -216,15 +216,13 @@ def run() -> None:
     Environment (loaded from ``COCbot/webui/.env`` if present; a real
     environment variable always wins over the file):
 
-    - ``WEBUI_DEV_URL`` - load the Vite dev server instead of a build
-      (hot reload while coding the UI).
-    - ``WEBUI_WIDTH`` / ``WEBUI_HEIGHT`` - window size (default 480x670).
+    - ``WEBUI_DEV_URL`` - load a dev page (e.g. a local catalog preview)
+      instead of the bundled ``webui/index.html``.
+    - ``WEBUI_WIDTH`` / ``WEBUI_HEIGHT`` - window size.
 
-    Resolution order for the page:
-    1. ``WEBUI_DEV_URL``
-    2. ``frontend/dist/index.html`` - the built React app
-       (``npm run build`` inside COCbot/webui/frontend).
-    3. ``webui/index.html`` - the zero-dependency fallback page.
+    The React/Vite frontend that used to live in ``frontend/`` has been
+    removed in favour of a catalog-driven approach; the pywebview bridge
+    below is renderer-agnostic, so the next UI plugs straight into it.
     """
     import os
     from pathlib import Path
@@ -241,15 +239,10 @@ def run() -> None:
 
     api = BotApi()
     dev_url = os.environ.get("WEBUI_DEV_URL")
-    react_index = Path(__file__).parent / "frontend" / "dist" / "index.html"
     fallback = Path(__file__).with_name("index.html")
+    url = dev_url or str(fallback)
     if dev_url:
-        url = dev_url
-        print(f"[WEB] dev server: {dev_url}")
-    elif react_index.is_file():
-        url = str(react_index)
-    else:
-        url = str(fallback)
+        print(f"[WEB] dev page: {dev_url}")
     try:
         width = int(os.environ.get("WEBUI_WIDTH", "480"))
         height = int(os.environ.get("WEBUI_HEIGHT", "860"))

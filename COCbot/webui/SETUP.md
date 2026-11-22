@@ -1,65 +1,39 @@
-# Web UI (pywebview + React + Tailwind + shadcn/ui)
+# Web UI (pywebview — renderer-agnostic)
 
 Giao diện web chạy trong cửa sổ desktop qua **pywebview** (engine
 WebView2/EdgeChromium). Backend Python giữ nguyên toàn bộ runtime của bot
 — JS chỉ gọi API qua bridge `pywebview.api.*`.
 
+> **Ghi chú kiến trúc (2026-11-22):** stack React/Vite/shadcn
+> (`frontend/`) đã được gỡ để chuyển sang cách tiếp cận
+> **catalog-driven** — giao diện được sinh ra từ một danh mục cấu trúc
+> (catalog) thay vì code tay từng component + node_modules. Bản React
+> cuối cùng (kèm tab AttackPlan) vẫn nằm trong git history ở commit
+> `c4741c9` nếu cần tham khảo. Bridge Python dưới đây không đổi —
+> renderer mới cắm thẳng vào.
+
 ## Lệnh chạy
 
-**Một click** (convention giống `Start_GLM_OCR.bat`):
-
-- `Start_WebUI_Dev.bat` — Vite dev server + pywebview trỏ vào nó
-  (hot reload khi bạn đang code UI). Không cần gõ biến môi trường.
-- `Start_WebUI.bat` — `npm run build` + mở pywebview bằng bản dist.
-
-Hoặc thủ công:
-
 ```powershell
-.\.venv\Scripts\python.exe run_web.py      # mở cửa sổ web UI
-```
-
-## Workflow env
-
-`COCbot/webui/.env` (copy từ `.env.example`; file thật nằm trong
-.gitignore, biến shell luôn thắng giá trị trong file):
-
-```ini
-WEBUI_DEV_URL=              # trống = dùng bản build; đặt http://localhost:5173 khi dev
-WEBUI_WIDTH=480
-WEBUI_HEIGHT=670
-```
-
-Trang được chọn theo thứ tự:
-
-1. `WEBUI_DEV_URL` (env / .env) — Vite dev server
-2. `frontend/dist/index.html` — bản build React (`npm run build`)
-3. `webui/index.html` — trang fallback không cần build (được viết sẵn,
-   chỉ để dự phòng khi chưa có dist)
-
-## Dev loop (cho bạn code UI)
-
-```powershell
-Start_WebUI_Dev.bat
-# hoặc tay:
-cd COCbot\webui\frontend ; npm run dev
-# terminal 2:
-$env:WEBUI_DEV_URL='http://localhost:5173'
+Start_WebUI.bat                          # double-click
+# hoặc:
 .\.venv\Scripts\python.exe run_web.py
 ```
 
-Dev server đang bật thì **KHÔNG bấm Start bot** trong cùng cửa sổ đó —
-JS bridge vẫn hoạt động, nhưng để tránh nhầm lẫn giữa 2 phiên bản trang,
-nên test bot bằng bản build.
+Trang: `COCbot/webui/index.html` (kèm sẵn trong repo, không cần build).
+Muốn xem trang dev khác (vd. preview catalog): đặt `WEBUI_DEV_URL`
+trong `.env` (copy từ `.env.example`).
 
-## Build
+## Workflow env
 
-```powershell
-cd COCbot\webui\frontend
-npm run build        # -> dist/, pywebview tự dùng bản này (bỏ env WEBUI_DEV_URL)
+`COCbot/webui/.env` (file thật nằm trong .gitignore, biến shell luôn
+thắng giá trị trong file):
+
+```ini
+WEBUI_DEV_URL=              # trống = dùng webui/index.html
+WEBUI_WIDTH=480
+WEBUI_HEIGHT=860
 ```
-
-Lưu ý `vite.config.ts` đã đặt `base: './'` — bắt buộc để bản build nạp
-được qua `file://` trong pywebview. **Đừng xoá dòng này.**
 
 ## Bridge API (JS → Python)
 
@@ -78,17 +52,6 @@ Form `start(form)` nhận các key ngưỡng/toggle (`gold_threshold`,
 `elixir_threshold`, `dark_elixir_threshold`, `attack_side`,
 `drop_spells`, `check_troops`); mọi key khác của settings.json được
 giữ nguyên phía Python (danh sách `_PRESERVED_KEYS` trong `app.py`).
-
-## Dark mode
-
-Theme CSS của shadcn (preset `mira`) đã có sẵn block `.dark`. Muốn mặc
-đèn tối: đặt class trên `<html>`:
-
-```tsx
-// index.html: <html lang="vi" class="dark">
-```
-
-và dùng component theo biến `dark:` của Tailwind khi cần chốt từng chỗ.
 
 ## Ghi chú kiến trúc
 

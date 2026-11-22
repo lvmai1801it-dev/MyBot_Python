@@ -6,33 +6,6 @@ on:
   pull_request:
 
 jobs:
-  frontend:
-    name: React build (Vite + Tailwind + shadcn)
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: COCbot/webui/frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: COCbot/webui/frontend/package-lock.json
-      - name: Install
-        run: npm ci
-      - name: Build
-        run: npm run build
-      - name: Relative asset paths (file:// for pywebview)
-        shell: pwsh
-        working-directory: COCbot/webui/frontend
-        run: |
-          $html = Get-Content dist/index.html -Raw
-          if ($html -notmatch '\./assets/') {
-            Write-Error "dist assets are not relative - check base:'./' in vite.config.ts"
-            exit 1
-          }
-
   python-syntax:
     name: Python syntax gate
     runs-on: ubuntu-latest
@@ -44,5 +17,7 @@ jobs:
       # compileall only parses - no PyQt/OpenCV deps needed here. The full
       # unit suite (106 tests) stays local: it needs the heavy CV stack
       # (PaddleOCR, ultralytics, onnxruntime) that is not CI-friendly.
+      # The frontend build job will return together with the catalog-driven
+      # UI (no node toolchain in the tree right now).
       - name: compileall
         run: python -m compileall -q COCbot tools run.py run_web.py
