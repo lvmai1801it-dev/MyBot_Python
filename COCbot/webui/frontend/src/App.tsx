@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LogTab, type LogEntry } from "@/components/tabs/LogTab";
 import { VillageTab } from "@/components/tabs/VillageTab";
-
+import { AttackPlanTab } from "@/components/tabs/AttackPlanTab";
 declare global {
   interface Window {
     pywebview?: {
@@ -150,9 +150,7 @@ export default function App() {
           </TabsContent>
 
           <TabsContent value="attack" className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden">
-            <div className="h-full flex items-center justify-center border border-dashed border-slate-800 rounded-md text-slate-500">
-              Gá»­i áº£nh tab Attack Plan Ä‘á»ƒ thiáº¿t káº¿ ná»™i dung táº¡i Ä‘Ã¢y
-            </div>
+           <AttackPlanTab />
           </TabsContent>
 
           <TabsContent value="bot" className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden">
