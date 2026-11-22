@@ -81,6 +81,7 @@ walls/
 # WEB UI (pywebview)
 # ==========================================
 COCbot/webui/.env
+COCbot/webui/_generated/
 
 # Scratch dirs (none exist yet; anchored so future nested "tool"/"test"
 # folders elsewhere are not accidentally ignored).

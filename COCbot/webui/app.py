@@ -25,6 +25,7 @@ import webview
 
 from COCbot.app import emulator_detect, state as main
 from COCbot.gui.settings_store import load_settings, save_settings
+from COCbot.webui.render import render_page
 
 # Keys the web form does not own; always preserved from settings.json so
 # a web-side save can never silently drop the Qt-side or runtime fields.
@@ -239,10 +240,16 @@ def run() -> None:
 
     api = BotApi()
     dev_url = os.environ.get("WEBUI_DEV_URL")
-    fallback = Path(__file__).with_name("index.html")
-    url = dev_url or str(fallback)
     if dev_url:
+        url = dev_url
         print(f"[WEB] dev page: {dev_url}")
+    else:
+        # Catalog-driven: the page is GENERATED from catalog.py - no
+        # hand-written HTML anywhere. Refreshed on every launch.
+        generated = Path(__file__).parent / "_generated" / "index.html"
+        generated.parent.mkdir(parents=True, exist_ok=True)
+        generated.write_text(render_page(), encoding="utf-8")
+        url = str(generated)
     try:
         width = int(os.environ.get("WEBUI_WIDTH", "480"))
         height = int(os.environ.get("WEBUI_HEIGHT", "860"))
